@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="冰箱贴小世界" />
+  <meta name="theme-color" content="#f8dfc0" />
+  <title>冰箱贴小世界</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="c"></canvas>
+
+    <div id="hud">
+      <div id="title-card">
+        <span id="scene-emoji"></span>
+        <div>
+          <div id="scene-name"></div>
+          <div id="scene-style"></div>
+        </div>
+      </div>
+
+      <div id="top-buttons">
+        <button id="btn-fridge" class="pill" title="打开冰箱，查看冰箱贴">🧊 冰箱</button>
+        <button id="btn-reset" class="pill" title="回到全貌">🔭 全貌</button>
+        <button id="btn-full" class="pill icon" title="全屏" hidden>⛶</button>
+        <button id="btn-sound" class="pill icon" title="声音开关">🔊</button>
+      </div>
+
+      <div id="mode-switch">
+        <button data-mode="god" class="active">👁 上帝视角</button>
+        <button data-mode="life">🚶 进入生活</button>
+      </div>
+
+      <div id="goal">
+        <div id="goal-text"></div>
+        <div id="slots"></div>
+      </div>
+
+      <div id="hint"></div>
+      <div id="prompt" hidden></div>
+
+      <!-- 触控：生活模式的虚拟摇杆和互动按钮 -->
+      <div id="joystick" hidden><div class="stick"></div></div>
+      <button id="btn-action" hidden></button>
+    </div>
+
+    <div id="tooltip" hidden></div>
+
+    <div id="dialog" hidden>
+      <div class="dlg-name"></div>
+      <div class="dlg-text"></div>
+      <div class="dlg-next">▼</div>
+    </div>
+
+    <div id="toast-layer"></div>
+
+    <div id="fridge" class="overlay" hidden>
+      <div class="fridge-body">
+        <div class="fridge-top">
+          <div class="fridge-handle"></div>
+          <div class="fridge-title">我的冰箱</div>
+          <div id="magnets"></div>
+          <div id="fridge-count"></div>
+        </div>
+        <div class="fridge-bottom">
+          <div class="fridge-handle"></div>
+        </div>
+      </div>
+      <button id="fridge-close" class="pill">关上冰箱</button>
+    </div>
+
+    <div id="combine" class="overlay" hidden>
+      <div class="combine-stage">
+        <div id="combine-items"></div>
+        <div id="combine-flash"></div>
+        <div id="combine-magnet"></div>
+      </div>
+      <div id="combine-text"></div>
+      <button id="combine-btn" class="pill big" hidden>贴到冰箱上 →</button>
+    </div>
+
+    <div id="intro" class="overlay" hidden>
+      <div class="card">
+        <div class="intro-magnet">🧲</div>
+        <h1>冰箱贴小世界</h1>
+        <p>每一块冰箱贴里，都藏着一个小小的世界。</p>
+        <p>在当前世界里找到 <b>3 样隐藏的东西</b>，<br />它们会组合成下一块冰箱贴，带你去新的世界。</p>
+        <ul class="only-mouse">
+          <li>🖱 拖动旋转 · 滚轮缩放 · <b>点击任何地方放大看细节</b></li>
+          <li>👁 上帝视角：看小人们过日子，点他们聊聊天</li>
+          <li>🚶 进入生活：WASD / 方向键 / 点击地面走动，靠近东西就能捡起来</li>
+        </ul>
+        <ul class="only-touch">
+          <li>👆 单指拖动旋转 · 双指缩放 · <b>轻点任何地方放大看细节</b></li>
+          <li>👁 上帝视角：看小人们过日子，点他们聊聊天</li>
+          <li>🚶 进入生活：用左下角摇杆或点地面走动，靠近东西就能捡起来</li>
+        </ul>
+        <button id="intro-btn" class="pill big">开始收集！</button>
+      </div>
+    </div>
+
+    <div id="fade"></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

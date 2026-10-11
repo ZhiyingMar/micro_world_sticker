@@ -1,0 +1,16 @@
+# 依赖与构建产物
+node_modules
+dist
+
+# 本地工具/编辑器配置
+.claude
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# 环境变量与日志（可能含敏感信息）
+.env
+.env.*
+*.log
+npm-debug.log*
