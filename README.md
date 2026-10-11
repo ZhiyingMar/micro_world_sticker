@@ -1,5 +1,7 @@
 # 🧲 冰箱贴小世界
 
+**在线试玩：https://zhiyingmar.github.io/micro_world_sticker/**
+
 一个网页上的探索收集小游戏：冰箱上的每一块冰箱贴，都是一个可以放大、旋转的立方体小世界。在世界里找到 3 样隐藏的东西，它们会合成下一块冰箱贴，带你去风格完全不同的新世界。
 
 ## 世界
@@ -32,6 +34,8 @@ npm run dev
 ```
 
 打包：`npm run build`，产物在 `dist/`，是纯静态文件，可以放到任意静态托管上。
+
+推送到 `main` 分支后，GitHub Actions（`.github/workflows/deploy.yml`）会自动打包并发布到 GitHub Pages。
 
 ## 代码结构
 
