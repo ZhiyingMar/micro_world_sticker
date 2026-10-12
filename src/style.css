@@ -128,6 +128,41 @@ body.style-pixel .pill { border-radius: 4px; }
 }
 #mode-switch button.active { background: var(--orange); color: #fff; }
 
+/* 还没试过“进入生活”时的提示 */
+#mode-switch.nudge button[data-mode="life"] { animation: life-pulse 1.6s ease-in-out infinite; color: var(--brown); }
+#life-nudge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 14px);
+  transform: translateX(-30%);
+  background: var(--brown);
+  color: var(--cream);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 9px 14px;
+  border-radius: 14px;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(107, 79, 58, 0.3);
+  animation: nudge-bob 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+#life-nudge::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  top: 100%;
+  border: 8px solid transparent;
+  border-top-color: var(--brown);
+}
+@keyframes life-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 162, 89, 0.7); background: transparent; }
+  50% { box-shadow: 0 0 0 8px rgba(244, 162, 89, 0); background: #ffe2c4; }
+}
+@keyframes nudge-bob {
+  0%, 100% { transform: translateX(-30%) translateY(0); }
+  50% { transform: translateX(-30%) translateY(-6px); }
+}
+
 #goal {
   position: absolute;
   left: 50%;
@@ -581,8 +616,53 @@ body.touch #prompt { display: none; }
 @keyframes flash { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(30); opacity: 0; } }
 @keyframes magnet-in { from { transform: scale(0.2) rotate(-30deg); opacity: 0; } to { transform: scale(1) rotate(-3deg); opacity: 1; } }
 
+/* ---------- 手机横屏：高度很紧，收集栏挪到右侧竖排，把高度留给画面 ---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+  #title-card { top: 10px; left: 10px; padding: 6px 12px 6px 8px; border-radius: 16px; }
+  #scene-emoji { font-size: 22px; }
+  #scene-name { font-size: 15px; }
+  #scene-style { display: none; }
+  #top-buttons { top: 10px; right: 10px; gap: 6px; }
+  #top-buttons .pill { padding: 7px 10px; font-size: 13px; }
+  #mode-switch { left: 10px; bottom: 10px; padding: 4px; }
+  #mode-switch button { font-size: 12px; padding: 6px 10px; }
+  #hint { display: none; }
+  #goal {
+    left: auto;
+    right: 10px;
+    top: 58px;
+    bottom: auto;
+    transform: none;
+    padding: 8px 8px 6px;
+    border-radius: 18px;
+  }
+  #goal-text { display: none; }
+  #slots { flex-direction: column; gap: 6px; }
+  .slot { width: 48px; }
+  .slot-icon { width: 38px; height: 38px; font-size: 20px; border-radius: 12px; }
+  .slot-name { font-size: 10px; }
+  #dialog { bottom: 12px; min-height: 0; padding: 18px 22px 14px; font-size: 14px; width: min(480px, calc(100% - 200px)); }
+  #prompt { bottom: 60px; }
+  #toast-layer { top: 54px; }
+  #joystick { left: 16px; bottom: 56px; width: 110px; height: 110px; }
+  #joystick .stick { width: 50px; height: 50px; margin: -25px 0 0 -25px; }
+  #btn-action { right: 72px; bottom: 16px; min-width: 76px; height: 76px; font-size: 13px; }
+  #btn-action .a-icon { font-size: 26px; }
+  .fridge-top { min-height: 0; padding: 12px 14px 10px 36px; }
+  .fridge-bottom { display: none; }
+  .fridge-title { margin-bottom: 8px; }
+  .magnet { height: 92px; }
+  .magnet--cozy { width: 96px; }
+  .magnet .m-emoji { font-size: 28px; }
+  #magnets { gap: 10px 12px; }
+  .card { padding: 16px 22px; max-height: calc(100vh - 24px); overflow: auto; }
+  .card ul { margin: 8px 0 12px; }
+  .intro-magnet { font-size: 34px; }
+  .card h1 { font-size: 20px; margin: 2px 0 6px; }
+}
+
 /* ---------- Small screens ---------- */
-@media (max-width: 720px) {
+@media (max-width: 720px) and (min-height: 501px) {
   #title-card { padding: 8px 14px 8px 10px; }
   #scene-emoji { font-size: 24px; }
   #scene-name { font-size: 16px; }
@@ -591,6 +671,9 @@ body.touch #prompt { display: none; }
   #btn-reset { display: none; }
   #mode-switch { bottom: auto; top: 80px; }
   #mode-switch button { font-size: 12px; padding: 7px 10px; }
+  /* 手机上切换按钮在顶部，提示气泡改到下方 */
+  #life-nudge { bottom: auto; top: calc(100% + 14px); font-size: 13px; }
+  #life-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--brown); }
   #hint { display: none; }
   #goal-text { white-space: normal; }
   .slot { width: 56px; }

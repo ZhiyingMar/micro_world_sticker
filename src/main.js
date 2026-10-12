@@ -51,6 +51,7 @@ let talking = null;
 let busy = false; // 合成动画/切换场景时锁定操作
 let intro = null; // 方块落下动画
 let focus = null; // 相机平滑移动
+let atDefaultView = true; // 还停在开场全貌（没被玩家转动过），旋转屏幕时会重新取景
 const anims = [];
 const input = { up: false, down: false, left: false, right: false, ax: 0, az: 0 };
 // 触控设备：一开始按设备能力判断，之后只要碰到触摸就切到触控界面
@@ -68,17 +69,99 @@ function applySize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
-addEventListener('resize', applySize);
+addEventListener('resize', () => {
+  applySize();
+  // 横竖屏切换：如果玩家还没动过镜头，就按新的屏幕重新取景
+  if (world && mode === 'god' && atDefaultView && !focus) {
+    const v = defaultView(world.def);
+    camera.position.copy(v.pos);
+    controls.target.copy(v.target);
+    controls.update();
+  }
+});
+controls.addEventListener('start', () => (atDefaultView = false));
 
 // ---------------- 场景加载 ----------------
+// 界面元素在四边占掉的空间（NDC 坐标）。横跨屏幕中间的挡上下，竖跨中间的挡左右，角落里的小按钮不管
+function safeArea() {
+  const W = innerWidth;
+  const H = innerHeight;
+  const pad = { top: 10, bottom: 10, left: 10, right: 10 };
+  for (const sel of ['#title-card', '#top-buttons', '#mode-switch', '#goal']) {
+    const r = document.querySelector(sel).getBoundingClientRect();
+    if (!r.width) continue;
+    const hc = r.right > W * 0.28 && r.left < W * 0.72;
+    const vc = r.bottom > H * 0.3 && r.top < H * 0.7;
+    if (hc && !vc) {
+      if (r.top + r.bottom < H) pad.top = Math.max(pad.top, r.bottom + 6);
+      else pad.bottom = Math.max(pad.bottom, H - r.top + 6);
+    } else if (vc && !hc) {
+      if (r.left + r.right < W) pad.left = Math.max(pad.left, r.right + 6);
+      else pad.right = Math.max(pad.right, W - r.left + 6);
+    }
+  }
+  return { x0: -1 + (2 * pad.left) / W, x1: 1 - (2 * pad.right) / W, y0: -1 + (2 * pad.bottom) / H, y1: 1 - (2 * pad.top) / H };
+}
+
+const _fitCam = new THREE.PerspectiveCamera();
+// 开场全貌：让方块的地面（和后排的高处）刚好填满界面之间的空白
 function defaultView(def) {
   const c = def.camera;
-  const pos = new THREE.Vector3(...c.pos);
   const target = new THREE.Vector3(...c.target);
-  // 竖屏时水平视野窄，按宽高比把镜头拉远，保证整个方块都在画面里
-  const fit = Math.max(1, 1.3 / (innerWidth / innerHeight));
-  pos.sub(target).multiplyScalar(fit).add(target);
-  controls.maxDistance = Math.max(26, pos.distanceTo(target) * 1.2);
+  const off = new THREE.Vector3(...c.pos).sub(target);
+  const aspect = innerWidth / innerHeight;
+  // 竖屏时把镜头转得更正一些：斜着看方块最宽，正一点同样宽度能放得更大
+  const sph = new THREE.Spherical().setFromVector3(off);
+  if (aspect < 0.85) {
+    let az = sph.theta * 0.35;
+    if (c.minAz !== undefined) az = Math.max(az, c.minAz + 0.05);
+    if (c.maxAz !== undefined) az = Math.min(az, c.maxAz - 0.05);
+    sph.theta = az;
+  }
+  const dir = new THREE.Vector3().setFromSpherical(sph).normalize();
+
+  const H = c.fitH ?? 2.5;
+  const pts = [];
+  for (const x of [-5, 5]) for (const z of [-5, 5]) pts.push(new THREE.Vector3(x, 0, z));
+  for (const x of [-5, 5]) pts.push(new THREE.Vector3(x, H, -5));
+  const safe = safeArea();
+  _fitCam.fov = camera.fov;
+  _fitCam.aspect = aspect;
+  _fitCam.updateProjectionMatrix();
+  const bbox = (d, t) => {
+    _fitCam.position.copy(t).addScaledVector(dir, d);
+    _fitCam.lookAt(t);
+    _fitCam.updateMatrixWorld();
+    const b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    for (const p of pts) {
+      const v = p.clone().project(_fitCam);
+      b.x0 = Math.min(b.x0, v.x);
+      b.x1 = Math.max(b.x1, v.x);
+      b.y0 = Math.min(b.y0, v.y);
+      b.y1 = Math.max(b.y1, v.y);
+    }
+    return b;
+  };
+  // 二分找“刚好装得下”的距离，再把画面中心对准空白区域的中心
+  let lo = 3;
+  let hi = 150;
+  for (let i = 0; i < 28; i++) {
+    const mid = (lo + hi) / 2;
+    const b = bbox(mid, target);
+    if (b.x1 - b.x0 <= safe.x1 - safe.x0 && b.y1 - b.y0 <= safe.y1 - safe.y0) hi = mid;
+    else lo = mid;
+  }
+  const d = hi * 1.03;
+  for (let i = 0; i < 2; i++) {
+    const b = bbox(d, target);
+    const halfH = d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const right = new THREE.Vector3().setFromMatrixColumn(_fitCam.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(_fitCam.matrixWorld, 1);
+    target.addScaledVector(right, ((b.x0 + b.x1) / 2 - (safe.x0 + safe.x1) / 2) * halfH * aspect);
+    target.addScaledVector(up, ((b.y0 + b.y1) / 2 - (safe.y0 + safe.y1) / 2) * halfH);
+  }
+  const pos = target.clone().addScaledVector(dir, d);
+  controls.maxDistance = Math.max(26, d * 1.3);
   return { pos, target };
 }
 
@@ -100,6 +183,11 @@ function loadScene(id) {
   sun.intensity = si;
   sun.position.set(...sp);
 
+  // 先把界面画出来，取景时要量收集栏等占了多少地方
+  ui.setScene(def);
+  sfx.ambient(def.ambient || null);
+  applySize();
+
   const c = def.camera;
   controls.minDistance = c.min || 2.5;
   controls.maxPolarAngle = c.maxPolar || 1.3;
@@ -110,14 +198,12 @@ function loadScene(id) {
   controls.target.copy(v.target);
   controls.update();
   focus = null;
+  atDefaultView = true;
 
   state.current = id;
   if (state.newMagnet === id) state.newMagnet = null;
   save();
 
-  ui.setScene(def);
-  sfx.ambient(def.ambient || null);
-  applySize();
   if (mode === 'life') spawnPlayer();
   intro = { t: 0 };
   world.root.scale.setScalar(0.001);
@@ -155,6 +241,26 @@ function spawnPlayer() {
   lifeLook.copy(wp);
 }
 
+// “进入生活”的提示气泡：玩家试过一次之后就不再出现
+function showLifeNudge(on) {
+  document.getElementById('mode-switch').classList.toggle('nudge', on);
+  document.getElementById('life-nudge').hidden = !on;
+}
+function scheduleLifeNudge() {
+  if (state.triedLife) return;
+  setTimeout(() => {
+    if (!state.triedLife && mode === 'god') showLifeNudge(true);
+  }, 4000);
+}
+
+// 手机竖屏时提示一次：横过来画面更大
+function maybeRotateHint() {
+  if (state.rotateHinted || !touchMode || innerHeight < innerWidth * 1.2) return;
+  setTimeout(() => ui.toast('📱 把手机横过来玩，画面更大哦'), 1200);
+  state.rotateHinted = true;
+  save();
+}
+
 function setMode(m) {
   if (m === mode || busy) return;
   mode = m;
@@ -162,6 +268,11 @@ function setMode(m) {
   sfx.click();
   endTalk();
   if (m === 'life') {
+    if (!state.triedLife) {
+      state.triedLife = true;
+      save();
+    }
+    showLifeNudge(false);
     controls.enabled = false;
     focus = null;
     spawnPlayer();
@@ -182,6 +293,7 @@ document.querySelectorAll('#mode-switch button').forEach((b) => b.addEventListen
 
 // ---------------- 相机 ----------------
 function focusOn(target, dist) {
+  atDefaultView = false;
   const dir = camera.position.clone().sub(controls.target).normalize();
   focus = {
     t: 0,
@@ -193,10 +305,26 @@ function focusOn(target, dist) {
   };
 }
 
+// 电话亭、空心木头这类“里面藏着东西”的物体：点它时镜头凑到开口处往里看
+function peekAt(obj) {
+  let o = obj;
+  while (o && !o.userData.peek) o = o.parent;
+  if (!o) return false;
+  const { target, from } = o.userData.peek;
+  const t = world.root.localToWorld(new THREE.Vector3(...target));
+  const p = world.root.localToWorld(new THREE.Vector3(...target).add(new THREE.Vector3(...from)));
+  // 已经在这个角度附近了，就当普通点击处理（继续放大）
+  if (camera.position.distanceTo(p) < 0.6) return false;
+  focus = { t: 0, dur: 0.8, fromT: controls.target.clone(), toT: t, fromP: camera.position.clone(), toP: p };
+  atDefaultView = false;
+  return true;
+}
+
 function resetView() {
   if (mode === 'life') setMode('god');
   const v = defaultView(world.def);
   focus = { t: 0, dur: 0.9, fromT: controls.target.clone(), toT: v.target, fromP: camera.position.clone(), toP: v.pos };
+  atDefaultView = true;
 }
 document.getElementById('btn-reset').addEventListener('click', () => {
   sfx.click();
@@ -233,12 +361,22 @@ function updateCamera(dt) {
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 
+// 点击判定时要跳过的东西：雨丝、粒子、光晕、看不见的物体、半透明玻璃
+function blocksPick(o) {
+  if (o.isSprite || o.isPoints || o.isLine) return false;
+  if (o.userData.pickable) return true; // 物品的隐形点击范围
+  for (let p = o; p; p = p.parent) if (!p.visible) return false;
+  const m = o.material;
+  if (m && !Array.isArray(m) && m.transparent && m.opacity < 0.95) return false;
+  return true;
+}
+
 function pick(clientX, clientY) {
   ndc.set((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObject(world.root, true);
   for (const h of hits) {
-    if (h.object.isSprite || h.object.isPoints) continue;
+    if (!blocksPick(h.object)) continue;
     let o = h.object;
     while (o && o !== world.root) {
       if (o.userData.itemId) return { type: 'item', id: o.userData.itemId, obj: o, point: h.point };
@@ -249,7 +387,7 @@ function pick(clientX, clientY) {
       if (o.userData.action) return { type: 'action', action: o.userData.action, point: h.point };
       o = o.parent;
     }
-    return { type: 'ground', point: h.point };
+    return { type: 'ground', point: h.point, obj: h.object };
   }
   return null;
 }
@@ -270,13 +408,14 @@ function pickNear(cx, cy, radius) {
     if (_v.z > 1) continue;
     const sx = ((_v.x + 1) / 2) * innerWidth;
     const sy = ((1 - _v.y) / 2) * innerHeight;
-    const d = Math.hypot(sx - cx, sy - cy);
+    // 找东西是主线：附近有物品时优先选物品（小人的判定距离按 2.5 倍算）
+    const d = Math.hypot(sx - cx, sy - cy) * (c.type === 'villager' ? 2.5 : 1);
     if (d >= bd) continue;
     // 被墙或家具挡住的不算
     const dir = c.pos.clone().sub(camera.position);
     const dist = dir.length();
     raycaster.set(camera.position, dir.normalize());
-    const first = raycaster.intersectObject(world.root, true).find((h) => !h.object.isSprite && !h.object.isPoints);
+    const first = raycaster.intersectObject(world.root, true).find((h) => blocksPick(h.object));
     if (first && first.distance < dist - 0.45) {
       let o = first.object;
       let mine = false;
@@ -315,11 +454,12 @@ function handleClick(cx, cy, touch = false) {
     if (hit.type === 'item') collect(hit.id);
     else if (hit.type === 'villager') talkTo(hit.v);
     else if (hit.type === 'action' && hit.action === 'fridge') openFridge();
+    else if (peekAt(hit.obj)) sfx.click();
     else {
       const d = camera.position.distanceTo(controls.target);
       const target = hit.point.clone();
       target.y = Math.min(target.y, 3);
-      focusOn(target, Math.max(controls.minDistance + 0.3, d * 0.55));
+      focusOn(target, Math.max(controls.minDistance + 0.3, d * (touch ? 0.45 : 0.55)));
       sfx.click();
     }
     return;
@@ -715,7 +855,12 @@ if (!state.seenIntro) {
   ui.intro().then(() => {
     state.seenIntro = true;
     save();
+    scheduleLifeNudge();
+    maybeRotateHint();
   });
+} else {
+  scheduleLifeNudge();
+  maybeRotateHint();
 }
 
 // 调试用：在控制台里 window.__mw 可以看到状态
@@ -728,6 +873,7 @@ window.__mw = {
   controls,
   travel,
   setMode,
+  pick,
   // 窗口在后台时 requestAnimationFrame 会暂停，用它手动推进若干帧
   step(n = 60, render = true) {
     for (let i = 0; i < n; i++) frame(1 / 60, render && i === n - 1);

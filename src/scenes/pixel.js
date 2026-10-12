@@ -74,7 +74,7 @@ export default {
     hemi: ['#eaf4ff', '#6fae5f', 1.7],
     sun: ['#ffffff', 2.8, [-5, 12, 8]],
   },
-  camera: { pos: [11.5, 11.5, 14.5], target: [0, 0.6, 0], maxPolar: 1.3, min: 3 },
+  camera: { pos: [11.5, 11.5, 14.5], target: [0, 0.6, 0], fitH: 2.6, maxPolar: 1.3, min: 3 },
   spawn: [0, 3.6],
   next: 'city',
   items: [

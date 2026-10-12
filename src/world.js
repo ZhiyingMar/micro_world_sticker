@@ -82,6 +82,7 @@ export class World {
     g.add(model);
     const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), proxyMat);
     proxy.castShadow = false;
+    proxy.userData.pickable = true;
     g.add(proxy);
     g.position.set(x, y, z);
     g.rotation.y = ry;

@@ -122,7 +122,7 @@ export default {
     hemi: ['#6a78c0', '#1e2238', 1.0],
     sun: ['#aab8ff', 0.9, [-6, 10, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], maxPolar: 1.3, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
   spawn: [0, -1.0],
   next: 'london',
   items: [

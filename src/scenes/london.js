@@ -173,7 +173,7 @@ function phoneBooth(w, x, z) {
   dp.add(at(k.box(0.06, 1.3, 0.06, red, 0), 0.6, 0, 0));
   door.add(dp);
   door.position.set(-0.31, 0.85, 0.36);
-  door.rotation.y = -1.1;
+  door.rotation.y = -2.0; // 向左外侧敞开，不挡住往里看的视线
   g.add(door);
   g.add(at(k.box(0.86, 0.14, 0.86, red, 0.03), 0, 1.72, 0));
   const crown = k.cyl(0.42, 0.42, 0.78, red, 16);
@@ -184,6 +184,8 @@ function phoneBooth(w, x, z) {
   g.add(at(sign, 0, 1.6, 0.4));
   g.add(at(k.box(0.18, 0.24, 0.1, '#1c1c22', 0.02), 0, 1.15, -0.27));
   g.add(at(k.box(0.36, 0.04, 0.2, '#6b4f3a', 0.01), 0, 0.72, -0.22));
+  // 点电话亭时，镜头凑到门口往里看
+  g.userData.peek = { target: [x, 0.8, z], from: [0.5, 0.9, 2.6] };
   w.add(g, x, 0, z);
   w.solid(g.children[0], -0.02);
   w.add(glow('#fff4d0', 1.6, 0.25), x, 1.2, z);
@@ -359,7 +361,7 @@ export default {
     hemi: ['#c4cede', '#4a5260', 1.35],
     sun: ['#d0dcef', 1.1, [5, 10, 6]],
   },
-  camera: { pos: [11.5, 11.5, 14.5], target: [0, 1.2, 0], maxPolar: 1.3, min: 2.5 },
+  camera: { pos: [11.5, 11.5, 14.5], target: [0, 1.2, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
   spawn: [0.2, -0.8],
   next: 'beach',
   items: [
@@ -524,7 +526,7 @@ export default {
     w.placeItem('shell', 2.45, 0.1, -4.3);
     w.placeItem('beachball', 2.95, 0.14, 3.95, { spin: false });
 
-    w.poi(1.4, -1.85, { emote: '☎', face: Math.PI, dur: 6 });
+    w.poi(0.7, -1.95, { emote: '☎', face: 2.36, dur: 6 }); // 站在电话亭侧前方，不挡门口
     w.poi(3.3, -2.2, { emote: '🕰', face: 0, dur: 9 });
     w.poi(-2.1, -2.0, { emote: '🏠', face: Math.PI, dur: 6 });
     w.poi(-1.6, 0.25, { emote: '🚌', face: 0, dur: 6 });

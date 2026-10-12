@@ -96,7 +96,7 @@ export default {
     hemi: ['#e8f7ff', '#b5e39a', 1.9],
     sun: ['#fffbe8', 2.6, [6, 12, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], maxPolar: 1.32, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: 3, maxPolar: 1.32, min: 2.5 },
   spawn: [0, 3.9],
   next: 'pixel',
   items: [
@@ -218,6 +218,8 @@ export default {
     moss.scale.set(1.6, 0.5, 1);
     log.add(at(moss, -0.32, 0.2, 0));
     log.rotation.z = Math.PI / 2;
+    // 点木头时，镜头转到开口那头往里看
+    log.userData.peek = { target: [-0.95, 0.35, 2.9], from: [2.6, 0.8, 0.4] };
     w.add(log, -1.6, 0.36, 2.9);
     w.solid(log);
     w.poi(-1.6, 3.75, { emote: '🐛', face: Math.PI, dur: 5 });

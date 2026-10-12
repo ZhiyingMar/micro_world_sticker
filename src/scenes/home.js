@@ -321,7 +321,7 @@ export default {
     hemi: ['#fff4e0', '#c8a27a', 1.7],
     sun: ['#fff1d6', 2.4, [6, 11, 7]],
   },
-  camera: { pos: [9.5, 9.5, 12.5], target: [0, 1, -0.5], minAz: 0.02, maxAz: 1.48, maxPolar: 1.25, min: 2.2 },
+  camera: { pos: [9.5, 9.5, 12.5], target: [0, 1, -0.5], fitH: 4.4, minAz: 0.02, maxAz: 1.48, maxPolar: 1.25, min: 2.2 },
   bounds: { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 },
   spawn: [1.6, 2.8],
   next: 'forest',
