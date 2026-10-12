@@ -591,6 +591,69 @@ body.touch #prompt { display: none; }
 .card ul { text-align: left; font-size: 14px; line-height: 1.8; padding-left: 4px; list-style: none; margin: 16px 0 22px; background: var(--cream-2); border-radius: 18px; padding: 12px 16px; }
 .intro-magnet { font-size: 54px; animation: bob 1.6s ease-in-out infinite; }
 
+/* 冰箱贴多了之后，小屏幕上可以滚动 */
+.overlay { overflow-y: auto; justify-content: safe center; }
+#magnets .m-finale { grid-column: 1 / -1; justify-self: center; width: min(260px, 70%); }
+
+.magnet--finale {
+  background: #ffffff;
+  color: var(--brown);
+  border-radius: 6px;
+  padding: 10px 10px 8px;
+  border: none;
+  box-shadow: 0 0 0 3px #f2c94c, 0 0 18px rgba(242, 201, 76, 0.7), 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+.magnet--finale .m-emoji {
+  width: 100%;
+  border-radius: 3px;
+  background: linear-gradient(#bfe9ff, #fff1c9);
+  padding: 6px 0;
+  font-size: 36px;
+}
+
+/* 结局 */
+.ending-card { max-width: 440px; position: relative; z-index: 1; }
+.polaroid {
+  background: #ffffff;
+  padding: 12px 12px 8px;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(107, 79, 58, 0.25);
+  transform: rotate(-3deg);
+  margin: 4px auto 16px;
+  max-width: 320px;
+  animation: polaroid-in 0.9s cubic-bezier(.3, 1.4, .5, 1);
+}
+.photo {
+  aspect-ratio: 4 / 3;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #8fd8ff 0%, #c9efff 55%, #ffe9b0 56%, #f6dca0 100%);
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 4px 10px;
+  padding: 10px;
+  font-size: 40px;
+}
+.photo span { display: inline-block; animation: bob 1.6s ease-in-out infinite; }
+.polaroid-caption { font-family: "Comic Sans MS", var(--font); font-size: 13px; color: var(--brown-soft); padding-top: 8px; }
+.ending-names { font-size: 13px; color: var(--brown-soft); line-height: 1.7; }
+.ending-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+#confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+#confetti i {
+  position: absolute;
+  top: -40px;
+  font-style: normal;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(110vh) rotate(720deg); }
+}
+@keyframes polaroid-in {
+  from { transform: rotate(-20deg) scale(0.5); opacity: 0; }
+  to { transform: rotate(-3deg) scale(1); opacity: 1; }
+}
+
 #fade {
   position: absolute;
   inset: 0;

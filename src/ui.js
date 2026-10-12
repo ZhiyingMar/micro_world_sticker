@@ -1,5 +1,5 @@
 import { state, foundIn } from './state.js';
-import { SCENES, ORDER } from './scenes/index.js';
+import { SCENES, ORDER, WORLDS } from './scenes/index.js';
 import { sfx } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
@@ -132,9 +132,9 @@ export const ui = {
   // ---------- 冰箱 ----------
   magnetHTML(def, { locked = false, badge = '', isNew = false, rot = 0, sub = '' } = {}) {
     if (locked) {
-      return `<div class="magnet locked" style="--rot:${rot}deg"><div class="m-emoji">?</div><div class="m-name">未发现</div><div class="m-sub">在上一个世界里找找看</div></div>`;
+      return `<div class="magnet locked m-${def.id}" style="--rot:${rot}deg"><div class="m-emoji">?</div><div class="m-name">未发现</div><div class="m-sub">在上一个世界里找找看</div></div>`;
     }
-    return `<button class="magnet magnet--${def.magnetStyle} ${isNew ? 'new' : ''}" data-id="${def.id}" style="--rot:${rot}deg">
+    return `<button class="magnet magnet--${def.magnetStyle} m-${def.id} ${isNew ? 'new' : ''}" data-id="${def.id}" style="--rot:${rot}deg">
       ${badge ? `<span class="m-badge">${badge}</span>` : ''}
       <div class="m-emoji">${def.emoji}</div>
       <div class="m-name">${def.name}</div>
@@ -144,14 +144,15 @@ export const ui = {
 
   openFridge(onPick) {
     sfx.pop();
-    const rots = [-4, 3, -2, 5, -3, 4];
+    const rots = [-4, 3, -2, 5, -3, 4, -2];
     $('#magnets').innerHTML = ORDER.map((id, i) => {
       const def = SCENES[id];
       if (!state.magnets.includes(id)) return this.magnetHTML(def, { locked: true, rot: rots[i] });
       const isNew = state.newMagnet === id;
       const badge = isNew ? 'NEW!' : state.current === id ? '📍 你在这里' : '';
       let sub = '';
-      if (def.comingSoon) sub = '施工中…';
+      if (def.ending) sub = '集齐纪念 · 点我看看';
+      else if (def.comingSoon) sub = '施工中…';
       else sub = `收集 ${foundIn(id).filter((f) => def.items.some((i) => i.id === f)).length} / ${def.items.length}`;
       return this.magnetHTML(def, { badge, isNew, rot: rots[i], sub });
     }).join('');
@@ -222,6 +223,45 @@ export const ui = {
       };
     });
     ov.hidden = true;
+  },
+
+  // ---------- 结局 ----------
+  // 返回 'close'（回到冰箱）或 'reset'（从头再玩）
+  showEnding() {
+    const ov = $('#ending');
+    $('#ending-photo').innerHTML = WORLDS.map((id, i) => `<span style="animation-delay:${i * 0.2}s">${SCENES[id].emoji}</span>`).join('');
+    const items = WORLDS.reduce((n, id) => n + SCENES[id].items.length, 0);
+    $('#ending-stats').innerHTML = `走过 <b>${WORLDS.length}</b> 个小世界，找到 <b>${items}</b> 样小东西`;
+    $('#ending-names').textContent =
+      '合照里还有：小橘、阿绵、波波、莉莉、蘑菇仔、方方、豆豆、阿像、夜猫、阿霓、小飞、亚瑟、玛丽、卫兵、阿浪、小贝、老船长……和你。';
+    // 彩纸
+    const conf = $('#confetti');
+    conf.innerHTML = '';
+    const bits = ['🎉', '✨', '⭐', '🧲', '💛', '🎊', '🌸'];
+    for (let i = 0; i < 40; i++) {
+      const el = document.createElement('i');
+      el.textContent = bits[i % bits.length];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.fontSize = 14 + Math.random() * 18 + 'px';
+      el.style.animationDuration = 3 + Math.random() * 3 + 's';
+      el.style.animationDelay = Math.random() * 2.5 + 's';
+      conf.appendChild(el);
+    }
+    ov.hidden = false;
+    sfx.ending();
+    return new Promise((res) => {
+      $('#ending-close').onclick = () => {
+        sfx.click();
+        ov.hidden = true;
+        res('close');
+      };
+      $('#ending-reset').onclick = () => {
+        sfx.click();
+        if (!confirm('确定要从头再玩一次吗？现在的收集进度会被清空。')) return;
+        ov.hidden = true;
+        res('reset');
+      };
+    });
   },
 
   // ---------- 开场 ----------

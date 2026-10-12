@@ -52,6 +52,13 @@ function noise(c) {
 // ---------- 环境声（雨声等），跟着场景切换 ----------
 let ambientKind = null;
 let ambientNodes = null;
+// 各种环境声：音量和音色（低通频率）
+const AMBIENT = {
+  rain: { vol: 0.32, lowpass: 2600 },
+  city: { vol: 0.08, lowpass: 500 },
+  sea: { vol: 0.3, lowpass: 900, swell: true },
+};
+const ambientVol = () => (state.muted || !AMBIENT[ambientKind] ? 0 : AMBIENT[ambientKind].vol);
 
 function stopAmbient() {
   if (!ambientNodes) return;
@@ -61,6 +68,7 @@ function stopAmbient() {
   gain.gain.setValueAtTime(gain.gain.value, t);
   gain.gain.linearRampToValueAtTime(0, t + 0.6);
   src.stop(t + 0.7);
+  if (ambientNodes.lfo) ambientNodes.lfo.stop(t + 0.7);
   ambientNodes = null;
 }
 
@@ -75,14 +83,28 @@ function startAmbient() {
   hp.frequency.value = 400;
   const lp = c.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = ambientKind === 'rain' ? 2600 : 500;
+  const cfg = AMBIENT[ambientKind] || AMBIENT.city;
+  lp.frequency.value = cfg.lowpass;
   const gain = c.createGain();
   gain.gain.value = 0;
-  const target = state.muted ? 0 : ambientKind === 'rain' ? 0.32 : 0.08;
-  gain.gain.linearRampToValueAtTime(target, c.currentTime + 1.2);
-  src.connect(hp).connect(lp).connect(gain).connect(master);
+  gain.gain.linearRampToValueAtTime(ambientVol(), c.currentTime + 1.2);
+  let lfo = null;
+  if (cfg.swell) {
+    // 海浪：用很慢的振荡器让音量一涨一落
+    const swell = c.createGain();
+    swell.gain.value = 0.55;
+    lfo = c.createOscillator();
+    lfo.frequency.value = 0.12;
+    const depth = c.createGain();
+    depth.gain.value = 0.45;
+    lfo.connect(depth).connect(swell.gain);
+    lfo.start();
+    src.connect(hp).connect(lp).connect(swell).connect(gain).connect(master);
+  } else {
+    src.connect(hp).connect(lp).connect(gain).connect(master);
+  }
   src.start();
-  ambientNodes = { src, gain };
+  ambientNodes = { src, gain, lfo };
 }
 
 export const sfx = {
@@ -99,8 +121,7 @@ export const sfx = {
   },
   refreshAmbient() {
     if (!ctx || !ambientNodes) return;
-    const target = state.muted ? 0 : ambientKind === 'rain' ? 0.32 : 0.08;
-    ambientNodes.gain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.3);
+    ambientNodes.gain.gain.linearRampToValueAtTime(ambientVol(), ctx.currentTime + 0.3);
   },
   thunder() {
     const c = ac();
@@ -133,6 +154,11 @@ export const sfx = {
     const notes = [523, 659, 784, 1047, 784, 1047, 1319];
     notes.forEach((f, i) => tone(f, i * 0.11, i === notes.length - 1 ? 0.7 : 0.2, { type: 'square', vol: 0.12 }));
     notes.forEach((f, i) => tone(f / 2, i * 0.11, 0.2, { type: 'triangle', vol: 0.25 }));
+  },
+  ending() {
+    const melody = [523, 659, 784, 659, 698, 880, 784, 0, 659, 784, 1047, 988, 1047];
+    melody.forEach((f, i) => f && tone(f, i * 0.18, 0.3, { type: 'triangle', vol: 0.3 }));
+    [262, 349, 392, 523].forEach((f, i) => tone(f, i * 0.6, 0.6, { type: 'sine', vol: 0.2 }));
   },
   whoosh() {
     tone(300, 0, 0.35, { type: 'sine', vol: 0.25, slide: 3 });

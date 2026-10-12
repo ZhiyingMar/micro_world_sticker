@@ -3,17 +3,20 @@ import forest from './forest.js';
 import pixel from './pixel.js';
 import city from './city.js';
 import london from './london.js';
+import beach from './beach.js';
 
-// 还没做出来的世界：冰箱贴可以拿到，但里面还在施工
-const beach = {
-  id: 'beach',
-  name: '海边假日',
-  emoji: '🏖️',
-  styleLabel: '即将开放',
-  magnetStyle: 'beach',
-  comingSoon: true,
+// 最后一块冰箱贴：不是一个世界，而是集齐所有世界之后的纪念合照，点开是结局画面
+const finale = {
+  id: 'finale',
+  name: '全家福',
+  emoji: '🖼️',
+  styleLabel: '纪念冰箱贴',
+  magnetStyle: 'finale',
+  ending: true,
   items: [],
 };
 
-export const SCENES = { home, forest, pixel, city, london, beach };
-export const ORDER = ['home', 'forest', 'pixel', 'city', 'london', 'beach'];
+export const SCENES = { home, forest, pixel, city, london, beach, finale };
+export const ORDER = ['home', 'forest', 'pixel', 'city', 'london', 'beach', 'finale'];
+// 真正可以进去玩的世界
+export const WORLDS = ORDER.filter((id) => !SCENES[id].ending);

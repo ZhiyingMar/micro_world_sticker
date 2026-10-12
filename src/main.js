@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { World } from './world.js';
 import { SCENES } from './scenes/index.js';
-import { state, save, foundIn } from './state.js';
+import { state, save, foundIn, resetSave } from './state.js';
 import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
@@ -620,6 +620,11 @@ function openFridge() {
   endTalk();
   ui.openFridge((id) => {
     const def = SCENES[id];
+    if (def.ending) {
+      ui.closeFridge();
+      showEnding();
+      return;
+    }
     if (def.comingSoon) {
       sfx.pop();
       ui.toast('🏗 这个世界还在建造中，敬请期待！');
@@ -630,6 +635,22 @@ function openFridge() {
   });
 }
 document.getElementById('btn-fridge').addEventListener('click', openFridge);
+
+// 全家福：集齐所有世界之后的结局
+async function showEnding() {
+  if (state.newMagnet === 'finale') {
+    state.newMagnet = null;
+    save();
+  }
+  endTalk();
+  const choice = await ui.showEnding();
+  if (choice === 'reset') {
+    resetSave();
+    location.reload();
+  } else {
+    openFridge();
+  }
+}
 document.getElementById('fridge-close').addEventListener('click', () => {
   sfx.click();
   ui.closeFridge();
@@ -849,7 +870,8 @@ function loop() {
 // ---------------- 启动 ----------------
 ui.setMode('god');
 syncTouchUI();
-loadScene(SCENES[state.current] && !SCENES[state.current].comingSoon ? state.current : 'home');
+const startDef = SCENES[state.current];
+loadScene(startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home');
 loop();
 if (!state.seenIntro) {
   ui.intro().then(() => {
