@@ -258,7 +258,12 @@ export default {
     w.colliders.push({ type: 'box', minX: -5, maxX: -CROSS, minZ: ROAD_Z0, maxZ: ROAD_Z1 });
     w.colliders.push({ type: 'box', minX: CROSS, maxX: 5, minZ: ROAD_Z0, maxZ: ROAD_Z1 });
     // 停电时车堵在斑马线上
-    const jam = w.blocker(-CROSS, CROSS, ROAD_Z0, ROAD_Z1, '🚗 车都堵在斑马线上，过不去……');
+    // 停电时两辆车堵在斑马线上，左边只留一条窄缝，侧着身子能挤过去
+    const JAM_SAY = '🚗 车都堵在这儿……左边好像有条缝，能挤过去';
+    const jam = [
+      w.blocker(-0.25, CROSS, 0.78, 1.32, JAM_SAY),
+      w.blocker(-0.2, CROSS, 1.88, 2.42, JAM_SAY),
+    ];
 
     // 后排建筑
     const b1 = building(w, -3.2, -3.4, 2.2, 5.2, 2.4, { wall: '#5b6285', frame: '#3e4463', dark: '#2a2f4a', lit: '#ffe39a', ratio: 0.55, seed: 3, roof: '#3e4463' });
@@ -434,7 +439,7 @@ export default {
     const palette = ['#4fa3ff', '#ffd23f', '#ff6b8b', '#f4f1ea'];
     // 平时的位置 / 停电时堵在斑马线上的位置（出租车不在）
     const normalX = [-4.2, 1.5, 3.0, -2.0];
-    const jamX = [-0.2, null, 0.5, 2.1];
+    const jamX = [0.25, null, 0.3, 2.1];
     [0, 0, 1, 1].forEach((lane, i) => {
       const L = lanes[lane];
       const taxi = i === 1;
@@ -617,7 +622,7 @@ export default {
       else if (!awake) l.push('出租车回来了，可司机老周还在大楼门口睡大觉。他最爱喝罐装咖啡。');
       if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');
       setLines(yemao, l);
-      if (!traffic) setLines(ani, ['车都不动了，我被困在马路这边，回不了家……', '要是有辆出租车来带个头就好了。']);
+      if (!traffic) setLines(ani, ['车都不动了，堵得死死的……我可不敢从车缝里挤过去。', '要是有辆出租车来带个头就好了。']);
       else setLines(ani, ['车终于动了！可公园里还是黑乎乎的。', '刚才出租车上下来一位绅士，好像把帽子落在长椅上了。']);
     };
     const toast = (text) => w.env.toast?.(text);
@@ -651,7 +656,7 @@ export default {
         driverLeaves();
       }
       power('street', instant);
-      w.unblock(jam);
+      jam.forEach((c) => w.unblock(c));
       w.revealItem('tophat', instant);
       xiaofei = w.villager(
         {
