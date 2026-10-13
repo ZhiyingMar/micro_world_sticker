@@ -264,6 +264,12 @@ export const ui = {
     let downTaps = [];
     for (const b of $('#game').querySelectorAll('button[data-k]')) {
       const k = b.dataset.k;
+      // 退出要等一次完整的点击：按下就退的话，界面切回来，手指抬起补发的 click 会落到底下的冰箱按钮上
+      if (k === 'exit') {
+        b.onpointerdown = null;
+        b.onclick = () => onKey(k);
+        continue;
+      }
       b.onpointerdown = (e) => {
         e.preventDefault();
         stop();
