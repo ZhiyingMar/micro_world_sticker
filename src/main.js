@@ -52,6 +52,7 @@ let busy = false; // 合成动画/切换场景时锁定操作
 let intro = null; // 方块落下动画
 let focus = null; // 相机平滑移动
 let atDefaultView = true; // 还停在开场全貌（没被玩家转动过），旋转屏幕时会重新取景
+let game = null; // 正在玩的小游戏：{ g, pos, target }
 const anims = [];
 const input = { up: false, down: false, left: false, right: false, ax: 0, az: 0 };
 // 触控设备：一开始按设备能力判断，之后只要碰到触摸就切到触控界面
@@ -171,7 +172,7 @@ function loadScene(id) {
   if (player) player = null;
   talking = null;
   ui.closeDialog();
-  world = new World(def, { hemi, sun });
+  world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal() });
   scene.add(world.root);
 
   const [sky, gnd, hi] = def.lights.hemi;
@@ -183,8 +184,16 @@ function loadScene(id) {
   sun.intensity = si;
   sun.position.set(...sp);
 
+  world.whenRestored(() => {
+    refreshGoal();
+    setTimeout(() => {
+      sfx.fanfare();
+      ui.toast(`🎉 「${def.name}」恢复原样了！`);
+    }, 1600);
+  });
   // 先把界面画出来，取景时要量收集栏等占了多少地方
   ui.setScene(def);
+  refreshGoal();
   sfx.ambient(def.ambient || null);
   applySize();
 
@@ -335,6 +344,12 @@ const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
 const easeOutBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
 
 function updateCamera(dt) {
+  if (game) {
+    camera.position.lerp(game.pos, 1 - Math.exp(-dt * 4));
+    game.look.lerp(game.target, 1 - Math.exp(-dt * 4));
+    camera.lookAt(game.look);
+    return;
+  }
   if (mode === 'life' && player) {
     const p = player.root.getWorldPosition(new THREE.Vector3());
     lifeLook.lerp(p.clone().setY(0.5), 1 - Math.exp(-dt * 6));
@@ -364,8 +379,8 @@ const ndc = new THREE.Vector2();
 // 点击判定时要跳过的东西：雨丝、粒子、光晕、看不见的物体、半透明玻璃
 function blocksPick(o) {
   if (o.isSprite || o.isPoints || o.isLine) return false;
-  if (o.userData.pickable) return true; // 物品的隐形点击范围
   for (let p = o; p; p = p.parent) if (!p.visible) return false;
+  if (o.userData.pickable) return true; // 物品的隐形点击范围
   const m = o.material;
   if (m && !Array.isArray(m) && m.transparent && m.opacity < 0.95) return false;
   return true;
@@ -381,6 +396,12 @@ function pick(clientX, clientY) {
     while (o && o !== world.root) {
       if (o.userData.itemId) return { type: 'item', id: o.userData.itemId, obj: o, point: h.point };
       if (o.userData.repair) return { type: 'repair', id: o.userData.repair, obj: o, point: h.point };
+      if (o.userData.interact) return { type: 'interact', id: o.userData.interact, obj: o, point: h.point };
+      // 小游戏还没开放时，就当普通的东西
+      if (o.userData.game) {
+        const g = world.games.get(o.userData.game);
+        if (!g.can || g.can()) return { type: 'game', id: g.id, obj: o, point: h.point };
+      }
       if (o.userData.villager) {
         if (o.userData.villager === player) break;
         return { type: 'villager', v: o.userData.villager, point: h.point };
@@ -398,7 +419,7 @@ function pickNear(cx, cy, radius) {
   const cands = [];
   for (const [id, g] of world.items) cands.push({ type: 'item', id, obj: g, pos: g.getWorldPosition(new THREE.Vector3()) });
   for (const r of world.repairs.values()) {
-    if (!r.done) cands.push({ type: 'repair', id: r.id, obj: r.spot, pos: r.spot.getWorldPosition(new THREE.Vector3()) });
+    if (!r.done && r.seen) cands.push({ type: 'repair', id: r.id, obj: r.spot, pos: r.spot.getWorldPosition(new THREE.Vector3()) });
   }
   for (const v of world.villagers) {
     const pos = v.root.getWorldPosition(new THREE.Vector3());
@@ -445,7 +466,7 @@ function distToPlayer(x, z) {
 }
 
 function handleClick(cx, cy, touch = false) {
-  if (busy || ui.fridgeOpen) return;
+  if (busy || ui.fridgeOpen || game) return;
   if (ui.dialogOpen) {
     endTalk();
     return;
@@ -454,6 +475,10 @@ function handleClick(cx, cy, touch = false) {
   // 手指比鼠标粗：没点中东西时，看看附近有没有物品或小人
   if (touch && (!hit || hit.type === 'ground')) hit = pickNear(cx, cy, 34) || hit;
   if (!hit) return;
+  if (hit.type === 'game') {
+    startGame(hit.id);
+    return;
+  }
   if (mode === 'god') {
     if (hit.type === 'item') {
       // 破败世界里，东西要亲自走过去拿：上帝视角只负责看
@@ -463,6 +488,7 @@ function handleClick(cx, cy, touch = false) {
         sfx.pop();
       } else collect(hit.id);
     } else if (hit.type === 'repair') doRepair(hit.id);
+    else if (hit.type === 'interact') world.interacts.get(hit.id).fn();
     else if (hit.type === 'villager') talkTo(hit.v);
     else if (hit.type === 'action' && hit.action === 'fridge') openFridge();
     else if (peekAt(hit.obj)) sfx.click();
@@ -485,6 +511,10 @@ function handleClick(cx, cy, touch = false) {
     const r = world.repairs.get(hit.id);
     if (distToPlayer(r.x, r.z) < r.reach) doRepair(hit.id);
     else player.moveTarget = { x: r.x, z: r.z };
+  } else if (hit.type === 'interact') {
+    const it = world.interacts.get(hit.id);
+    if (distToPlayer(it.x, it.z) < it.reach) it.fn();
+    else player.moveTarget = { x: it.x, z: it.z };
   } else if (hit.type === 'villager') {
     if (distToPlayer(hit.v.x, hit.v.z) < 1.8) talkTo(hit.v);
     else player.moveTarget = { x: hit.v.x, z: hit.v.z };
@@ -541,7 +571,7 @@ canvas.addEventListener('pointerleave', () => {
 function updateHover() {
   if (hovered && hovered.type === 'item') hovered.obj.userData.hover = 0;
   hovered = null;
-  if (!hoverPos || busy || ui.fridgeOpen || down) {
+  if (!hoverPos || busy || ui.fridgeOpen || down || game) {
     ui.tooltip(null);
     return;
   }
@@ -550,11 +580,15 @@ function updateHover() {
   let tip = null;
   if (hit?.type === 'item') {
     hit.obj.userData.hover = 1;
-    tip = '✨ 发现了什么！';
+    tip = hit.obj.userData.thing ? `✨ ${hit.obj.userData.thing.icon} ${hit.obj.userData.thing.name}` : '✨ 发现了什么！';
   } else if (hit?.type === 'repair') {
     const p = partOf(world.def, hit.id);
     tip = `✨ 这里少了 ${p.icon} ${p.name} · 点击放回`;
-  } else if (hit?.type === 'villager') tip = `💬 ${hit.v.name}`;
+  } else if (hit?.type === 'interact') {
+    const it = world.interacts.get(hit.id);
+    tip = `${it.icon} ${typeof it.label === 'function' ? it.label() : it.label}`;
+  } else if (hit?.type === 'game') tip = `🎮 ${world.games.get(hit.id).hover}`;
+  else if (hit?.type === 'villager') tip = `💬 ${hit.v.name}`;
   else if (hit?.type === 'action') tip = '🧊 冰箱 · 点击打开';
   canvas.style.cursor = tip ? 'pointer' : mode === 'life' ? 'crosshair' : '';
   ui.tooltip(tip, hoverPos.x, hoverPos.y);
@@ -570,7 +604,8 @@ function talkTo(v) {
     player.moveTarget = null;
     player.face(v.x, v.z);
   }
-  ui.say(v.name, v.nextLine());
+  // 有些小人会先看看你带了什么（比如等咖啡的司机）
+  ui.say(v.name, v.onTalk?.() ?? v.nextLine());
 }
 
 function endTalk() {
@@ -583,20 +618,53 @@ document.getElementById('dialog').addEventListener('click', () => {
   endTalk();
 });
 
-// ---------------- 收集 ----------------
-function collect(id) {
-  const g = world.items.get(id);
-  if (!g || busy) return;
-  world.items.delete(id);
-  const def = world.def;
-  const it = def.items.find((i) => i.id === id);
-  const found = foundIn(def.id);
-  if (!found.includes(id)) found.push(id);
-  save();
-  const valid = found.filter((f) => def.items.some((i) => i.id === f));
+// ---------------- 小游戏 ----------------
+function startGame(id) {
+  if (busy || game) return;
+  const g = world.games.get(id);
+  if (mode === 'life') setMode('god');
+  endTalk();
+  focus = null;
+  controls.enabled = false;
+  document.body.classList.add('in-game');
+  ui.showGame(g, (k) => (k === 'exit' ? stopGame() : g.key(k)));
+  // 镜头飞到正对着它的地方，稍微往下看一点。
+  // 上面的栏、下面的十字键挡在大楼前面时，把大楼放进它们之间的空白里
+  const target = world.root.localToWorld(new THREE.Vector3(...g.view.target));
+  const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const H = innerHeight;
+  const covers = (r) => r.width && r.left < innerWidth * 0.62 && r.right > innerWidth * 0.38;
+  const br = document.getElementById('game-bar').getBoundingClientRect();
+  const pr = document.getElementById('game-pad').getBoundingClientRect();
+  const top = covers(br) ? br.bottom + 8 : 8;
+  const bottom = covers(pr) ? H - pr.top + 8 : 8;
+  const usable = Math.max(H * 0.4, H - top - bottom);
+  const d = Math.max((g.view.halfH * H) / (tan * usable * 0.92), (g.view.halfW / (tan * camera.aspect)) * 1.1);
+  const lift = ((H / 2 - (top + usable / 2)) * 2 * d * tan) / H; // 空白区域的中心比屏幕中心高多少
+  target.y -= lift;
+  const pos = target.clone().add(new THREE.Vector3(0, 0.3, 0.95).normalize().multiplyScalar(d));
+  game = { g, target, pos, look: controls.target.clone() };
+  sfx.whoosh();
+  g.start({
+    status: (text) => ui.gameStatus(text),
+    // 通关后过一会儿自动回到城市，看大家欢呼
+    exitSoon: (ms) => setTimeout(() => game?.g === g && stopGame(), ms),
+  });
+}
 
-  sfx.pickup();
-  world.fx.emit(g.position, { count: 16, spread: 0.3, size: 0.35, rise: 1.4, color: '#fff3a0' });
+function stopGame() {
+  if (!game) return;
+  game.g.stop();
+  controls.target.copy(game.look);
+  game = null;
+  document.body.classList.remove('in-game');
+  ui.hideGame();
+  controls.enabled = true;
+  resetView();
+}
+
+// ---------------- 收集 ----------------
+function popAway(g) {
   const y0 = g.position.y;
   const s0 = g.scale.x;
   anims.push({
@@ -611,6 +679,33 @@ function collect(id) {
       g.removeFromParent();
     },
   });
+}
+
+function collect(id) {
+  const g = world.items.get(id);
+  if (!g || busy) return;
+  world.items.delete(id);
+  // 小道具：放进背包
+  const thing = g.userData.thing;
+  if (thing) {
+    world.setFlag(id);
+    sfx.pickup();
+    world.fx.emit(g.position, { count: 12, spread: 0.3, size: 0.3, rise: 1.2, color: '#fff3a0' });
+    popAway(g);
+    ui.toast(`拿到了 ${thing.icon} ${thing.name}`);
+    refreshGoal();
+    return;
+  }
+  const def = world.def;
+  const it = def.items.find((i) => i.id === id);
+  const found = foundIn(def.id);
+  if (!found.includes(id)) found.push(id);
+  save();
+  const valid = found.filter((f) => def.items.some((i) => i.id === f));
+
+  sfx.pickup();
+  world.fx.emit(g.position, { count: 16, spread: 0.3, size: 0.35, rise: 1.4, color: '#fff3a0' });
+  popAway(g);
   ui.markFound(id);
   ui.toast(`找到了 ${it.icon} ${it.name}！`);
 
@@ -626,22 +721,49 @@ function partOf(def, id) {
   return SCENES[def.repairs.find((r) => r.id === id).from].items.find((i) => i.id === id);
 }
 
+function refreshGoal() {
+  const broken = world.repairs.size > 0 && !world.fullyRepaired;
+  ui.renderGoal(world.def, { broken, bag: world.bag() });
+}
+
 function doRepair(id) {
   if (busy) return;
   const def = world.def;
   const r = world.repairs.get(id);
+  if (!r || r.done) return;
+  // 还差一步：由旁边的人告诉你缺什么
+  const ok = r.can ? r.can() : true;
+  if (ok !== true) {
+    sfx.pop();
+    if (ok.name) ui.say(ok.name, ok.text);
+    else ui.toast(ok.text);
+    return;
+  }
   const pos = r.spot.position.clone();
   if (!world.repair(id)) return;
   const p = partOf(def, id);
   sfx.repair();
   world.fx.emit(pos.setY(pos.y + 0.2), { count: 24, spread: 0.6, size: 0.4, rise: 1.6, color: '#fff3a0' });
-  ui.renderGoal(def);
+  refreshGoal();
   ui.toast(`${p.icon} 放回了${p.name}！${def.repairs.find((x) => x.id === id).msg || ''}`);
-  if (world.fullyRepaired) {
-    setTimeout(() => {
-      sfx.fanfare();
-      ui.toast(`🎉 「${def.name}」恢复原样了！`);
-    }, 1600);
+}
+
+// 走近、或者把镜头拉近到缺东西的地方，就会发现它
+function checkDiscover() {
+  for (const r of world.repairs.values()) {
+    if (r.seen || r.done) continue;
+    let near = false;
+    if (player) near = distToPlayer(r.x, r.z) < r.seeR;
+    else if (mode === 'god' && !focus) {
+      const t = controls.target;
+      const sp = r.spot.getWorldPosition(new THREE.Vector3());
+      near = Math.hypot(t.x - sp.x, t.z - sp.z) < r.seeR && camera.position.distanceTo(sp) < 15;
+    }
+    if (near && world.discover(r.id)) {
+      const p = partOf(world.def, r.id);
+      sfx.pop();
+      ui.toast(`💡 这里好像少了点什么……是 ${p.icon} ${p.name}！`);
+    }
   }
 }
 
@@ -652,7 +774,7 @@ async function runCombine(def) {
   state.newMagnet = next.id;
   save();
   await ui.combine(def, next);
-  ui.renderGoal(def);
+  refreshGoal();
   busy = false;
   openFridge();
 }
@@ -773,6 +895,7 @@ document.getElementById('btn-action').addEventListener('click', () => {
   const n = nearestInteractable();
   if (n?.type === 'villager') talkTo(n.v);
   else if (n?.type === 'repair') doRepair(n.id);
+  else if (n?.type === 'interact') n.it.fn();
   else if (n?.type === 'fridge') openFridge();
 });
 
@@ -810,9 +933,12 @@ function nearestInteractable() {
   if (!player) return null;
   let best = null;
   for (const r of world.repairs.values()) {
-    if (r.done || !isFinite(r.reach)) continue;
+    if (r.done || !r.seen || !isFinite(r.reach)) continue;
     const d = distToPlayer(r.x, r.z);
     if (d < r.reach) return { type: 'repair', id: r.id };
+  }
+  for (const it of world.interacts.values()) {
+    if (distToPlayer(it.x, it.z) < it.reach) return { type: 'interact', id: it.id, it };
   }
   let bd = 1.6;
   for (const v of world.villagers) {
@@ -829,7 +955,17 @@ function nearestInteractable() {
   return best;
 }
 
+const GAME_KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'rotate', KeyW: 'rotate', ArrowDown: 'down', KeyS: 'down', Space: 'drop' };
+
 addEventListener('keydown', (e) => {
+  if (game) {
+    if (e.code === 'Escape') stopGame();
+    else if (GAME_KEYS[e.code]) {
+      e.preventDefault();
+      game.g.key(GAME_KEYS[e.code]);
+    }
+    return;
+  }
   if (e.code === 'Escape') {
     if (ui.fridgeOpen) ui.closeFridge();
     endTalk();
@@ -853,6 +989,7 @@ addEventListener('keydown', (e) => {
     const n = nearestInteractable();
     if (n?.type === 'villager') talkTo(n.v);
     else if (n?.type === 'repair') doRepair(n.id);
+    else if (n?.type === 'interact') n.it.fn();
     else if (n?.type === 'fridge') openFridge();
   }
   if (e.code === 'Tab') {
@@ -897,11 +1034,14 @@ function frame(dt, render = true) {
     else if (n?.type === 'repair') {
       const p = partOf(world.def, n.id);
       tip = `<kbd>E</kbd>放回 ${p.icon} ${p.name}`;
+    } else if (n?.type === 'interact') {
+      tip = `<kbd>E</kbd>${typeof n.it.label === 'function' ? n.it.label() : n.it.label}`;
     } else if (n) tip = '<kbd>E</kbd>打开冰箱';
     else if (!ui.dialogOpen) tip = world.blockerNear(player.x, player.z, player.radius + 0.08)?.say || null;
     ui.prompt(tip);
     ui.action(touchMode ? (n?.type === 'repair' ? { ...n, part: partOf(world.def, n.id) } : n) : null);
   }
+  if (world.repairs.size) checkDiscover();
 
   for (let i = anims.length - 1; i >= 0; i--) {
     const a = anims[i];
@@ -914,6 +1054,7 @@ function frame(dt, render = true) {
     }
   }
 
+  if (game) game.g.update(dt);
   updateCamera(dt);
   updateHover();
   if (render) renderer.render(scene, camera);

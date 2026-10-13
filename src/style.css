@@ -220,6 +220,7 @@ body.style-pixel .pill { border-radius: 4px; }
 .slot.part .slot-icon span { filter: none; opacity: 1; }
 .slot.part.used .slot-icon { background: var(--cream-2); border: 2px solid var(--leaf); animation: pop 0.5s cubic-bezier(.3, 1.8, .5, 1); }
 .slot.part.used .slot-icon span { opacity: 0.45; }
+.slot.part.bag .slot-icon { background: #fff3c4; border: 2px dashed var(--orange); }
 .slot.part.used .slot-icon::after {
   content: "✓";
   position: absolute;
@@ -773,4 +774,102 @@ body.touch #prompt { display: none; }
   body.touch.mode-life #goal { bottom: auto; top: 128px; transform: translateX(-50%) scale(0.82); transform-origin: top center; }
   #joystick { left: 20px; bottom: 28px; width: 124px; height: 124px; }
   #btn-action { right: 20px; bottom: 40px; min-width: 88px; height: 88px; font-size: 14px; }
+}
+
+/* ---------- 小游戏：大楼俄罗斯方块 ---------- */
+body.in-game #hud,
+body.in-game #tooltip { display: none; }
+#game { position: absolute; inset: 0; pointer-events: none; }
+#game-bar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 6px 6px 6px 18px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+#game-title { font-weight: 800; color: var(--brown); }
+#game-status { font-size: 13px; color: var(--brown-soft); font-weight: 700; }
+#game-help {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #fff;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+#game-pad { display: none; }
+body.touch #game-help { display: none; }
+body.touch #game-pad {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: block;
+  pointer-events: none;
+  --arm: 52px;
+}
+#game-pad button {
+  pointer-events: auto;
+  border: none;
+  padding: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 和摇杆一样：半透明、模糊的圆形底盘，上面是白色十字键 */
+#game-pad .dpad {
+  width: calc(var(--arm) * 3 + 28px);
+  height: calc(var(--arm) * 3 + 28px);
+  border-radius: 50%;
+  background: rgba(255, 250, 240, 0.55);
+  border: 3px solid rgba(255, 250, 240, 0.9);
+  box-shadow: 0 6px 20px rgba(107, 79, 58, 0.18);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-content: center;
+}
+#game-pad .cross {
+  display: grid;
+  grid-template: repeat(3, var(--arm)) / repeat(3, var(--arm));
+  filter: drop-shadow(0 4px 0 rgba(107, 79, 58, 0.2));
+}
+#game-pad .cross button,
+#game-pad .cross .mid {
+  background: var(--cream);
+  color: var(--brown-soft);
+  font-size: 18px;
+}
+#game-pad .cross button:active { background: var(--orange); color: #fff; }
+#game-pad .up { grid-area: 1 / 2; border-radius: 12px 12px 0 0; }
+#game-pad .left { grid-area: 2 / 1; border-radius: 12px 0 0 12px; }
+#game-pad .mid { grid-area: 2 / 2; }
+#game-pad .right { grid-area: 2 / 3; border-radius: 0 12px 12px 0; }
+#game-pad .down { grid-area: 3 / 2; border-radius: 0 0 12px 12px; }
+@media (max-height: 500px) {
+  body.touch #game-pad { right: 12px; bottom: 12px; --arm: 44px; }
+}
+/* 手机横屏很矮：栏挪到左上角竖着放，让大楼用满整个高度 */
+@media (max-height: 500px) {
+  #game-bar {
+    left: 12px;
+    top: 10px;
+    transform: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    border-radius: 18px;
+    padding: 10px 12px;
+  }
+  #game-title { font-size: 14px; }
 }

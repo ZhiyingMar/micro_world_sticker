@@ -41,6 +41,12 @@ export function repairedIn(sceneId) {
   return state.repaired[sceneId] || (state.repaired[sceneId] = []);
 }
 
+// 破败世界里的其他进度：发现了哪些修复点、拿到的小道具……{ sceneId: ['seen:moon', 'coin', ...] }
+export function flagsIn(sceneId) {
+  if (!state.flags) state.flags = {};
+  return state.flags[sceneId] || (state.flags[sceneId] = []);
+}
+
 export function resetSave() {
   try {
     localStorage.removeItem(KEY);

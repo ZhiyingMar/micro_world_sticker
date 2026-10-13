@@ -50,6 +50,28 @@
       <button id="btn-action" hidden></button>
     </div>
 
+    <!-- 小游戏（大楼俄罗斯方块） -->
+    <div id="game" hidden>
+      <div id="game-bar">
+        <span id="game-title"></span>
+        <span id="game-status"></span>
+        <button class="pill" data-k="exit">✕ 不玩了</button>
+      </div>
+      <div id="game-help"></div>
+      <!-- 手机：Game Boy 式十字键（↑ 旋转，连按三下 ↓ 一落到底） -->
+      <div id="game-pad">
+        <div class="dpad">
+          <div class="cross">
+            <button class="up" data-k="rotate" aria-label="旋转">▲</button>
+            <button class="left" data-k="left" aria-label="左移">◀</button>
+            <span class="mid"></span>
+            <button class="right" data-k="right" aria-label="右移">▶</button>
+            <button class="down" data-k="down" aria-label="加速">▼</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="tooltip" hidden></div>
 
     <div id="dialog" hidden>

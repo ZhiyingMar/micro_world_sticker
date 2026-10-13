@@ -345,6 +345,27 @@ export class Villager {
     this.timer = 1;
   }
 
+  // 钉在原地做一件事（睡觉、发呆……），直到 unpin
+  pin({ emote, sit = false, seatY = 0, face } = {}) {
+    this.releasePoi();
+    this.pinned = true;
+    this.poi = { x: this.x, z: this.z, dur: Infinity, emote, sit, seatY, face };
+    this.state = 'act';
+    this.timer = Infinity;
+    if (face !== undefined) this.heading = face;
+    if (emote) this.showBubble(emote);
+    else this.hideBubble();
+    if (sit) this.setSit(true, seatY);
+  }
+
+  unpin() {
+    this.pinned = false;
+    this.releasePoi();
+    this.hideBubble();
+    this.state = 'idle';
+    this.timer = 0.4;
+  }
+
   releasePoi() {
     if (this.poi) this.poi.taken = null;
     this.poi = null;
@@ -398,7 +419,7 @@ export class Villager {
 
   startTalk(fx, fz) {
     if (this.state === 'talk') return;
-    this.talkSeated = this.sitting;
+    this.talkSeated = this.sitting || this.pinned;
     if (this.talkSeated) {
       // 坐着的人不站起来（否则会卡进椅子里），只把头转过来
       let d = Math.atan2(fx - this.x, fz - this.z) - this.heading;

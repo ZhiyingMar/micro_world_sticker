@@ -5,7 +5,8 @@ import { at, facade, rng, canvasTexture } from '../kit.js';
 import { glow, neonText } from '../fx.js';
 import { ghostify } from '../world.js';
 import { sfx } from '../audio.js';
-import { foundIn } from '../state.js';
+import { foundIn, repairedIn } from '../state.js';
+import { Tetris } from '../tetris.js';
 import pixel from './pixel.js';
 
 const ROAD_Z0 = 0.5;
@@ -88,6 +89,10 @@ function starsAndMoon(w) {
   const [mx, my, mz] = MOON_POS;
   // 挂月亮的杆子和吊线
   w.add(k.cyl(0.035, 0.045, my + 0.75, '#3a3d4a', 8), mx, (my + 0.75) / 2, mz - 0.4);
+  // 杆子太细不好点：套一个看不见的粗一点的点击范围
+  const poleHit = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, my + 0.75, 6), new THREE.MeshBasicMaterial({ visible: false }));
+  poleHit.userData.pickable = true;
+  w.add(poleHit, mx, (my + 0.75) / 2, mz - 0.4);
   w.add(k.box(0.05, 0.05, 0.45, '#3a3d4a', 0.01), mx, my + 0.72, mz - 0.2);
   w.add(k.cyl(0.006, 0.006, 0.3, '#9a9db0', 4), mx, my + 0.57, mz);
   const moon = k.sphere(0.42, '#fff6d8', 24, { emissive: '#fff1c2', emissiveIntensity: 1.2 });
@@ -149,10 +154,10 @@ export default {
   spawn: [0, -1.0],
   next: 'london',
   // 破败世界：到的时候停电了，要先把上一个世界带来的东西放回原处
-  brokenGoal: '停电了！把从 <b>「像素小镇」</b> 带来的东西放回原处',
+  brokenGoal: '停电了！四处找找，哪里少了从 <b>「像素小镇」</b> 带来的东西',
   repairs: [
     { id: 'moon', from: 'pixel', hint: '便利店后面空着的杆子', msg: '月光照进了小巷' },
-    { id: 'taxi', from: 'pixel', hint: '马路边的出租车停靠位', msg: '车流动起来了' },
+    { id: 'taxi', from: 'pixel', hint: '马路边的出租车停靠位' },
     { id: 'sax', from: 'pixel', hint: '关着门的 BAR 门口', msg: '音乐响起来了' },
   ],
   items: [
@@ -258,6 +263,7 @@ export default {
     // 后排建筑
     const b1 = building(w, -3.2, -3.4, 2.2, 5.2, 2.4, { wall: '#5b6285', frame: '#3e4463', dark: '#2a2f4a', lit: '#ffe39a', ratio: 0.55, seed: 3, roof: '#3e4463' });
     for (const wd of b1.userData.windows) windows.push({ ...wd, a: 0.3 });
+    const towerFront = windows.find((wm) => wm.mat === b1.userData.windows[0].mat);
     const ant = k.cyl(0.03, 0.03, 0.9, '#9a9db0', 6);
     w.add(ant, -3.4, 5.7, -3.4);
     const beacon = k.sphere(0.07, '#ff3b3b', 10, { emissive: '#ff2020', emissiveIntensity: 2 });
@@ -494,6 +500,7 @@ export default {
       }
       // 城市：窗户、招牌、便利店、售货机，一栋一栋亮起来
       for (const wm of windows) {
+        if (wm.game) continue; // 正在上面玩俄罗斯方块
         const s = sm(wm.a, wm.a + 0.4, ct);
         // 灯是“啪”地一下亮的
         const f = s > 0.5 ? wm.on : wm.off;
@@ -522,9 +529,22 @@ export default {
       beacon.visible = beaconGlow.visible = on;
     });
 
-    // ---------- 居民 ----------
-    const has = (id) => w.isRepaired(id);
+    // ---------- 进度 ----------
+    // 老存档已经通关这里：中间步骤也都当作做完了
+    if (w.complete) for (const f of ['coin', 'coffee', 'driver']) w.setFlag(f, true);
+    // 直接看存档：搭场景时修复还没套用上去，isRepaired 还是 false
+    const has = (id) => repairedIn('city').includes(id);
     const found = (id) => foundIn('city').includes(id);
+    let awake = w.flag('driver'); // 出租车司机醒了没有
+    w.extraDone = () => w.flag('driver');
+    w.bag = () => {
+      const b = [];
+      if (w.flag('coin') && !w.flag('coffee')) b.push({ icon: '🪙', name: '硬币' });
+      if (w.flag('coffee') && !w.flag('driver')) b.push({ icon: '☕', name: '罐装咖啡' });
+      return b;
+    };
+
+    // ---------- 居民 ----------
     const yemao = w.villager(
       {
         name: '夜猫',
@@ -541,8 +561,36 @@ export default {
       -1.9,
       3.4,
     );
+    // 老乔：丢了萨克斯，垂头丧气地站在酒吧门口
+    const qiao = w.villager(
+      {
+        name: '老乔',
+        look: { hair: '#d8d8d8', shirt: '#6b3a5a', pants: '#26262e', shoes: '#1d1d24', hat: 'beanie', hatColor: '#26262e' },
+      },
+      STOOL[0] - 0.5,
+      STOOL[1] + 0.25,
+    );
+    qiao.pin({ emote: '😢', face: 0.4 });
+
+    // 出租车司机老周：停电后在大楼门口的长椅上睡着了
+    const DRIVER = [-3.7, -1.75];
+    const seat = new THREE.Group();
+    seat.add(at(k.box(1.0, 0.07, 0.34, '#a0663a', 0.02), 0, 0.42, 0));
+    seat.add(at(k.box(1.0, 0.3, 0.06, '#a0663a', 0.02), 0, 0.62, -0.16));
+    for (const x of [-0.42, 0.42]) seat.add(at(k.box(0.06, 0.42, 0.34, '#3a3d4a', 0.01), x, 0.21, 0));
+    w.add(seat, DRIVER[0], 0, DRIVER[1] - 0.05);
+    w.solid(seat);
+    let driver = null;
+    const driverLook = { hair: '#3a2a20', shirt: '#2f6d8a', pants: '#3a3d4a', hat: 'cap', hatColor: '#ffd23f' };
+    if (!(awake && has('taxi'))) {
+      driver = w.villager({ name: '老周', look: driverLook }, DRIVER[0], DRIVER[1] + 0.4);
+      if (!awake) {
+        driver.root.position.set(DRIVER[0], 0, DRIVER[1]);
+        driver.pin({ emote: '💤', sit: true, seatY: 0.45, face: 0 });
+      }
+    }
     let xiaofei = null;
-    let qiao = null;
+
     // 台词跟着城市修好的程度变
     const setLines = (v, lines) => {
       if (!v || v.lines.join() === lines.join()) return;
@@ -550,78 +598,152 @@ export default {
       v.lineIdx = 0;
     };
     const refreshLines = () => {
+      setLines(qiao, has('sax') ? ['谢谢你把萨克斯从像素小镇带回来！', '音乐一响，整条街的灯都跟着亮了。', '公园那边的树丛里，好像有把红伞在反光。'] : ['我的萨克斯不见了……', '没有萨克斯，这条街就没有音乐，霓虹也不肯亮。']);
+      setLines(driver, ['谢谢你的咖啡！可我的出租车还没回来……', '黄色的，车顶有个小灯，你见过吗？']);
       if (w.fullyRepaired) {
-        setLines(yemao, ['加班到现在……便利店的饭团，就是我的光。', '公园长椅上有顶黑色礼帽，是哪位绅士落下的？', '大楼和便利店中间的小巷里，夜里总飘出红茶的香味。']);
+        setLines(yemao, [
+          '加班到现在……便利店的饭团，就是我的光。',
+          w.flag('tetris') ? '你在大楼上玩俄罗斯方块，整条街都看见了！' : '偷偷告诉你：我们公司那栋楼的窗户，其实是一台俄罗斯方块机。点一下试试？',
+          '公园长椅上有顶黑色礼帽，是哪位绅士落下的？',
+          '大楼和便利店中间的小巷里，夜里总飘出红茶的香味。',
+        ]);
         setLines(ani, ['这座城市的夜晚，比白天还要亮！', '我在等最后一班公交……旁边树丛里有把红伞，不过不是我的。', '过马路要走斑马线哦，车会停下来让你。']);
         return;
       }
-      const l = ['停电了……整座城一下子全黑了，便利店的饭团也热不了。'];
-      if (!has('moon')) l.push('便利店后面挂月亮的杆子也空了。你带来的那个小月亮……挂回去试试？');
+      const l = ['停电了……整座城一下子全黑了。'];
+      if (!has('moon')) l.push('便利店后面那根高高的杆子上，本来挂着月亮的。');
       else if (!found('teapot')) l.push('月光照进小巷了！里面好像飘出红茶的香味。');
       if (!has('taxi')) l.push('车都堵在斑马线上。司机们说，要等那辆黄色出租车回来带头。');
+      else if (!awake) l.push('出租车回来了，可司机老周还在大楼门口睡大觉。他最爱喝罐装咖啡。');
       if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');
       setLines(yemao, l);
-      if (!has('taxi')) setLines(ani, ['车都不动了，我被困在马路这边，回不了家……', '要是有辆出租车来带个头就好了。']);
+      if (!traffic) setLines(ani, ['车都不动了，我被困在马路这边，回不了家……', '要是有辆出租车来带个头就好了。']);
       else setLines(ani, ['车终于动了！可公园里还是黑乎乎的。', '刚才出租车上下来一位绅士，好像把帽子落在长椅上了。']);
     };
+    const toast = (text) => w.env.toast?.(text);
     const pop = (v) => w.fx.emit(v.root.position.clone().setY(0.6), { count: 14, spread: 0.4, rise: 1.2, color: '#ffe9a8' });
     // 全部修好的一刻：大家一起欢呼
-    const cheer = () => {
-      if (!w.fullyRepaired) return;
+    w.whenRestored(() => {
+      refreshLines();
       setTimeout(() => w.villagers.forEach((v) => v.showBubble('🎉', 3)), 1600);
+    });
+
+    // 司机上车：人消失在出租车里
+    const driverLeaves = () => {
+      if (!driver) return;
+      const d = driver;
+      driver = null;
+      d.moveTarget = null;
+      setTimeout(() => {
+        pop(d);
+        d.root.removeFromParent();
+        w.villagers.splice(w.villagers.indexOf(d), 1);
+      }, 900);
+    };
+    // 出租车在、司机也醒了：按喇叭带头，车流动起来，路灯亮了，斑马线通了，礼帽出现
+    const startTraffic = (instant) => {
+      if (traffic || !has('taxi') || !awake) return;
+      traffic = true;
+      if (instant) cars.forEach((c, i) => (c.g.position.x = normalX[i]));
+      else {
+        cars[1].v = 0;
+        setTimeout(() => sfx.horn(), 1100);
+        driverLeaves();
+      }
+      power('street', instant);
+      w.unblock(jam);
+      w.revealItem('tophat', instant);
+      xiaofei = w.villager(
+        {
+          name: '小飞',
+          speed: 1.1,
+          look: { hair: '#5a3d2b', shirt: '#ffb84f', pants: '#3a3d4a', hat: 'cap', hatColor: '#ff7a3a' },
+          lines: ['路通了！外卖又能送了！', '外卖！外卖！……啊，送错世界了。', '听说再往前，有一座一直在下雨的城市。', '下次我想送一份炸鱼薯条。'],
+        },
+        2.0,
+        -0.8,
+      );
+      if (!instant) {
+        pop(xiaofei);
+        toast('🚦 车流动起来了，斑马线通了！');
+      }
     };
 
+    // 老周：拿着咖啡去跟他说话，他就醒了
+    if (driver) {
+      driver.onTalk = () => {
+        if (awake) return null;
+        if (!w.flag('coffee')) {
+          driver.showBubble('💤');
+          return '呼……呼……（说梦话）咖啡……罐装的……热乎乎的……';
+        }
+        awake = true;
+        driver.unpin();
+        driver.showBubble('❗', 2);
+        startTraffic(false);
+        w.setFlag('driver');
+        refreshLines();
+        return has('taxi') ? '咕嘟咕嘟……啊！醒了！我的车回来了？谢谢你，这就出发带路！' : '咕嘟咕嘟……啊，醒了！谢谢你的咖啡！可我的出租车呢？';
+      };
+    }
+
+    // ---------- 售货机：投硬币买咖啡 ----------
+    w.interact('vending', vm, 1.9, -1.95, {
+      reach: 1.3,
+      icon: '🥤',
+      short: '售货机',
+      label: () => (w.flag('coffee') ? '售货机（已经买过咖啡啦）' : w.flag('coin') ? '投币买一罐咖啡' : '售货机'),
+      fn() {
+        if (w.flag('coffee')) {
+          toast('☕ 已经买过咖啡啦');
+          return;
+        }
+        if (!w.flag('coin')) {
+          sfx.pop();
+          toast('🪙 停电了，售货机还亮着应急灯……可是身上没有零钱');
+          return;
+        }
+        sfx.pickup();
+        w.fx.emit(new THREE.Vector3(1.9, 0.5, -2.4), { count: 14, spread: 0.3, rise: 1.0, color: '#fff3a0' });
+        w.setFlag('coffee');
+        toast('☕ 哐当！买到一罐热咖啡');
+      },
+    });
+
     // ---------- 修复点 ----------
-    // 🌙 月亮挂回天上：月光照亮小巷，红茶壶出现
+    // 🌙 月亮挂回杆子上：月光照亮小巷，红茶壶和一枚硬币出现
     const ghostMoon = ghostify(k.sphere(0.42, '#ffffff', 24));
     w.repairSpot('moon', ghostMoon, ...MOON_POS, {
       reach: Infinity, // 挂得太高，只能点它
       pickR: 0.6,
+      seeR: 3.0,
       fn(instant) {
         power('sky', instant);
         w.unblock(alleyBlock);
         w.revealItem('teapot', instant);
-        if (!instant) cheer();
+        w.revealItem('coin', instant);
         refreshLines();
       },
     });
 
-    // 🚕 出租车回到停靠位：按喇叭带头，车流动起来，斑马线通了，礼帽出现
+    // 🚕 出租车回到停靠位：还要等司机醒过来
     const ghostTaxi = ghostify(car(k, '#ffd23f', { taxi: true }));
     w.repairSpot('taxi', ghostTaxi, TAXI_X, 0, 1.05, {
       reach: 1.5,
       pickR: 0.6,
+      seeR: 2.0,
       fn(instant) {
-        const taxi = cars[1];
-        taxi.g.visible = true;
-        if (instant) cars.forEach((c, i) => (c.g.position.x = normalX[i]));
-        else {
-          taxi.v = 0;
-          setTimeout(() => sfx.horn(), 500);
+        cars[1].g.visible = true;
+        if (!instant && !awake) {
+          driver?.showBubble('💤');
+          toast('🚕 出租车回来了……可是司机呢？');
         }
-        traffic = true;
-        power('street', instant);
-        w.unblock(jam);
-        w.revealItem('tophat', instant);
-        xiaofei = w.villager(
-          {
-            name: '小飞',
-            speed: 1.1,
-            look: { hair: '#5a3d2b', shirt: '#ffb84f', pants: '#3a3d4a', hat: 'cap', hatColor: '#ff7a3a' },
-            lines: ['路通了！外卖又能送了！', '外卖！外卖！……啊，送错世界了。', '听说再往前，有一座一直在下雨的城市。', '下次我想送一份炸鱼薯条。'],
-          },
-          2.0,
-          -0.8,
-        );
-        if (!instant) {
-          pop(xiaofei);
-          cheer();
-        }
+        startTraffic(instant);
         refreshLines();
       },
     });
 
-    // 🎷 萨克斯还给乐手：音乐响起，霓虹和窗户一栋栋亮起来，小伙伴们出门，红伞出现
+    // 🎷 萨克斯还给老乔：要等月亮出来他才看得清谱子。音乐响起，霓虹和窗户一栋栋亮起来，红伞出现
     const ghostSax = ghostify(pixel.items.find((i) => i.id === 'sax').make(k));
     ghostSax.scale.setScalar(2.6);
     const saxSpot = new THREE.Group();
@@ -629,28 +751,20 @@ export default {
     w.repairSpot('sax', saxSpot, STOOL[0], 0.5, STOOL[1], {
       reach: 1.5,
       pickR: 0.4,
+      seeR: 2.0,
+      can: () => has('moon') || { name: '老乔', text: '这是我的萨克斯！可是天这么黑，我连谱子都看不清……等月亮出来再吹吧。' },
       fn(instant) {
         power('city', instant);
         doorPlate.material.map = openTex;
-        w.poi(STOOL[0], STOOL[1], { emote: '🎷', face: 0, dur: 12, sit: true, seatY: 0.45 });
-        qiao = w.villager(
-          {
-            name: '老乔',
-            look: { hair: '#d8d8d8', shirt: '#6b3a5a', pants: '#26262e', shoes: '#1d1d24', hat: 'beanie', hatColor: '#26262e' },
-            lines: ['我的萨克斯！谢谢你把它从像素小镇带回来。', '音乐一响，整条街的灯都跟着亮了。', '公园那边的树丛里，好像有把红伞在反光。'],
-          },
-          STOOL[0] - 0.5,
-          STOOL[1] + 0.4,
-        );
         const sax = pixel.items.find((i) => i.id === 'sax').make(k);
         sax.position.set(0.12, 0.2, 0.16);
         qiao.body.add(sax);
+        qiao.root.position.set(STOOL[0], 0, STOOL[1]);
+        qiao.pin({ emote: '🎷', sit: true, seatY: 0.45, face: 0.3 });
         w.revealItem('umbrella', instant);
         if (!instant) {
           sfx.jazz();
           pop(qiao);
-          qiao.showBubble('🎷', 3);
-          cheer();
         }
         refreshLines();
       },
@@ -659,6 +773,161 @@ export default {
     w.placeItem('umbrella', -3.6, 0.32, 3.7, { hidden: true });
     w.placeItem('tophat', 2.75, 0.47, 3.9, { spin: false, hidden: true });
     w.placeItem('teapot', -1.6, 0.12, -4.2, { hidden: true });
+    const coin = k.cyl(0.08, 0.08, 0.02, '#ffd23f', 16, { emissive: '#ffb800', emissiveIntensity: 0.5 });
+    coin.rotation.x = Math.PI / 2;
+    w.placeThing('coin', coin, -1.6, 0.15, -2.9, { icon: '🪙', name: '硬币', hidden: true });
+
+    // ---------- 围观：玩俄罗斯方块时，楼下的人越聚越多 ----------
+    // 站位：大楼右边的人行道上，斜着朝大楼看（站在正前方会挡住最下面几行）
+    const SPOTS = [[-1.75, -1.3], [-1.6, -0.6], [-1.15, -1.6], [-1.0, -0.85], [-0.5, -1.3], [-1.85, 0.0], [-0.55, -0.45], [-0.05, -0.95]];
+    const crowd = []; // { v, extra }：extra 是从街边走进来的路人
+    const leaving = [];
+    let crowdTimer = 0;
+    let disperseTimer = null;
+    const r = rng(Date.now() % 100000);
+    const pick = (a) => a[Math.floor(r() * a.length)];
+    const passerLook = () => ({
+      hair: pick(['#2b2b33', '#5a3d2b', '#d8a24a', '#8a4a2b', '#c9c9d4']),
+      shirt: pick(['#4fa3ff', '#ff6b8b', '#59d98a', '#ffb84f', '#9a7bff', '#f4f1ea']),
+      pants: pick(['#2a2d38', '#3d4a6b', '#5b6b9a', '#4a3a30']),
+      ...(r() < 0.4 ? { hat: pick(['cap', 'beanie']), hatColor: pick(['#ff7a3a', '#4ff0ff', '#ffd23f', '#e8443a']) } : {}),
+    });
+    const removeVillager = (v) => {
+      pop(v);
+      v.root.removeFromParent();
+      const i = w.villagers.indexOf(v);
+      if (i >= 0) w.villagers.splice(i, 1);
+    };
+    // 让小人走到某处；poi 为 null 时到了就自己闲逛
+    const sendTo = (v, x, z, poi) => {
+      v.releasePoi();
+      v.hideBubble();
+      v.poi = poi;
+      v.target = { x, z };
+      v.state = 'walk';
+      v.stuck = 0;
+    };
+    // 不顶表情气泡，免得挡住楼下几行；消行时拍手 👏，通关时欢呼 🎉
+    const watchPoi = (x, z) => ({ x, z, dur: Infinity, face: Math.atan2(-3.2 - x, -2.2 - z) });
+    const addWatcher = () => {
+      if (crowd.length >= SPOTS.length) return;
+      const [x, z] = SPOTS[crowd.length];
+      // 先叫街上的熟人（在吹萨克斯、在睡觉的除外），没人了就来路人
+      let v = w.villagers.find((o) => !o.pinned && !crowd.some((c) => c.v === o) && !leaving.includes(o));
+      const extra = !v;
+      if (extra) {
+        v = w.villager({ name: '路人', look: passerLook(), lines: ['这栋楼在玩俄罗斯方块！', '加油加油！', '我在楼上加班，窗户突然就亮了。'] }, r() < 0.5 ? -4.3 : 4.3, -0.9);
+        pop(v);
+      }
+      sendTo(v, x, z, watchPoi(x, z));
+      crowd.push({ v, extra, x, z });
+    };
+    const disperse = () => {
+      for (const c of crowd) {
+        if (c.extra) {
+          // 路人走回街边，消失
+          c.v.leaveT = 0;
+          sendTo(c.v, c.v.x < -0.5 ? -4.3 : 4.3, -0.9, null);
+          leaving.push(c.v);
+        } else {
+          c.v.releasePoi();
+          c.v.hideBubble();
+          c.v.state = 'idle';
+          c.v.timer = r() * 1.2;
+        }
+      }
+      crowd.length = 0;
+    };
+    w.onUpdate((dt) => {
+      for (let i = leaving.length - 1; i >= 0; i--) {
+        const v = leaving[i];
+        v.leaveT += dt;
+        if (Math.abs(v.x) > 4.1 || v.leaveT > 8) {
+          removeVillager(v);
+          leaving.splice(i, 1);
+        }
+      }
+    });
+
+    // ---------- 彩蛋：大楼窗户上的俄罗斯方块（来电以后才能玩） ----------
+    let tetris = null;
+    let tex = null;
+    let won = false;
+    w.game('tetris', b1, {
+      title: '🏢 大楼俄罗斯方块',
+      hover: '这栋楼的窗户好像能玩？',
+      help: '← → 移动 · ↑ 旋转 · ↓ 加速 · 空格 一落到底 · Esc 不玩了',
+      view: { target: [-3.2, 2.8, -2.2], halfW: 1.3, halfH: 2.7 },
+      can: () => has('sax'),
+      start(api) {
+        clearTimeout(disperseTimer);
+        won = false;
+        crowdTimer = 1.2;
+        tetris = this.board = new Tetris({
+          goal: 4,
+          look: { wall: '#5b6285', frame: '#3e4463', dark: '#1d2136' },
+          onStatus: api.status,
+          onLines() {
+            for (const c of crowd) c.v.showBubble('👏', 1.6);
+            addWatcher();
+          },
+          onWin() {
+            won = true;
+            sfx.fanfare();
+            w.setFlag('tetris');
+            refreshLines();
+            // 整面墙放烟花，街上的人都转过来欢呼
+            let n = 0;
+            const id = setInterval(() => {
+              w.fx.emit(new THREE.Vector3(-3.2 + (Math.random() - 0.5) * 2, 0.5 + Math.random() * 4.6, -2.0), { count: 10, spread: 0.3, size: 0.45, rise: 0.8, color: ['#ff5fa2', '#4ff0ff', '#ffd84a'][n % 3] });
+              if (++n > 14) clearInterval(id);
+            }, 160);
+            for (const v of w.villagers) {
+              if (!v.pinned) v.face(-3.2, -2.2);
+              v.showBubble('🎉', 6);
+            }
+            api.exitSoon(2600);
+          },
+        });
+        tex = {
+          map: new THREE.CanvasTexture(tetris.map),
+          emissive: new THREE.CanvasTexture(tetris.emit),
+        };
+        tex.map.colorSpace = THREE.SRGBColorSpace;
+        towerFront.game = true;
+        const m = towerFront.mat;
+        m.map = tex.map;
+        m.emissiveMap = tex.emissive;
+        m.emissiveIntensity = 0.6;
+        m.needsUpdate = true;
+        // 竖着的“夜猫”招牌会挡住右边几列
+        yeSign.visible = yeGlow.visible = false;
+      },
+      update(dt) {
+        // 每隔一会儿多来一个人；走着走着被挡住、跑去闲逛的，再叫回来
+        crowdTimer -= dt;
+        if (crowdTimer <= 0) {
+          crowdTimer = 2.6;
+          addWatcher();
+          for (const c of crowd) if (!c.v.poi) sendTo(c.v, c.x, c.z, watchPoi(c.x, c.z));
+        }
+        tetris.update(dt);
+        tetris.draw();
+        tex.map.needsUpdate = tex.emissive.needsUpdate = true;
+      },
+      key: (k2) => tetris.key(k2),
+      stop() {
+        // 交还给电力系统，下一帧会换回原来的窗户
+        towerFront.game = false;
+        yeSign.visible = yeGlow.visible = true;
+        // 通关了多欢呼一会儿再散
+        disperseTimer = setTimeout(disperse, won ? 3200 : 400);
+        tex.map.dispose();
+        tex.emissive.dispose();
+        tetris = tex = null;
+      },
+    });
+
     refreshLines();
   },
 };

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Kit } from './kit.js';
 import { Sparkles } from './fx.js';
 import { Villager } from './villager.js';
-import { foundIn, repairedIn, save } from './state.js';
+import { foundIn, repairedIn, flagsIn, save } from './state.js';
 
 const proxyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
 // 修复点上“缺了东西”的半透明虚影
@@ -24,7 +24,7 @@ export function ghostify(obj) {
 export class World {
   constructor(def, env = {}) {
     this.def = def;
-    this.env = env; // { hemi, sun }：场景里需要时可以改灯光（比如闪电）
+    this.env = env; // { hemi, sun, toast, onChange }：场景里改灯光（比如闪电）、弹提示、通知界面刷新
     this.kit = new Kit(def.style);
     this.root = new THREE.Group();
     this.colliders = [];
@@ -32,20 +32,25 @@ export class World {
     this.villagers = [];
     this.items = new Map();
     this.hiddenItems = new Map(); // 要等修好某处才出现的物品
-    this.repairs = new Map(); // 修复点：{ id, spot, x, z, reach, fn }
+    this.repairs = new Map(); // 修复点：{ id, spot, x, z, reach, fn, can, seen }
+    this.interacts = new Map(); // 可以互动的东西（售货机……）：{ id, obj, x, z, reach, label, icon, fn }
+    this.restoredFns = [];
+    this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
     this.updaters = [];
     this.textures = [];
     this.fx = new Sparkles(this.root);
+    // 这个世界的东西已经找齐了（老存档也算）：破败世界直接当作已经修好
+    this.complete = def.items.length > 0 && def.items.every((i) => foundIn(def.id).includes(i.id));
+    if (def.repairs && this.complete) {
+      const done = repairedIn(def.id);
+      for (const r of def.repairs) if (!done.includes(r.id)) done.push(r.id);
+    }
     def.build(this);
     // 已经修好的地方直接恢复原样（不播动画）
     if (def.repairs) {
-      const done = repairedIn(def.id);
-      // 老存档：这个世界的东西已经找齐了，就当已经修好
-      if (def.items.every((i) => foundIn(def.id).includes(i.id))) {
-        for (const r of def.repairs) if (!done.includes(r.id)) done.push(r.id);
-      }
-      for (const id of done) this.repair(id, true);
+      for (const id of [...repairedIn(def.id)]) this.repair(id, true);
+      this.restored = this.fullyRepaired;
     }
   }
 
@@ -139,24 +144,103 @@ export class World {
     }
   }
 
+  // 世界里的小道具（硬币、咖啡……）：不算收集物品，捡起来放进背包，用来修东西
+  placeThing(id, obj, x, y, z, { icon, name, hidden = false } = {}) {
+    if (this.flag(id)) return null;
+    const g = new THREE.Group();
+    g.add(obj);
+    const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), proxyMat);
+    proxy.castShadow = false;
+    proxy.userData.pickable = true;
+    g.add(proxy);
+    g.position.set(x, y, z);
+    g.userData = { itemId: id, thing: { icon, name }, baseY: y, spin: true, nextSparkle: 1, hover: 0 };
+    this.root.add(g);
+    if (hidden) {
+      g.visible = false;
+      this.hiddenItems.set(id, g);
+    } else this.items.set(id, g);
+    return g;
+  }
+
+  // ---------- 破败世界的进度标记 ----------
+  flag(name) {
+    return flagsIn(this.def.id).includes(name);
+  }
+
+  setFlag(name, instant = false) {
+    const f = flagsIn(this.def.id);
+    if (f.includes(name)) return;
+    f.push(name);
+    save();
+    if (instant) return;
+    this.env.onChange?.();
+    this.checkRestored();
+  }
+
+  // 背包里还没用掉的小道具，scene 里可以覆盖
+  bag() {
+    return [];
+  }
+
+  // ---------- 可以互动的东西 ----------
+  interact(id, obj, x, z, { reach = 1.4, label, icon = '👆', fn }) {
+    obj.userData.interact = id;
+    this.interacts.set(id, { id, obj, x, z, reach, label, icon, fn });
+  }
+
+  // ---------- 小游戏 ----------
+  // opts: { title, hover, help, view: { target, halfW, halfH }, can(), start(api), stop(), key(k), update(dt) }
+  game(id, obj, opts) {
+    obj.userData.game = id;
+    this.games.set(id, { id, obj, ...opts });
+  }
+
   // ---------- 破败世界：修复点 ----------
-  // spot 是放在缺东西的地方的虚影；修好时调用 fn(instant)
-  repairSpot(id, spot, x, y, z, { reach = 1.5, pickR = 0.35, fn } = {}) {
+  // spot 是放在缺东西的地方的虚影，要先走近（或把镜头拉近）才会发现
+  // can() 返回 true 表示可以修；返回 { name, text } 表示还不行，由谁说什么
+  // 修好时调用 fn(instant)
+  repairSpot(id, spot, x, y, z, { reach = 1.5, pickR = 0.35, seeR = 2.2, can, fn } = {}) {
     const proxy = new THREE.Mesh(new THREE.SphereGeometry(pickR, 8, 6), proxyMat);
     proxy.castShadow = false;
     proxy.userData.pickable = true;
     spot.add(proxy);
     spot.userData.repair = id;
     this.add(spot, x, y, z);
-    this.repairs.set(id, { id, spot, x, z, reach, fn, done: false, next: 1 + Math.random() });
+    const seen = this.flag(`seen:${id}`);
+    spot.visible = seen;
+    this.repairs.set(id, { id, spot, x, z, reach, seeR, can, fn, seen, done: false, next: 1 + Math.random() });
+  }
+
+  // 发现了一个缺东西的地方：虚影显现出来
+  discover(id) {
+    const r = this.repairs.get(id);
+    if (!r || r.seen || r.done) return false;
+    r.seen = true;
+    r.spot.visible = true;
+    this.setFlag(`seen:${id}`, true);
+    this.fx.emit(r.spot.position.clone().setY(r.spot.position.y + 0.2), { count: 18, spread: 0.5, size: 0.35, rise: 1.0, color: '#bfe6ff' });
+    return true;
+  }
+
+  whenRestored(fn) {
+    this.restoredFns.push(fn);
+  }
+
+  // 全部修好的那一刻（只在玩的过程中触发，读档时不触发）
+  checkRestored() {
+    if (this.restored || !this.fullyRepaired) return;
+    this.restored = true;
+    for (const fn of this.restoredFns) fn();
   }
 
   isRepaired(id) {
     return !!this.repairs.get(id)?.done;
   }
 
+  // scene 可以加上额外的条件（比如司机醒了）
   get fullyRepaired() {
-    return [...this.repairs.values()].every((r) => r.done);
+    return [...this.repairs.values()].every((r) => r.done) && (!this.extraDone || this.extraDone());
   }
 
   repair(id, instant = false) {
@@ -170,6 +254,7 @@ export class World {
       save();
     }
     r.fn?.(instant);
+    if (!instant) this.checkRestored();
     return true;
   }
 
@@ -234,7 +319,7 @@ export class World {
     if (this.repairs.size) {
       ghostMat.opacity = 0.3 + Math.sin(t * 3) * 0.12;
       for (const r of this.repairs.values()) {
-        if (r.done) continue;
+        if (r.done || !r.seen) continue;
         r.next -= dt;
         if (r.next <= 0) {
           r.next = 1.2 + Math.random() * 1.2;

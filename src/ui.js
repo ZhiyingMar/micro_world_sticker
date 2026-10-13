@@ -18,25 +18,29 @@ export const ui = {
     this.renderGoal(def);
   },
 
-  renderGoal(def) {
+  // broken：破败世界还没修好；bag：背包里的小道具 [{ icon, name }]
+  renderGoal(def, { broken = false, bag = [] } = {}) {
     const next = SCENES[def.next];
     // 破败的世界：先把上一个世界带来的东西放回原处
-    if (def.repairs) {
+    if (def.repairs && broken) {
       const fixed = repairedIn(def.id);
-      if (def.repairs.some((r) => !fixed.includes(r.id))) {
-        $('#goal-text').innerHTML = def.brokenGoal;
-        $('#slots').innerHTML = def.repairs
-          .map((r) => {
-            const it = SCENES[r.from].items.find((i) => i.id === r.id);
-            const used = fixed.includes(r.id);
-            return `<div class="slot part ${used ? 'used' : ''}" data-id="${r.id}" title="${used ? '已经放回去了' : '提示：' + r.hint}">
-              <div class="slot-icon"><span>${it.icon}</span></div>
-              <div class="slot-name">${used ? '放好了' : it.name}</div>
-            </div>`;
-          })
-          .join('');
-        return;
-      }
+      $('#goal-text').innerHTML = def.brokenGoal;
+      const parts = def.repairs.map((r) => {
+        const it = SCENES[r.from].items.find((i) => i.id === r.id);
+        const used = fixed.includes(r.id);
+        return `<div class="slot part ${used ? 'used' : ''}" data-id="${r.id}" title="${used ? '已经放回去了' : '提示：' + r.hint}">
+          <div class="slot-icon"><span>${it.icon}</span></div>
+          <div class="slot-name">${used ? '放好了' : it.name}</div>
+        </div>`;
+      });
+      const things = bag.map(
+        (b) => `<div class="slot part bag" title="背包里的${b.name}">
+          <div class="slot-icon"><span>${b.icon}</span></div>
+          <div class="slot-name">${b.name}</div>
+        </div>`,
+      );
+      $('#slots').innerHTML = parts.join('') + things.join('');
+      return;
     }
     const found = foundIn(def.id);
     const done = found.filter((f) => def.items.some((i) => i.id === f)).length >= def.items.length;
@@ -98,7 +102,7 @@ export const ui = {
   // 触控互动按钮：near 为 null 时隐藏
   action(near) {
     const btn = $('#btn-action');
-    const key = near ? (near.type === 'villager' ? near.v.name : near.type === 'repair' ? `repair:${near.id}` : 'fridge') : '';
+    const key = near ? (near.type === 'villager' ? near.v.name : near.type === 'repair' || near.type === 'interact' ? `${near.type}:${near.id}` : 'fridge') : '';
     if (btn.dataset.key === key) return;
     btn.dataset.key = key;
     if (!near) {
@@ -107,6 +111,7 @@ export const ui = {
     }
     if (near.type === 'villager') btn.innerHTML = `<span class="a-icon">💬</span>${near.v.name}`;
     else if (near.type === 'repair') btn.innerHTML = `<span class="a-icon">${near.part.icon}</span>放回`;
+    else if (near.type === 'interact') btn.innerHTML = `<span class="a-icon">${near.it.icon}</span>${near.it.short || '看看'}`;
     else btn.innerHTML = '<span class="a-icon">🧊</span>冰箱';
     btn.hidden = false;
   },
@@ -242,6 +247,51 @@ export const ui = {
       };
     });
     ov.hidden = true;
+  },
+
+  // ---------- 小游戏 ----------
+  showGame(g, onKey) {
+    $('#game-title').textContent = g.title;
+    $('#game-help').textContent = g.help || '';
+    $('#game').hidden = false;
+    // 按住方向键会一直移动
+    let rep = null;
+    const stop = () => {
+      clearTimeout(rep);
+      clearInterval(rep);
+      rep = null;
+    };
+    let downTaps = [];
+    for (const b of $('#game').querySelectorAll('button[data-k]')) {
+      const k = b.dataset.k;
+      b.onpointerdown = (e) => {
+        e.preventDefault();
+        stop();
+        // 连按三下 ↓：一落到底
+        if (k === 'down') {
+          const now = performance.now();
+          downTaps = downTaps.filter((t) => now - t < 700).concat(now);
+          if (downTaps.length >= 3) {
+            downTaps = [];
+            onKey('drop');
+            return;
+          }
+        }
+        onKey(k);
+        if (k === 'left' || k === 'right' || k === 'down') rep = setTimeout(() => (rep = setInterval(() => onKey(k), 70)), 220);
+      };
+      b.onpointerup = b.onpointerleave = b.onpointercancel = stop;
+    }
+    this._stopRepeat = stop;
+  },
+
+  gameStatus(text) {
+    $('#game-status').textContent = text;
+  },
+
+  hideGame() {
+    this._stopRepeat?.();
+    $('#game').hidden = true;
   },
 
   // ---------- 结局 ----------
