@@ -27,7 +27,7 @@
 
 ## 运行
 
-需要 Node.js 18+。
+需要 Node.js 18+（线上构建用的是 Node 26）。
 
 ```bash
 npm install
