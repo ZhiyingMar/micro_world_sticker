@@ -380,6 +380,7 @@ function pick(clientX, clientY) {
     let o = h.object;
     while (o && o !== world.root) {
       if (o.userData.itemId) return { type: 'item', id: o.userData.itemId, obj: o, point: h.point };
+      if (o.userData.repair) return { type: 'repair', id: o.userData.repair, obj: o, point: h.point };
       if (o.userData.villager) {
         if (o.userData.villager === player) break;
         return { type: 'villager', v: o.userData.villager, point: h.point };
@@ -396,6 +397,9 @@ const _v = new THREE.Vector3();
 function pickNear(cx, cy, radius) {
   const cands = [];
   for (const [id, g] of world.items) cands.push({ type: 'item', id, obj: g, pos: g.getWorldPosition(new THREE.Vector3()) });
+  for (const r of world.repairs.values()) {
+    if (!r.done) cands.push({ type: 'repair', id: r.id, obj: r.spot, pos: r.spot.getWorldPosition(new THREE.Vector3()) });
+  }
   for (const v of world.villagers) {
     const pos = v.root.getWorldPosition(new THREE.Vector3());
     pos.y += 0.55;
@@ -451,7 +455,14 @@ function handleClick(cx, cy, touch = false) {
   if (touch && (!hit || hit.type === 'ground')) hit = pickNear(cx, cy, 34) || hit;
   if (!hit) return;
   if (mode === 'god') {
-    if (hit.type === 'item') collect(hit.id);
+    if (hit.type === 'item') {
+      // 破败世界里，东西要亲自走过去拿：上帝视角只负责看
+      if (world.def.repairs) {
+        focusOn(hit.obj.getWorldPosition(new THREE.Vector3()), controls.minDistance + 1.5);
+        ui.toast('🚶 太远啦，够不着！进入生活，走过去拿吧');
+        sfx.pop();
+      } else collect(hit.id);
+    } else if (hit.type === 'repair') doRepair(hit.id);
     else if (hit.type === 'villager') talkTo(hit.v);
     else if (hit.type === 'action' && hit.action === 'fridge') openFridge();
     else if (peekAt(hit.obj)) sfx.click();
@@ -470,6 +481,10 @@ function handleClick(cx, cy, touch = false) {
     const g = hit.obj;
     if (distToPlayer(g.position.x, g.position.z) < 1.6) collect(hit.id);
     else player.moveTarget = { x: g.position.x, z: g.position.z };
+  } else if (hit.type === 'repair') {
+    const r = world.repairs.get(hit.id);
+    if (distToPlayer(r.x, r.z) < r.reach) doRepair(hit.id);
+    else player.moveTarget = { x: r.x, z: r.z };
   } else if (hit.type === 'villager') {
     if (distToPlayer(hit.v.x, hit.v.z) < 1.8) talkTo(hit.v);
     else player.moveTarget = { x: hit.v.x, z: hit.v.z };
@@ -536,6 +551,9 @@ function updateHover() {
   if (hit?.type === 'item') {
     hit.obj.userData.hover = 1;
     tip = '✨ 发现了什么！';
+  } else if (hit?.type === 'repair') {
+    const p = partOf(world.def, hit.id);
+    tip = `✨ 这里少了 ${p.icon} ${p.name} · 点击放回`;
   } else if (hit?.type === 'villager') tip = `💬 ${hit.v.name}`;
   else if (hit?.type === 'action') tip = '🧊 冰箱 · 点击打开';
   canvas.style.cursor = tip ? 'pointer' : mode === 'life' ? 'crosshair' : '';
@@ -599,6 +617,31 @@ function collect(id) {
   if (valid.length >= def.items.length) {
     busy = true;
     setTimeout(() => runCombine(def), 1300);
+  }
+}
+
+// ---------------- 修复 ----------------
+// 修复点用的是上一个世界带来的东西
+function partOf(def, id) {
+  return SCENES[def.repairs.find((r) => r.id === id).from].items.find((i) => i.id === id);
+}
+
+function doRepair(id) {
+  if (busy) return;
+  const def = world.def;
+  const r = world.repairs.get(id);
+  const pos = r.spot.position.clone();
+  if (!world.repair(id)) return;
+  const p = partOf(def, id);
+  sfx.repair();
+  world.fx.emit(pos.setY(pos.y + 0.2), { count: 24, spread: 0.6, size: 0.4, rise: 1.6, color: '#fff3a0' });
+  ui.renderGoal(def);
+  ui.toast(`${p.icon} 放回了${p.name}！${def.repairs.find((x) => x.id === id).msg || ''}`);
+  if (world.fullyRepaired) {
+    setTimeout(() => {
+      sfx.fanfare();
+      ui.toast(`🎉 「${def.name}」恢复原样了！`);
+    }, 1600);
   }
 }
 
@@ -729,6 +772,7 @@ document.getElementById('btn-action').addEventListener('click', () => {
   }
   const n = nearestInteractable();
   if (n?.type === 'villager') talkTo(n.v);
+  else if (n?.type === 'repair') doRepair(n.id);
   else if (n?.type === 'fridge') openFridge();
 });
 
@@ -765,6 +809,11 @@ const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', Key
 function nearestInteractable() {
   if (!player) return null;
   let best = null;
+  for (const r of world.repairs.values()) {
+    if (r.done || !isFinite(r.reach)) continue;
+    const d = distToPlayer(r.x, r.z);
+    if (d < r.reach) return { type: 'repair', id: r.id };
+  }
   let bd = 1.6;
   for (const v of world.villagers) {
     const d = distToPlayer(v.x, v.z);
@@ -803,6 +852,7 @@ addEventListener('keydown', (e) => {
     }
     const n = nearestInteractable();
     if (n?.type === 'villager') talkTo(n.v);
+    else if (n?.type === 'repair') doRepair(n.id);
     else if (n?.type === 'fridge') openFridge();
   }
   if (e.code === 'Tab') {
@@ -842,8 +892,15 @@ function frame(dt, render = true) {
       }
     }
     const n = !ui.dialogOpen && !busy ? nearestInteractable() : null;
-    ui.prompt(n ? (n.type === 'villager' ? `<kbd>E</kbd>和 ${n.v.name} 聊天` : '<kbd>E</kbd>打开冰箱') : null);
-    ui.action(touchMode ? n : null);
+    let tip = null;
+    if (n?.type === 'villager') tip = `<kbd>E</kbd>和 ${n.v.name} 聊天`;
+    else if (n?.type === 'repair') {
+      const p = partOf(world.def, n.id);
+      tip = `<kbd>E</kbd>放回 ${p.icon} ${p.name}`;
+    } else if (n) tip = '<kbd>E</kbd>打开冰箱';
+    else if (!ui.dialogOpen) tip = world.blockerNear(player.x, player.z, player.radius + 0.08)?.say || null;
+    ui.prompt(tip);
+    ui.action(touchMode ? (n?.type === 'repair' ? { ...n, part: partOf(world.def, n.id) } : n) : null);
   }
 
   for (let i = anims.length - 1; i >= 0; i--) {

@@ -160,6 +160,24 @@ export const sfx = {
     melody.forEach((f, i) => f && tone(f, i * 0.18, 0.3, { type: 'triangle', vol: 0.3 }));
     [262, 349, 392, 523].forEach((f, i) => tone(f, i * 0.6, 0.6, { type: 'sine', vol: 0.2 }));
   },
+  // 把东西放回原处：先“咔哒”一声，再一串往上走的亮音
+  repair() {
+    tone(220, 0, 0.08, { type: 'square', vol: 0.12, slide: 0.7 });
+    [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.12 + i * 0.06, 0.35, { type: 'triangle', vol: 0.28 }));
+  },
+  // 萨克斯回来了：一小段摇摆爵士
+  jazz() {
+    const lick = [
+      [392, 0, 0.18], [466, 0.2, 0.12], [523, 0.33, 0.3], [466, 0.68, 0.12], [392, 0.82, 0.18],
+      [349, 1.02, 0.12], [392, 1.16, 0.55], [587, 1.8, 0.18], [523, 2.0, 0.12], [466, 2.14, 0.6],
+    ];
+    for (const [f, t, d] of lick) {
+      tone(f, t, d + 0.05, { type: 'sawtooth', vol: 0.07 });
+      tone(f, t, d + 0.05, { type: 'triangle', vol: 0.18 });
+    }
+    // 低音提琴走路
+    [98, 117, 131, 147, 131, 117, 98, 110].forEach((f, i) => tone(f, i * 0.34, 0.3, { type: 'sine', vol: 0.35 }));
+  },
   whoosh() {
     tone(300, 0, 0.35, { type: 'sine', vol: 0.25, slide: 3 });
   },

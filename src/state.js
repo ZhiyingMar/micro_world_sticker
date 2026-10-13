@@ -35,6 +35,12 @@ export function foundIn(sceneId) {
   return state.found[sceneId] || (state.found[sceneId] = []);
 }
 
+// 破败世界里已经修好的地方：{ sceneId: [repairId, ...] }
+export function repairedIn(sceneId) {
+  if (!state.repaired) state.repaired = {};
+  return state.repaired[sceneId] || (state.repaired[sceneId] = []);
+}
+
 export function resetSave() {
   try {
     localStorage.removeItem(KEY);

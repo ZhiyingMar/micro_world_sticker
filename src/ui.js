@@ -1,4 +1,4 @@
-import { state, foundIn } from './state.js';
+import { state, foundIn, repairedIn } from './state.js';
 import { SCENES, ORDER, WORLDS } from './scenes/index.js';
 import { sfx } from './audio.js';
 
@@ -20,6 +20,24 @@ export const ui = {
 
   renderGoal(def) {
     const next = SCENES[def.next];
+    // 破败的世界：先把上一个世界带来的东西放回原处
+    if (def.repairs) {
+      const fixed = repairedIn(def.id);
+      if (def.repairs.some((r) => !fixed.includes(r.id))) {
+        $('#goal-text').innerHTML = def.brokenGoal;
+        $('#slots').innerHTML = def.repairs
+          .map((r) => {
+            const it = SCENES[r.from].items.find((i) => i.id === r.id);
+            const used = fixed.includes(r.id);
+            return `<div class="slot part ${used ? 'used' : ''}" data-id="${r.id}" title="${used ? '已经放回去了' : '提示：' + r.hint}">
+              <div class="slot-icon"><span>${it.icon}</span></div>
+              <div class="slot-name">${used ? '放好了' : it.name}</div>
+            </div>`;
+          })
+          .join('');
+        return;
+      }
+    }
     const found = foundIn(def.id);
     const done = found.filter((f) => def.items.some((i) => i.id === f)).length >= def.items.length;
     $('#goal-text').innerHTML = done
@@ -37,7 +55,7 @@ export const ui = {
   },
 
   markFound(id) {
-    const el = document.querySelector(`.slot[data-id="${id}"]`);
+    const el = document.querySelector(`.slot:not(.part)[data-id="${id}"]`);
     if (!el) return;
     el.classList.add('found');
     const def = SCENES[state.current];
@@ -80,15 +98,16 @@ export const ui = {
   // 触控互动按钮：near 为 null 时隐藏
   action(near) {
     const btn = $('#btn-action');
-    const key = near ? (near.type === 'villager' ? near.v.name : 'fridge') : '';
+    const key = near ? (near.type === 'villager' ? near.v.name : near.type === 'repair' ? `repair:${near.id}` : 'fridge') : '';
     if (btn.dataset.key === key) return;
     btn.dataset.key = key;
     if (!near) {
       btn.hidden = true;
       return;
     }
-    btn.innerHTML =
-      near.type === 'villager' ? `<span class="a-icon">💬</span>${near.v.name}` : '<span class="a-icon">🧊</span>冰箱';
+    if (near.type === 'villager') btn.innerHTML = `<span class="a-icon">💬</span>${near.v.name}`;
+    else if (near.type === 'repair') btn.innerHTML = `<span class="a-icon">${near.part.icon}</span>放回`;
+    else btn.innerHTML = '<span class="a-icon">🧊</span>冰箱';
     btn.hidden = false;
   },
 
