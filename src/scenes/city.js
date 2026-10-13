@@ -577,8 +577,9 @@ export default {
     );
     qiao.pin({ emote: '😢', face: 0.4 });
 
-    // 出租车司机老周：停电后在大楼门口的长椅上睡着了
-    const DRIVER = [-3.7, -1.75];
+    // 出租车司机老周：停电后在路边的长椅上等着等着睡着了
+    // 长椅贴着马路牙子：离大楼远一点，玩俄罗斯方块时不会挡住最下面几行
+    const DRIVER = [-3.5, 0.13];
     const seat = new THREE.Group();
     seat.add(at(k.box(1.0, 0.07, 0.34, '#a0663a', 0.02), 0, 0.42, 0));
     seat.add(at(k.box(1.0, 0.3, 0.06, '#a0663a', 0.02), 0, 0.62, -0.16));
@@ -588,7 +589,7 @@ export default {
     let driver = null;
     const driverLook = { hair: '#3a2a20', shirt: '#2f6d8a', pants: '#3a3d4a', hat: 'cap', hatColor: '#ffd23f' };
     if (!(awake && has('taxi'))) {
-      driver = w.villager({ name: '老周', look: driverLook }, DRIVER[0], DRIVER[1] + 0.4);
+      driver = w.villager({ name: '老周', look: driverLook }, DRIVER[0], DRIVER[1] - 0.5);
       if (!awake) {
         driver.root.position.set(DRIVER[0], 0, DRIVER[1]);
         driver.pin({ emote: '💤', sit: true, seatY: 0.45, face: 0 });
@@ -619,7 +620,7 @@ export default {
       if (!has('moon')) l.push('便利店后面那根高高的杆子上，本来挂着月亮的。');
       else if (!found('teapot')) l.push('月光照进小巷了！里面好像飘出红茶的香味。');
       if (!has('taxi')) l.push('车都堵在斑马线上。司机们说，要等那辆黄色出租车回来带头。');
-      else if (!awake) l.push('出租车回来了，可司机老周还在大楼门口睡大觉。他最爱喝罐装咖啡。');
+      else if (!awake) l.push('出租车回来了，可司机老周还在路边长椅上睡大觉。他最爱喝罐装咖啡。');
       if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');
       setLines(yemao, l);
       if (!traffic) setLines(ani, ['车都不动了，堵得死死的……我可不敢从车缝里挤过去。', '要是有辆出租车来带个头就好了。']);
