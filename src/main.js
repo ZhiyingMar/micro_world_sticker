@@ -171,7 +171,7 @@ function loadScene(id) {
   if (player) player = null;
   talking = null;
   ui.closeDialog();
-  world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal() });
+  world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal(), startGame: (id) => startGame(id) });
   scene.add(world.root);
 
   const [sky, gnd, hi] = def.lights.hemi;
@@ -940,6 +940,7 @@ function nearestInteractable() {
     if (d < r.reach) return { type: 'repair', id: r.id };
   }
   for (const it of world.interacts.values()) {
+    if (it.available && !it.available()) continue;
     if (distToPlayer(it.x, it.z) < it.reach) return { type: 'interact', id: it.id, it };
   }
   let bd = 1.6;

@@ -23,8 +23,10 @@ const rotate = (cells, n) => cells.map(([x, y]) => [n - 1 - y, x]);
 export class Tetris {
   // look：窗户的配色 { wall, frame, dark }
   // lobby：底下留几格当一楼大堂（会被门口的长椅、路灯挡住，不放方块）
-  constructor({ cols = 10, rows = 20, lobby = 3, goal = 4, look = {}, onStatus, onLines, onWin } = {}) {
-    Object.assign(this, { cols, rows, lobby, goal, onStatus, onLines, onWin });
+  // demo：街机那样的待机演示——自己随便落块、不出声，告诉路过的人“这栋楼能玩”
+  constructor({ cols = 10, rows = 20, lobby = 3, goal = 4, look = {}, demo = false, onStatus, onLines, onWin } = {}) {
+    Object.assign(this, { cols, rows, lobby, goal, demo, onStatus, onLines, onWin });
+    this.dirty = true;
     this.look = { wall: '#5b6285', frame: '#3e4463', dark: '#2a2f4a', ...look };
     this.cell = 20;
     this.map = document.createElement('canvas');
@@ -49,6 +51,10 @@ export class Tetris {
     this.status();
   }
 
+  sound(name) {
+    if (!this.demo) sfx[name]();
+  }
+
   status() {
     this.onStatus?.(this.won ? '通关！🎉' : `消掉 ${this.lines} / ${this.goal} 行`);
   }
@@ -64,9 +70,18 @@ export class Tetris {
     const p = PIECES[this.bag.pop()];
     const n = p.m.length;
     this.piece = { color: p.color, n, cells: cellsOf(p.m), x: Math.floor((this.cols - n) / 2), y: p.m[0].includes('X') ? 0 : -1 };
+    // 演示：随便转几下、挪到随便一列
+    if (this.demo) {
+      const q = this.piece;
+      for (let r = Math.floor(Math.random() * 4); r > 0; r--) q.cells = rotate(q.cells, n);
+      const xs = [];
+      for (let x = -2; x < this.cols; x++) if (!this.hits(q.cells, x, q.y)) xs.push(x);
+      if (xs.length) q.x = xs[Math.floor(Math.random() * xs.length)];
+    }
+    this.dirty = true;
     if (this.hits(this.piece.cells, this.piece.x, this.piece.y)) {
       this.over = 0.8;
-      sfx.whoosh();
+      this.sound('whoosh');
     }
   }
 
@@ -84,12 +99,13 @@ export class Tetris {
 
   key(k) {
     if (this.busy) return;
+    this.dirty = true;
     const p = this.piece;
     if (k === 'left' || k === 'right') {
       const dx = k === 'left' ? -1 : 1;
       if (!this.hits(p.cells, p.x + dx, p.y)) {
         p.x += dx;
-        sfx.click();
+        this.sound('click');
       }
     } else if (k === 'rotate') {
       const r = rotate(p.cells, p.n);
@@ -98,7 +114,7 @@ export class Tetris {
         if (!this.hits(r, p.x + dx, p.y)) {
           p.cells = r;
           p.x += dx;
-          sfx.click();
+          this.sound('click');
           break;
         }
       }
@@ -115,6 +131,7 @@ export class Tetris {
     const p = this.piece;
     if (this.hits(p.cells, p.x, p.y + 1)) this.lock();
     else p.y++;
+    this.dirty = true;
   }
 
   lock() {
@@ -126,7 +143,7 @@ export class Tetris {
       while (this.grid.length < this.rows) this.grid.unshift(Array(this.cols).fill(null));
       this.lines += full;
       this.flash = 0.25;
-      sfx.pickup();
+      this.sound('pickup');
       this.status();
       this.onLines?.(full);
       if (this.lines >= this.goal) {
@@ -135,7 +152,12 @@ export class Tetris {
         this.onWin?.();
         return;
       }
-    } else sfx.pop();
+    } else this.sound('pop');
+    // 演示：堆到一半高就清空重来，免得一直顶着楼顶
+    if (this.demo && this.grid[Math.floor(this.rows * 0.45)].some(Boolean)) {
+      this.reset();
+      return;
+    }
     this.spawn();
   }
 
@@ -149,8 +171,8 @@ export class Tetris {
     }
     if (this.won) return;
     this.timer += dt;
-    // 越消越快
-    if (this.timer >= Math.max(0.25, 0.65 - this.lines * 0.08)) {
+    // 越消越快；演示落得快一点，看起来热闹
+    if (this.timer >= (this.demo ? 0.14 : Math.max(0.25, 0.65 - this.lines * 0.08))) {
       this.timer = 0;
       this.fall();
     }
@@ -158,6 +180,9 @@ export class Tetris {
 
   // 画到大楼正面：map 是白天看到的颜色，emit 是夜里自己发的光
   draw() {
+    // 没变化就不用重画（演示一直挂在楼上，省点力气）
+    if (!this.dirty && this.flash <= 0 && !this.won && this.over <= 0) return false;
+    this.dirty = false;
     const { cols, rows, cell, look } = this;
     const g = this.map.getContext('2d');
     const e = this.emit.getContext('2d');
@@ -172,7 +197,7 @@ export class Tetris {
       const p = this.piece;
       let gy = p.y;
       while (!this.hits(p.cells, p.x, gy + 1)) gy++;
-      ghost = p.cells.map(([x, y]) => [p.x + x, gy + y]);
+      if (!this.demo) ghost = p.cells.map(([x, y]) => [p.x + x, gy + y]);
       for (const [x, y] of p.cells) if (p.y + y >= 0) shown[p.y + y][p.x + x] = p.color;
     }
     // 一楼大堂和大门
@@ -211,5 +236,6 @@ export class Tetris {
       e.fillStyle = `rgba(255,255,255,${this.flash * 2})`;
       e.fillRect(0, 0, this.emit.width, this.emit.height);
     }
+    return true;
   }
 }

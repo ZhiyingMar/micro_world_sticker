@@ -864,6 +864,51 @@ export default {
     let tetris = null;
     let tex = null;
     let won = false;
+    let playing = false;
+    const towerLook = { wall: '#5b6285', frame: '#3e4463', dark: '#1d2136' };
+    const boardTex = (board) => {
+      const t = { map: new THREE.CanvasTexture(board.map), emissive: new THREE.CanvasTexture(board.emit) };
+      t.map.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    // 把一块棋盘贴到大楼正面（接管那面墙，电力系统先别管它）
+    // glow：发光强度（待机演示亮一点，远远就能看到；真正玩的时候柔和些，颜色看得清）
+    const showOnTower = (t, glow = 0.6) => {
+      towerFront.game = true;
+      const m = towerFront.mat;
+      m.map = t.map;
+      m.emissiveMap = t.emissive;
+      m.emissiveIntensity = glow;
+      m.needsUpdate = true;
+    };
+
+    // 待机演示：来电以后，楼上的窗户自己一直在落方块，一看就知道这栋楼能玩
+    let demo = null;
+    let demoTex = null;
+    w.onUpdate((dt) => {
+      if (playing) return;
+      if (!(has('sax') && P.city.v > 0.7)) {
+        towerFront.game = false;
+        return;
+      }
+      if (!demo) {
+        demo = new Tetris({ demo: true, look: towerLook });
+        demoTex = boardTex(demo);
+      }
+      if (towerFront.mat.map !== demoTex.map) showOnTower(demoTex, 1.3);
+      demo.update(dt);
+      if (demo.draw()) demoTex.map.needsUpdate = demoTex.emissive.needsUpdate = true;
+    });
+
+    // 走到大楼门口：提示可以玩（手机上没有鼠标悬停，靠这个发现）
+    w.interact('tower', new THREE.Object3D(), -3.2, -1.75, {
+      reach: 1.3,
+      icon: '🎮',
+      short: '玩方块',
+      label: '玩大楼俄罗斯方块',
+      available: () => has('sax'),
+      fn: () => w.env.startGame?.('tetris'),
+    });
     w.game('tetris', b1, {
       title: '🏢 大楼俄罗斯方块',
       hover: '这栋楼的窗户好像能玩？',
@@ -873,10 +918,11 @@ export default {
       start(api) {
         clearTimeout(disperseTimer);
         won = false;
+        playing = true;
         crowdTimer = 1.2;
         tetris = this.board = new Tetris({
           goal: 4,
-          look: { wall: '#5b6285', frame: '#3e4463', dark: '#1d2136' },
+          look: towerLook,
           onStatus: api.status,
           onLines() {
             for (const c of crowd) c.v.showBubble('👏', 1.6);
@@ -900,17 +946,8 @@ export default {
             api.exitSoon(2600);
           },
         });
-        tex = {
-          map: new THREE.CanvasTexture(tetris.map),
-          emissive: new THREE.CanvasTexture(tetris.emit),
-        };
-        tex.map.colorSpace = THREE.SRGBColorSpace;
-        towerFront.game = true;
-        const m = towerFront.mat;
-        m.map = tex.map;
-        m.emissiveMap = tex.emissive;
-        m.emissiveIntensity = 0.6;
-        m.needsUpdate = true;
+        tex = boardTex(tetris);
+        showOnTower(tex);
         // 竖着的“夜猫”招牌会挡住右边几列
         yeSign.visible = yeGlow.visible = false;
       },
@@ -923,12 +960,12 @@ export default {
           for (const c of crowd) if (!c.v.poi) sendTo(c.v, c.x, c.z, watchPoi(c.x, c.z));
         }
         tetris.update(dt);
-        tetris.draw();
-        tex.map.needsUpdate = tex.emissive.needsUpdate = true;
+        if (tetris.draw()) tex.map.needsUpdate = tex.emissive.needsUpdate = true;
       },
       key: (k2) => tetris.key(k2),
       stop() {
-        // 交还给电力系统，下一帧会换回原来的窗户
+        // 交还给待机演示（下一帧接着自己落方块）
+        playing = false;
         towerFront.game = false;
         yeSign.visible = yeGlow.visible = true;
         // 通关了多欢呼一会儿再散

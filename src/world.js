@@ -184,9 +184,10 @@ export class World {
   }
 
   // ---------- 可以互动的东西 ----------
-  interact(id, obj, x, z, { reach = 1.4, label, icon = '👆', fn }) {
+  // available()：返回 false 时先不出现（比如还没来电）
+  interact(id, obj, x, z, { reach = 1.4, label, icon = '👆', short, available, fn }) {
     obj.userData.interact = id;
-    this.interacts.set(id, { id, obj, x, z, reach, label, icon, fn });
+    this.interacts.set(id, { id, obj, x, z, reach, label, icon, short, available, fn });
   }
 
   // ---------- 小游戏 ----------
