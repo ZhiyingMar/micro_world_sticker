@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { World } from './world.js';
-import { SCENES } from './scenes/index.js';
+import { SCENES, HOME } from './scenes/index.js';
 import { state, save, foundIn, resetSave } from './state.js';
 import { ui } from './ui.js';
 import { sfx } from './audio.js';
@@ -192,6 +192,7 @@ function loadScene(id) {
   });
   // 先把界面画出来，取景时要量收集栏等占了多少地方
   ui.setScene(def);
+  syncHomeButton();
   refreshGoal();
   sfx.ambient(def.ambient || null);
   applySize();
@@ -225,7 +226,7 @@ function travel(id) {
   sfx.whoosh();
   ui.fade(() => loadScene(id)).then(() => {
     busy = false;
-    ui.toast(`${SCENES[id].emoji} 欢迎来到「${SCENES[id].name}」`);
+    ui.toast(id === HOME ? '🏠 回到家啦' : `${SCENES[id].emoji} 欢迎来到「${SCENES[id].name}」`);
   });
 }
 
@@ -800,7 +801,20 @@ function openFridge() {
     if (id !== state.current) travel(id);
   });
 }
-document.getElementById('btn-fridge').addEventListener('click', openFridge);
+// 右上角的按钮：在家里是“冰箱”（选下一个世界），在别的世界是“回家”
+const homeBtn = document.getElementById('btn-fridge');
+function syncHomeButton() {
+  const atHome = world.def.id === HOME;
+  homeBtn.textContent = atHome ? '🧊 冰箱' : '🏠 回家';
+  homeBtn.title = atHome ? '打开冰箱，选一块冰箱贴出发' : '回到小屋';
+}
+homeBtn.addEventListener('click', () => {
+  if (world.def.id === HOME) openFridge();
+  else {
+    sfx.click();
+    travel(HOME);
+  }
+});
 
 // 全家福：集齐所有世界之后的结局
 async function showEnding() {

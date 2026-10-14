@@ -3,7 +3,7 @@ const KEY = 'micro_world_save_v1';
 function fresh() {
   return {
     current: 'home',
-    magnets: ['home'], // 已获得的冰箱贴（= 已解锁的世界）
+    magnets: [], // 已获得的冰箱贴（= 已解锁的世界；小屋是家，不算冰箱贴）
     found: {}, // { sceneId: [itemId, ...] }
     newMagnet: null, // 刚获得、还没进去过的冰箱贴
     seenIntro: false,

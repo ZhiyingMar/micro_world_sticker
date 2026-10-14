@@ -1,5 +1,5 @@
 import { state, foundIn, repairedIn } from './state.js';
-import { SCENES, ORDER, WORLDS } from './scenes/index.js';
+import { SCENES, MAGNETS, WORLDS, HOME } from './scenes/index.js';
 import { sfx } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
@@ -207,7 +207,7 @@ export const ui = {
   openFridge(onPick) {
     sfx.pop();
     const rots = [-4, 3, -2, 5, -3, 4, -2];
-    $('#magnets').innerHTML = ORDER.map((id, i) => {
+    $('#magnets').innerHTML = MAGNETS.map((id, i) => {
       const def = SCENES[id];
       if (!state.magnets.includes(id)) return this.magnetHTML(def, { locked: true, rot: rots[i] });
       const isNew = state.newMagnet === id;
@@ -218,7 +218,7 @@ export const ui = {
       else sub = `收集 ${foundIn(id).filter((f) => def.items.some((i) => i.id === f)).length} / ${def.items.length}`;
       return this.magnetHTML(def, { badge, isNew, rot: rots[i], sub });
     }).join('');
-    $('#fridge-count').textContent = `冰箱贴 ${state.magnets.length} / ${ORDER.length}`;
+    $('#fridge-count').textContent = `冰箱贴 ${state.magnets.filter((id) => MAGNETS.includes(id)).length} / ${MAGNETS.length}`;
     $('#fridge').hidden = false;
     $('#magnets').onclick = (e) => {
       const btn = e.target.closest('.magnet[data-id]');
@@ -344,7 +344,7 @@ export const ui = {
     const ov = $('#ending');
     $('#ending-photo').innerHTML = WORLDS.map((id, i) => `<span style="animation-delay:${i * 0.2}s">${SCENES[id].emoji}</span>`).join('');
     const items = WORLDS.reduce((n, id) => n + SCENES[id].items.length, 0);
-    $('#ending-stats').innerHTML = `走过 <b>${WORLDS.length}</b> 个小世界，找到 <b>${items}</b> 样小东西`;
+    $('#ending-stats').innerHTML = `走过 <b>${WORLDS.filter((id) => id !== HOME).length}</b> 个小世界，找到 <b>${items}</b> 样小东西`;
     $('#ending-names').textContent =
       '合照里还有：小橘、阿绵、波波、莉莉、蘑菇仔、方方、豆豆、阿像、夜猫、阿霓、小飞、亚瑟、玛丽、卫兵、阿浪、小贝、老船长……和你。';
     // 彩纸

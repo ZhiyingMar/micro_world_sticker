@@ -18,5 +18,8 @@ const finale = {
 
 export const SCENES = { home, forest, pixel, city, london, beach, finale };
 export const ORDER = ['home', 'forest', 'pixel', 'city', 'london', 'beach', 'finale'];
+// 小屋是家：冰箱就在小屋里，冰箱上贴的是“别的世界”，小屋自己不是冰箱贴
+export const HOME = 'home';
+export const MAGNETS = ORDER.filter((id) => id !== HOME);
 // 真正可以进去玩的世界
 export const WORLDS = ORDER.filter((id) => !SCENES[id].ending);
