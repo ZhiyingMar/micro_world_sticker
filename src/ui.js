@@ -68,13 +68,10 @@ export const ui = {
     el.title = it.name;
   },
 
-  setMode(mode) {
-    document.querySelectorAll('#mode-switch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
-    document.body.classList.toggle('mode-life', mode === 'life');
-    $('#hint').innerHTML =
-      mode === 'god'
-        ? '🖱 拖动旋转 · 滚轮缩放<br>👆 点击任何地方放大细节<br>💬 点小人聊天'
-        : '⌨ WASD / 方向键走动<br>👆 点地面走过去<br>✨ 靠近东西自动捡起 · E 聊天';
+  setHint() {
+    // 只剩一种玩法：人在世界里走，镜头可以随时转
+    document.body.classList.add('mode-life');
+    $('#hint').innerHTML = '⌨ WASD / 方向键走动 · 👆 点哪走哪<br>🖱 拖动旋转 · 滚轮缩放，拉远看全貌<br>✨ 靠近东西自动捡起 · E 聊天';
   },
 
   prompt(html) {

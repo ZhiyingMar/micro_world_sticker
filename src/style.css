@@ -105,64 +105,6 @@ body.style-pixel .pill { border-radius: 4px; }
   gap: 10px;
 }
 
-#mode-switch {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  display: flex;
-  background: var(--cream);
-  border-radius: 999px;
-  padding: 5px;
-  box-shadow: var(--shadow);
-}
-#mode-switch button {
-  border: none;
-  background: transparent;
-  color: var(--brown-soft);
-  font-weight: 700;
-  font-size: 14px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-#mode-switch button.active { background: var(--orange); color: #fff; }
-
-/* 还没试过“进入生活”时的提示 */
-#mode-switch.nudge button[data-mode="life"] { animation: life-pulse 1.6s ease-in-out infinite; color: var(--brown); }
-#life-nudge {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 14px);
-  transform: translateX(-30%);
-  background: var(--brown);
-  color: var(--cream);
-  font-size: 14px;
-  font-weight: 800;
-  padding: 9px 14px;
-  border-radius: 14px;
-  white-space: nowrap;
-  box-shadow: 0 6px 16px rgba(107, 79, 58, 0.3);
-  animation: nudge-bob 1.2s ease-in-out infinite;
-  pointer-events: none;
-}
-#life-nudge::after {
-  content: "";
-  position: absolute;
-  left: 30%;
-  top: 100%;
-  border: 8px solid transparent;
-  border-top-color: var(--brown);
-}
-@keyframes life-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 162, 89, 0.7); background: transparent; }
-  50% { box-shadow: 0 0 0 8px rgba(244, 162, 89, 0); background: #ffe2c4; }
-}
-@keyframes nudge-bob {
-  0%, 100% { transform: translateX(-30%) translateY(0); }
-  50% { transform: translateX(-30%) translateY(-6px); }
-}
-
 #goal {
   position: absolute;
   left: 50%;
@@ -708,8 +650,6 @@ body.touch #prompt { display: none; }
   #scene-style { display: none; }
   #top-buttons { top: 10px; right: 10px; gap: 6px; }
   #top-buttons .pill { padding: 7px 10px; font-size: 13px; }
-  #mode-switch { left: 10px; bottom: 10px; padding: 4px; }
-  #mode-switch button { font-size: 12px; padding: 6px 10px; }
   #hint { display: none; }
   #goal {
     left: auto;
@@ -753,11 +693,6 @@ body.touch #prompt { display: none; }
   #top-buttons { gap: 6px; }
   #top-buttons .pill { padding: 8px 11px; font-size: 13px; }
   #btn-reset { display: none; }
-  #mode-switch { bottom: auto; top: 80px; }
-  #mode-switch button { font-size: 12px; padding: 7px 10px; }
-  /* 手机上切换按钮在顶部，提示气泡改到下方 */
-  #life-nudge { bottom: auto; top: calc(100% + 14px); font-size: 13px; }
-  #life-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--brown); }
   #hint { display: none; }
   #goal-text { white-space: normal; }
   .slot { width: 56px; }
@@ -877,7 +812,7 @@ body.touch #game-pad {
 /* ---------- 小人主动打招呼：头顶的对话气泡 ---------- */
 #speech {
   position: absolute;
-  z-index: 5;
+  z-index: 7; /* 盖过顶部的提示，开场白更要紧 */
   transform: translate(-50%, -100%);
   max-width: min(260px, calc(100vw - 32px));
   width: max-content;

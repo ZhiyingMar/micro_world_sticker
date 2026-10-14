@@ -45,20 +45,22 @@ scene.add(blob);
 
 // ---------------- 状态 ----------------
 let world = null;
-let mode = 'god';
 let player = null;
 let talking = null;
 let busy = false; // 合成动画/切换场景时锁定操作
 let intro = null; // 方块落下动画
 let focus = null; // 相机平滑移动
-let atDefaultView = true; // 还停在开场全貌（没被玩家转动过），旋转屏幕时会重新取景
+let overview = null; // 拉远看整个方块时的镜头 { pos, target }（原来的“上帝视角”）
+let hold = false; // 镜头暂时不跟着人走（往电话亭里看的时候），人一动就恢复
 let game = null; // 正在玩的小游戏：{ g, pos, target }
 let greeting = null; // 小人正在主动打招呼：{ v, t }
 const anims = [];
 const input = { up: false, down: false, left: false, right: false, ax: 0, az: 0 };
 // 触控设备：一开始按设备能力判断，之后只要碰到触摸就切到触控界面
 let touchMode = matchMedia('(pointer: coarse)').matches;
-const lifeLook = new THREE.Vector3();
+// 镜头跟着人：离人这么远时完全围着人转，拉远到全貌时慢慢过渡成围着整个方块转
+// 竖屏画面窄，同样距离看到的东西少很多，拉远一点
+const followDist = () => 11.5 * THREE.MathUtils.clamp(0.85 / camera.aspect, 1, 1.7);
 
 // ---------------- 渲染尺寸 ----------------
 function applySize() {
@@ -73,15 +75,9 @@ function applySize() {
 }
 addEventListener('resize', () => {
   applySize();
-  // 横竖屏切换：如果玩家还没动过镜头，就按新的屏幕重新取景
-  if (world && mode === 'god' && atDefaultView && !focus) {
-    const v = defaultView(world.def);
-    camera.position.copy(v.pos);
-    controls.target.copy(v.target);
-    controls.update();
-  }
+  // 横竖屏切换：全貌按新的屏幕重新取景
+  if (world) overview = defaultView(world.def);
 });
-controls.addEventListener('start', () => (atDefaultView = false));
 
 // ---------------- 场景加载 ----------------
 // 界面元素在四边占掉的空间（NDC 坐标）。横跨屏幕中间的挡上下，竖跨中间的挡左右，角落里的小按钮不管
@@ -89,7 +85,7 @@ function safeArea() {
   const W = innerWidth;
   const H = innerHeight;
   const pad = { top: 10, bottom: 10, left: 10, right: 10 };
-  for (const sel of ['#title-card', '#top-buttons', '#mode-switch', '#goal']) {
+  for (const sel of ['#title-card', '#top-buttons', '#goal']) {
     const r = document.querySelector(sel).getBoundingClientRect();
     if (!r.width) continue;
     const hc = r.right > W * 0.28 && r.left < W * 0.72;
@@ -204,18 +200,20 @@ function loadScene(id) {
   controls.maxPolarAngle = c.maxPolar || 1.3;
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
-  const v = defaultView(def);
-  camera.position.copy(v.pos);
-  controls.target.copy(v.target);
-  controls.update();
+  overview = defaultView(def);
   focus = null;
-  atDefaultView = true;
+  hold = false;
 
   state.current = id;
   if (state.newMagnet === id) state.newMagnet = null;
   save();
 
-  if (mode === 'life') spawnPlayer();
+  spawnPlayer();
+  // 一进来镜头就在人身边，斜着看一点，像在看一个小立体模型
+  const az = THREE.MathUtils.clamp(0.35, controls.minAzimuthAngle, controls.maxAzimuthAngle);
+  controls.target.set(player.x, 0.5, player.z);
+  camera.position.setFromSphericalCoords(followDist(), 0.82, az).add(controls.target);
+  controls.update();
   intro = { t: 0 };
   world.root.scale.setScalar(0.001);
 }
@@ -230,7 +228,7 @@ function travel(id) {
   });
 }
 
-// ---------------- 模式切换 ----------------
+// ---------------- 玩家 ----------------
 function spawnPlayer() {
   const [sx, sz] = world.def.spawn;
   player = world.villager(
@@ -248,20 +246,6 @@ function spawnPlayer() {
   player.heading = Math.PI;
   player.root.rotation.y = Math.PI;
   world.player = player;
-  const wp = player.root.getWorldPosition(new THREE.Vector3());
-  lifeLook.copy(wp);
-}
-
-// “进入生活”的提示气泡：玩家试过一次之后就不再出现
-function showLifeNudge(on) {
-  document.getElementById('mode-switch').classList.toggle('nudge', on);
-  document.getElementById('life-nudge').hidden = !on;
-}
-function scheduleLifeNudge() {
-  if (state.triedLife) return;
-  setTimeout(() => {
-    if (!state.triedLife && mode === 'god') showLifeNudge(true);
-  }, 4000);
 }
 
 // 手机竖屏时提示一次：横过来画面更大
@@ -272,50 +256,7 @@ function maybeRotateHint() {
   save();
 }
 
-function setMode(m) {
-  if (m === mode || busy) return;
-  mode = m;
-  ui.setMode(m);
-  sfx.click();
-  endTalk();
-  if (m === 'life') {
-    if (!state.triedLife) {
-      state.triedLife = true;
-      save();
-    }
-    showLifeNudge(false);
-    controls.enabled = false;
-    focus = null;
-    spawnPlayer();
-    world.fx.emit(player.root.position.clone().setY(0.5), { count: 12, spread: 0.4, rise: 1.2, color: '#c8ffd0' });
-  } else {
-    if (player) {
-      controls.target.copy(lifeLook);
-      player.root.removeFromParent();
-      world.player = null;
-      player = null;
-    }
-    controls.enabled = true;
-    ui.prompt(null);
-  }
-  syncTouchUI();
-}
-document.querySelectorAll('#mode-switch button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
-
 // ---------------- 相机 ----------------
-function focusOn(target, dist) {
-  atDefaultView = false;
-  const dir = camera.position.clone().sub(controls.target).normalize();
-  focus = {
-    t: 0,
-    dur: 0.7,
-    fromT: controls.target.clone(),
-    toT: target.clone(),
-    fromP: camera.position.clone(),
-    toP: target.clone().add(dir.multiplyScalar(dist)),
-  };
-}
-
 // 电话亭、空心木头这类“里面藏着东西”的物体：点它时镜头凑到开口处往里看
 function peekAt(obj) {
   let o = obj;
@@ -327,15 +268,14 @@ function peekAt(obj) {
   // 已经在这个角度附近了，就当普通点击处理（继续放大）
   if (camera.position.distanceTo(p) < 0.6) return false;
   focus = { t: 0, dur: 0.8, fromT: controls.target.clone(), toT: t, fromP: camera.position.clone(), toP: p };
-  atDefaultView = false;
+  hold = true; // 看完之前镜头先别跟着人走
   return true;
 }
 
+// 拉远看整个小世界（原来的“上帝视角”）。拉得够远时镜头会自动围着方块中心转
 function resetView() {
-  if (mode === 'life') setMode('god');
-  const v = defaultView(world.def);
-  focus = { t: 0, dur: 0.9, fromT: controls.target.clone(), toT: v.target, fromP: camera.position.clone(), toP: v.pos };
-  atDefaultView = true;
+  hold = false;
+  focus = { t: 0, dur: 0.9, fromT: controls.target.clone(), toT: overview.target, fromP: camera.position.clone(), toP: overview.pos };
 }
 document.getElementById('btn-reset').addEventListener('click', () => {
   sfx.click();
@@ -352,27 +292,26 @@ function updateCamera(dt) {
     camera.lookAt(game.look);
     return;
   }
-  if (mode === 'life' && player) {
-    const p = player.root.getWorldPosition(new THREE.Vector3());
-    lifeLook.lerp(p.clone().setY(0.5), 1 - Math.exp(-dt * 6));
-    const desired = lifeLook.clone().add(new THREE.Vector3(0, 5.2, 6.6));
-    camera.position.lerp(desired, 1 - Math.exp(-dt * 4));
-    camera.lookAt(lifeLook);
-    return;
-  }
   if (focus) {
     focus.t += dt;
     const k = ease(Math.min(1, focus.t / focus.dur));
     controls.target.lerpVectors(focus.fromT, focus.toT, k);
     camera.position.lerpVectors(focus.fromP, focus.toP, k);
     if (k >= 1) focus = null;
+  } else if (player && !hold) {
+    // 镜头中心跟着人走（旋转、缩放交给 OrbitControls）；拉得越远越偏向整个方块的中心
+    const d = camera.position.distanceTo(controls.target);
+    const far = overview.pos.distanceTo(overview.target);
+    const k = THREE.MathUtils.smoothstep(d, followDist() + 1, Math.max(far * 0.9, followDist() + 2));
+    _want.set(player.x, 0.5, player.z).lerp(overview.target, k);
+    _delta.copy(_want).sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 6));
+    controls.target.add(_delta);
+    camera.position.add(_delta);
   }
-  const t = controls.target;
-  t.x = THREE.MathUtils.clamp(t.x, -5.5, 5.5);
-  t.y = THREE.MathUtils.clamp(t.y, 0, 3.5);
-  t.z = THREE.MathUtils.clamp(t.z, -5.5, 5.5);
   controls.update();
 }
+const _want = new THREE.Vector3();
+const _delta = new THREE.Vector3();
 
 // ---------------- 拾取 / 点击 ----------------
 const raycaster = new THREE.Raycaster();
@@ -482,29 +421,7 @@ function handleClick(cx, cy, touch = false) {
     startGame(hit.id);
     return;
   }
-  if (mode === 'god') {
-    if (hit.type === 'item') {
-      // 破败世界里，东西要亲自走过去拿：上帝视角只负责看
-      if (world.def.repairs) {
-        focusOn(hit.obj.getWorldPosition(new THREE.Vector3()), controls.minDistance + 1.5);
-        ui.toast('🚶 太远啦，够不着！进入生活，走过去拿吧');
-        sfx.pop();
-      } else collect(hit.id);
-    } else if (hit.type === 'repair') doRepair(hit.id);
-    else if (hit.type === 'interact') world.interacts.get(hit.id).fn();
-    else if (hit.type === 'villager') talkTo(hit.v);
-    else if (hit.type === 'action' && hit.action === 'fridge') openFridge();
-    else if (peekAt(hit.obj)) sfx.click();
-    else {
-      const d = camera.position.distanceTo(controls.target);
-      const target = hit.point.clone();
-      target.y = Math.min(target.y, 3);
-      focusOn(target, Math.max(controls.minDistance + 0.3, d * (touch ? 0.45 : 0.55)));
-      sfx.click();
-    }
-    return;
-  }
-  // 生活模式：点哪里走到哪里，够近了就互动
+  // 点哪里走到哪里，够近了就互动
   const lp = localPoint(hit.point);
   if (hit.type === 'item') {
     const g = hit.obj;
@@ -525,6 +442,8 @@ function handleClick(cx, cy, touch = false) {
     const f = world.fridge.position;
     if (distToPlayer(f.x, f.z) < 2.0) openFridge();
     else player.moveTarget = { x: f.x, z: f.z + 0.9 };
+  } else if (peekAt(hit.obj)) {
+    sfx.click();
   } else {
     player.moveTarget = { x: lp.x, z: lp.z };
     world.fx.emit(lp.setY(0.1), { count: 3, spread: 0.1, size: 0.18, rise: 0.4, color: '#ffffff' });
@@ -593,7 +512,7 @@ function updateHover() {
   } else if (hit?.type === 'game') tip = `🎮 ${world.games.get(hit.id).hover}`;
   else if (hit?.type === 'villager') tip = `💬 ${hit.v.name}`;
   else if (hit?.type === 'action') tip = '🧊 冰箱 · 点击打开';
-  canvas.style.cursor = tip ? 'pointer' : mode === 'life' ? 'crosshair' : '';
+  canvas.style.cursor = tip ? 'pointer' : '';
   ui.tooltip(tip, hoverPos.x, hoverPos.y);
 }
 
@@ -602,9 +521,9 @@ function talkTo(v) {
   endGreeting();
   if (talking && talking !== v) talking.endTalk();
   talking = v;
-  const from = mode === 'life' && player ? player.root.position : localPoint(camera.position);
+  const from = player.root.position;
   v.startTalk(from.x, from.z);
-  if (player && mode === 'life') {
+  if (player) {
     player.moveTarget = null;
     player.face(v.x, v.z);
   }
@@ -624,7 +543,7 @@ function maybeGreet() {
   if (!v) return;
   state.greeted[key] = true;
   save();
-  const from = mode === 'life' && player ? player.root.position : localPoint(camera.position);
+  const from = player.root.position;
   v.startTalk(from.x, from.z);
   v.hideBubble();
   greeting = { v, t: 0 };
@@ -667,9 +586,10 @@ document.getElementById('dialog').addEventListener('click', () => {
 function startGame(id) {
   if (busy || game) return;
   const g = world.games.get(id);
-  if (mode === 'life') setMode('god');
   endTalk();
   focus = null;
+  player.moveTarget = null;
+  player.root.visible = false; // 别挡在楼前面
   controls.enabled = false;
   document.body.classList.add('in-game');
   ui.showGame(g, (k) => (k === 'exit' ? stopGame() : g.key(k)));
@@ -688,7 +608,7 @@ function startGame(id) {
   const lift = ((H / 2 - (top + usable / 2)) * 2 * d * tan) / H; // 空白区域的中心比屏幕中心高多少
   target.y -= lift;
   const pos = target.clone().add(new THREE.Vector3(0, 0.3, 0.95).normalize().multiplyScalar(d));
-  game = { g, target, pos, look: controls.target.clone() };
+  game = { g, target, pos, look: controls.target.clone(), back: { target: controls.target.clone(), pos: camera.position.clone() } };
   sfx.whoosh();
   g.start({
     status: (text) => ui.gameStatus(text),
@@ -700,12 +620,15 @@ function startGame(id) {
 function stopGame() {
   if (!game) return;
   game.g.stop();
+  // 镜头飞回进游戏之前的位置，接着跟着人
+  const { back } = game;
+  focus = { t: 0, dur: 0.9, fromT: game.look.clone(), toT: back.target, fromP: camera.position.clone(), toP: back.pos };
   controls.target.copy(game.look);
   game = null;
+  player.root.visible = true;
   document.body.classList.remove('in-game');
   ui.hideGame();
   controls.enabled = true;
-  resetView();
 }
 
 // ---------------- 收集 ----------------
@@ -797,12 +720,11 @@ function doRepair(id) {
 function checkDiscover() {
   for (const r of world.repairs.values()) {
     if (r.seen || r.done) continue;
-    let near = false;
-    if (player) near = distToPlayer(r.x, r.z) < r.seeR;
-    else if (mode === 'god' && !focus) {
-      const t = controls.target;
+    // 人走到附近，或者镜头凑近看（比如转过去看杆子顶上）
+    let near = distToPlayer(r.x, r.z) < r.seeR;
+    if (!near && !focus) {
       const sp = r.spot.getWorldPosition(new THREE.Vector3());
-      near = Math.hypot(t.x - sp.x, t.z - sp.z) < r.seeR && camera.position.distanceTo(sp) < 15;
+      near = camera.position.distanceTo(sp) < 4;
     }
     if (near && world.discover(r.id)) {
       const p = partOf(world.def, r.id);
@@ -880,8 +802,8 @@ function setTouchMode(on) {
 
 function syncTouchUI() {
   document.body.classList.toggle('touch', touchMode);
-  document.getElementById('joystick').hidden = !(touchMode && mode === 'life');
-  if (!(touchMode && mode === 'life')) {
+  document.getElementById('joystick').hidden = !touchMode;
+  if (!touchMode) {
     ui.action(null);
     input.ax = input.az = 0;
   }
@@ -1020,11 +942,9 @@ addEventListener('keydown', (e) => {
   }
   if (busy || ui.fridgeOpen) return;
   if (KEYMAP[e.code]) {
-    if (mode === 'life') {
-      input[KEYMAP[e.code]] = true;
-      e.preventDefault();
-      if (ui.dialogOpen) endTalk();
-    }
+    input[KEYMAP[e.code]] = true;
+    e.preventDefault();
+    if (ui.dialogOpen) endTalk();
     return;
   }
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
@@ -1038,10 +958,6 @@ addEventListener('keydown', (e) => {
     else if (n?.type === 'repair') doRepair(n.id);
     else if (n?.type === 'interact') n.it.fn();
     else if (n?.type === 'fridge') openFridge();
-  }
-  if (e.code === 'Tab') {
-    e.preventDefault();
-    setMode(mode === 'god' ? 'life' : 'god');
   }
 });
 addEventListener('keyup', (e) => {
@@ -1071,8 +987,12 @@ function frame(dt, render = true) {
 
   world.update(dt, t, input);
   if (player) {
+    // 方向键、摇杆跟着镜头转：“上”永远是朝屏幕里走
+    input.yaw = controls.getAzimuthalAngle();
     player.update(dt, t, input);
-    // 生活模式：走到东西旁边自动捡起
+    // 往电话亭里看完，人一动镜头就重新跟上
+    if (hold && player.moving) hold = false;
+    // 走到东西旁边自动捡起
     for (const [id, g] of world.items) {
       if (Math.hypot(player.x - g.position.x, player.z - g.position.z) < 0.8) {
         collect(id);
@@ -1118,7 +1038,7 @@ function loop() {
 }
 
 // ---------------- 启动 ----------------
-ui.setMode('god');
+ui.setHint();
 syncTouchUI();
 const startDef = SCENES[state.current];
 loadScene(startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home');
@@ -1128,11 +1048,9 @@ if (!state.seenIntro) {
     state.seenIntro = true;
     save();
     setTimeout(maybeGreet, 400);
-    scheduleLifeNudge();
     maybeRotateHint();
   });
 } else {
-  scheduleLifeNudge();
   maybeRotateHint();
 }
 
@@ -1145,7 +1063,6 @@ window.__mw = {
   camera,
   controls,
   travel,
-  setMode,
   pick,
   // 窗口在后台时 requestAnimationFrame 会暂停，用它手动推进若干帧
   step(n = 60, render = true) {

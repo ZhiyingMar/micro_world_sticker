@@ -475,6 +475,11 @@ export class Villager {
     }
     if (mag) {
       this.moveTarget = null;
+      // 按镜头的朝向把屏幕方向换成世界方向（yaw = 镜头绕方块转的角度）
+      const yaw = input.yaw || 0;
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      [ix, iz] = [ix * c + iz * sn, -ix * sn + iz * c];
       const l = Math.hypot(ix, iz);
       this.moveToward(this.x + (ix / l) * 2, this.z + (iz / l) * 2, dt, this.speed * (0.35 + 0.65 * mag));
     } else if (this.moveTarget) {
