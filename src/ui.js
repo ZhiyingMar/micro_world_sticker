@@ -15,57 +15,70 @@ export const ui = {
     [...cl].filter((c) => c.startsWith('style-')).forEach((c) => cl.remove(c));
     cl.add(`style-${def.style}`);
     document.getElementById('app').style.setProperty('--scene-bg', def.bg);
+    this._shown = new Set(); // 换了世界：已经完成的直接不显示
     this.renderGoal(def);
   },
 
   // broken：破败世界还没修好；bag：背包里的小道具 [{ icon, name }]
+  // 只显示还没完成的：刚完成的打个勾、淡出，全部完成后整个目标栏收起来
   renderGoal(def, { broken = false, bag = [] } = {}) {
     const next = SCENES[def.next];
-    // 破败的世界：先把上一个世界带来的东西放回原处
+    const slot = (key, cls, icon, name, title) => `<div class="slot ${cls}" data-id="${key}" title="${title}">
+          <div class="slot-icon"><span>${icon}</span></div>
+          <div class="slot-name">${name}</div>
+        </div>`;
+    const list = []; // { key, done, html }
+    let text;
     if (def.repairs && broken) {
+      // 破败的世界：先把上一个世界带来的东西放回原处
       const fixed = repairedIn(def.id);
-      $('#goal-text').innerHTML = def.brokenGoal;
-      const parts = def.repairs.map((r) => {
+      text = def.brokenGoal;
+      for (const r of def.repairs) {
         const it = SCENES[r.from].items.find((i) => i.id === r.id);
         const used = fixed.includes(r.id);
-        return `<div class="slot part ${used ? 'used' : ''}" data-id="${r.id}" title="${used ? '已经放回去了' : '提示：' + r.hint}">
-          <div class="slot-icon"><span>${it.icon}</span></div>
-          <div class="slot-name">${used ? '放好了' : it.name}</div>
-        </div>`;
-      });
-      const things = bag.map(
-        (b) => `<div class="slot part bag" title="背包里的${b.name}">
-          <div class="slot-icon"><span>${b.icon}</span></div>
-          <div class="slot-name">${b.name}</div>
-        </div>`,
-      );
-      $('#slots').innerHTML = parts.join('') + things.join('');
-      return;
-    }
-    const found = foundIn(def.id);
-    const done = found.filter((f) => def.items.some((i) => i.id === f)).length >= def.items.length;
-    $('#goal-text').innerHTML = done
-      ? `这里的东西已经集齐 ✓ <b>「${next.name}」</b>冰箱贴在冰箱上`
-      : `找到这些东西，组成 <b>「${next.name}」</b>冰箱贴`;
-    $('#slots').innerHTML = def.items
-      .map((it) => {
+        list.push({ key: `part:${r.id}`, done: used, html: slot(`part:${r.id}`, used ? 'part used leaving' : 'part', it.icon, used ? '放好了' : it.name, used ? '已经放回去了' : '提示：' + r.hint) });
+      }
+      for (const b of bag) list.push({ key: `bag:${b.name}`, done: false, html: slot(`bag:${b.name}`, 'part bag', b.icon, b.name, `背包里的${b.name}`) });
+    } else {
+      const found = foundIn(def.id);
+      text = `找到这些东西，组成 <b>「${next.name}」</b>冰箱贴`;
+      for (const it of def.items) {
         const f = found.includes(it.id);
-        return `<div class="slot ${f ? 'found' : ''}" data-id="${it.id}" title="${f ? it.name : '提示：' + it.hint}">
-          <div class="slot-icon"><span>${it.icon}</span></div>
-          <div class="slot-name">${f ? it.name : '？？？'}</div>
-        </div>`;
-      })
-      .join('');
+        list.push({ key: `item:${it.id}`, done: f, html: slot(`item:${it.id}`, f ? 'found leaving' : '', it.icon, f ? it.name : '？？？', f ? it.name : '提示：' + it.hint) });
+      }
+    }
+    // 上次还显示着、这次完成了的，留下来播完淡出动画
+    const shown = this._shown || new Set();
+    const visible = list.filter((x) => !x.done || shown.has(x.key));
+    this._shown = new Set(list.filter((x) => !x.done).map((x) => x.key));
+    $('#goal-text').innerHTML = text;
+    $('#slots').innerHTML = visible.map((x) => x.html).join('');
+    this._dropLeaving();
+  },
+
+  _dropLeaving() {
+    this._syncGoal();
+    if (!$('#slots .leaving')) return;
+    setTimeout(() => {
+      $('#slots').querySelectorAll('.leaving').forEach((el) => el.remove());
+      this._syncGoal();
+    }, 1100);
+  },
+
+  _syncGoal() {
+    $('#goal').hidden = !$('#slots').children.length;
   },
 
   markFound(id) {
-    const el = document.querySelector(`.slot:not(.part)[data-id="${id}"]`);
+    const el = document.querySelector(`.slot[data-id="item:${id}"]`);
     if (!el) return;
-    el.classList.add('found');
     const def = SCENES[state.current];
     const it = def.items.find((i) => i.id === id);
+    el.classList.add('found', 'leaving');
     el.querySelector('.slot-name').textContent = it.name;
     el.title = it.name;
+    this._shown?.delete(`item:${id}`);
+    this._dropLeaving();
   },
 
   setHint() {

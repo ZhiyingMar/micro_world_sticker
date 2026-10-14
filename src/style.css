@@ -156,7 +156,14 @@ body.style-pixel .pill { border-radius: 4px; }
   display: grid;
   place-items: center;
 }
-.slot-name { font-size: 12px; font-weight: 700; color: var(--brown-soft); }
+.slot-name { font-size: 12px; font-weight: 700; color: var(--brown-soft); white-space: nowrap; }
+#goal[hidden] { display: none; }
+/* 完成的格子：打勾停一下，然后缩小淡出 */
+.slot.leaving { overflow: hidden; animation: slot-out 1.1s ease-in forwards; }
+@keyframes slot-out {
+  0%, 55% { opacity: 1; transform: none; max-width: 80px; }
+  100% { opacity: 0; transform: scale(0.5); max-width: 0; margin: 0 -6px; }
+}
 /* 破败世界：从上一个世界带来的东西，还没放回去时是亮的，放好了就打勾 */
 .slot.part .slot-icon { background: #eaf6ff; border: 2px solid #9fd0f0; }
 .slot.part .slot-icon span { filter: none; opacity: 1; }
@@ -688,15 +695,21 @@ body.touch #prompt { display: none; }
 /* ---------- Small screens ---------- */
 @media (max-width: 720px) and (min-height: 501px) {
   #title-card { padding: 8px 14px 8px 10px; }
+  #scene-style { display: none; }
   #scene-emoji { font-size: 24px; }
   #scene-name { font-size: 16px; }
   #top-buttons { gap: 6px; }
   #top-buttons .pill { padding: 8px 11px; font-size: 13px; }
   #btn-reset { display: none; }
   #hint { display: none; }
-  #goal-text { white-space: normal; }
-  .slot { width: 56px; }
-  .slot-icon { width: 44px; height: 44px; font-size: 24px; }
+  /* 手机竖屏：目标栏缩小贴在左上角标题下面，只留图标和名字，不挡画面中间 */
+  #goal { left: 16px; right: auto; top: 66px; bottom: auto; transform: none; padding: 6px 8px 4px; border-radius: 16px; }
+  #goal-text { display: none; }
+  #slots { gap: 4px; }
+  .slot { width: 46px; }
+  .slot-icon { width: 36px; height: 36px; font-size: 20px; border-radius: 11px; }
+  .slot-name { font-size: 10px; }
+  .slot.found .slot-icon::after, .slot.part.used .slot-icon::after { width: 16px; height: 16px; font-size: 10px; right: -4px; bottom: -4px; }
   #dialog { bottom: 140px; font-size: 15px; padding: 22px 24px 18px; }
   .fridge-top { padding: 18px 16px 14px 40px; }
   .fridge-handle { left: 12px; width: 10px; }
@@ -705,8 +718,6 @@ body.touch #prompt { display: none; }
   .magnet--cozy { width: 118px; }
   .magnet .m-emoji { font-size: 36px; }
   .magnet .m-name { font-size: 13px; }
-  /* 手机上生活模式：目标栏挪到上面，给摇杆和按钮腾地方 */
-  body.touch.mode-life #goal { bottom: auto; top: 128px; transform: translateX(-50%) scale(0.82); transform-origin: top center; }
   #joystick { left: 20px; bottom: 28px; width: 124px; height: 124px; }
   #btn-action { right: 20px; bottom: 40px; min-width: 88px; height: 88px; font-size: 14px; }
 }
