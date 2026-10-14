@@ -53,6 +53,7 @@ let intro = null; // 方块落下动画
 let focus = null; // 相机平滑移动
 let atDefaultView = true; // 还停在开场全貌（没被玩家转动过），旋转屏幕时会重新取景
 let game = null; // 正在玩的小游戏：{ g, pos, target }
+let greeting = null; // 小人正在主动打招呼：{ v, t }
 const anims = [];
 const input = { up: false, down: false, left: false, right: false, ax: 0, az: 0 };
 // 触控设备：一开始按设备能力判断，之后只要碰到触摸就切到触控界面
@@ -168,6 +169,7 @@ function defaultView(def) {
 
 function loadScene(id) {
   const def = SCENES[id];
+  endGreeting();
   if (world) world.dispose();
   if (player) player = null;
   talking = null;
@@ -467,6 +469,7 @@ function distToPlayer(x, z) {
 
 function handleClick(cx, cy, touch = false) {
   if (busy || ui.fridgeOpen || game) return;
+  endGreeting();
   if (ui.dialogOpen) {
     endTalk();
     return;
@@ -596,6 +599,7 @@ function updateHover() {
 
 // ---------------- 对话 ----------------
 function talkTo(v) {
+  endGreeting();
   if (talking && talking !== v) talking.endTalk();
   talking = v;
   const from = mode === 'life' && player ? player.root.position : localPoint(camera.position);
@@ -608,7 +612,48 @@ function talkTo(v) {
   ui.say(v.name, v.onTalk?.() ?? v.nextLine());
 }
 
+// 第一次进入一个世界（或世界有了大变化）时，有个小人主动打招呼
+function maybeGreet() {
+  const g0 = world.def.greet;
+  if (!g0 || busy || game || ui.fridgeOpen) return;
+  const g = typeof g0 === 'function' ? g0(world) : g0;
+  const key = g.key || world.def.id;
+  if (!state.greeted) state.greeted = {};
+  if (state.greeted[key]) return;
+  const v = world.villagers.find((x) => x.name === g.name);
+  if (!v) return;
+  state.greeted[key] = true;
+  save();
+  const from = mode === 'life' && player ? player.root.position : localPoint(camera.position);
+  v.startTalk(from.x, from.z);
+  v.hideBubble();
+  greeting = { v, t: 0 };
+  ui.speech(g.name, g.text);
+}
+
+// 一动（点屏幕、按键、走路）就收起来，不挡操作
+function endGreeting() {
+  if (!greeting) return;
+  greeting.v.endTalk();
+  greeting = null;
+  ui.speech(null);
+}
+
+const _head = new THREE.Vector3();
+function updateGreeting(dt) {
+  if (!greeting) return;
+  greeting.t += dt;
+  const moving = player && (player.moving || player.moveTarget);
+  if (greeting.t > 8 || (moving && greeting.t > 0.5)) {
+    endGreeting();
+    return;
+  }
+  greeting.v.root.localToWorld(_head.set(0, 1.55, 0)).project(camera);
+  ui.speechAt(((_head.x + 1) / 2) * innerWidth, ((1 - _head.y) / 2) * innerHeight);
+}
+
 function endTalk() {
+  endGreeting();
   if (talking) talking.endTalk();
   talking = null;
   ui.closeDialog();
@@ -876,6 +921,7 @@ joy.addEventListener('pointerdown', (e) => {
     /* 个别浏览器不支持捕获，不影响摇杆 */
   }
   joy.classList.add('active');
+  endGreeting();
   if (ui.dialogOpen) endTalk();
   if (player) player.moveTarget = null;
   joyMove(e);
@@ -958,6 +1004,7 @@ function nearestInteractable() {
 const GAME_KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'rotate', KeyW: 'rotate', ArrowDown: 'down', KeyS: 'down', Space: 'drop' };
 
 addEventListener('keydown', (e) => {
+  endGreeting();
   if (game) {
     if (e.code === 'Escape') stopGame();
     else if (GAME_KEYS[e.code]) {
@@ -1015,7 +1062,11 @@ function frame(dt, render = true) {
     world.root.scale.setScalar(Math.max(0.001, easeOutBack(k)));
     world.root.rotation.y = (1 - ease(k)) * -0.8;
     world.root.position.y = (1 - ease(k)) * 1.5;
-    if (k >= 1) intro = null;
+    if (k >= 1) {
+      intro = null;
+      // 方块落定之后再打招呼（第一次打开游戏时，等开场说明关掉）
+      if (state.seenIntro) setTimeout(maybeGreet, 400);
+    }
   }
 
   world.update(dt, t, input);
@@ -1056,6 +1107,7 @@ function frame(dt, render = true) {
 
   if (game) game.g.update(dt);
   updateCamera(dt);
+  updateGreeting(dt);
   updateHover();
   if (render) renderer.render(scene, camera);
 }
@@ -1075,6 +1127,7 @@ if (!state.seenIntro) {
   ui.intro().then(() => {
     state.seenIntro = true;
     save();
+    setTimeout(maybeGreet, 400);
     scheduleLifeNudge();
     maybeRotateHint();
   });

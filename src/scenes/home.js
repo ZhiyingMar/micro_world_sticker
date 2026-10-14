@@ -324,6 +324,8 @@ export default {
   camera: { pos: [9.5, 9.5, 12.5], target: [0, 1, -0.5], fitH: 4.4, minAz: 0.02, maxAz: 1.48, maxPolar: 1.25, min: 2.2 },
   bounds: { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 },
   spawn: [1.6, 2.8],
+  // 第一次进来时，这个小人会主动打招呼
+  greet: { name: '小橘', text: '你醒啦！冰箱上的每一块冰箱贴里，都藏着一个小世界哦。先在屋里找找 3 样亮晶晶的东西吧～' },
   next: 'forest',
   items: [
     {

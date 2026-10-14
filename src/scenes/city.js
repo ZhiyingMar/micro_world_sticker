@@ -152,6 +152,11 @@ export default {
   },
   camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
   spawn: [0, -1.0],
+  // 第一次进来时主动打招呼：停电时和修好以后各一句（key 不同，各说一次）
+  greet: (w) =>
+    w.restored
+      ? { key: 'city:restored', name: '老乔', text: '又见面啦！今晚这首爵士，送给把灯点亮的你。' }
+      : { key: 'city:broken', name: '夜猫', text: '啊，有人来了！停电了，整座城一下子全黑了……你能帮帮我们吗？' },
   next: 'london',
   // 破败世界：到的时候停电了，要先把上一个世界带来的东西放回原处
   brokenGoal: '停电了！四处找找，哪里少了从 <b>「像素小镇」</b> 带来的东西',

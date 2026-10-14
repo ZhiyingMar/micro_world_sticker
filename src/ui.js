@@ -153,6 +153,34 @@ export const ui = {
     this.dialogOpen = false;
   },
 
+  // ---------- 头顶的话（小人主动打招呼） ----------
+  _speechTyping: null,
+  speech(name, text) {
+    const el = $('#speech');
+    clearInterval(this._speechTyping);
+    if (!name) {
+      el.hidden = true;
+      return;
+    }
+    el.querySelector('.sp-name').textContent = name;
+    const t = el.querySelector('.sp-text');
+    t.textContent = '';
+    el.hidden = false;
+    let i = 0;
+    this._speechTyping = setInterval(() => {
+      t.textContent = text.slice(0, ++i);
+      if (i % 2) sfx.blip();
+      if (i >= text.length) clearInterval(this._speechTyping);
+    }, 38);
+  },
+
+  // 跟着小人的头走（屏幕坐标）
+  speechAt(x, y) {
+    const el = $('#speech');
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+  },
+
   // ---------- 冰箱 ----------
   magnetHTML(def, { locked = false, badge = '', isNew = false, rot = 0, sub = '' } = {}) {
     if (locked) {

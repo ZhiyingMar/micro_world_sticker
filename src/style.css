@@ -873,3 +873,34 @@ body.touch #game-pad {
   }
   #game-title { font-size: 14px; }
 }
+
+/* ---------- 小人主动打招呼：头顶的对话气泡 ---------- */
+#speech {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  max-width: min(260px, calc(100vw - 32px));
+  width: max-content;
+  background: var(--cream);
+  color: var(--brown);
+  border-radius: 16px;
+  padding: 8px 14px 10px;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  animation: speech-pop 0.4s cubic-bezier(.3, 1.8, .5, 1);
+}
+@keyframes speech-pop { 0% { transform: translate(-50%, -100%) scale(0.4); } 100% { transform: translate(-50%, -100%) scale(1); } }
+#speech[hidden] { display: none; }
+#speech::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-left: -8px;
+  border: 8px solid transparent;
+  border-top-color: var(--cream);
+}
+#speech .sp-name { font-size: 12px; font-weight: 800; color: var(--orange); margin-bottom: 2px; }

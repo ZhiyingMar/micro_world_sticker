@@ -363,6 +363,8 @@ export default {
   },
   camera: { pos: [11.5, 11.5, 14.5], target: [0, 1.2, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
   spawn: [0.2, -0.8],
+  // 第一次进来时，这个小人会主动打招呼
+  greet: { name: '亚瑟', text: '日安！欢迎来到伦敦——这里的雨，从来不会停。' },
   next: 'beach',
   items: [
     {
