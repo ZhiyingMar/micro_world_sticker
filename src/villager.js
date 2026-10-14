@@ -458,6 +458,14 @@ export class Villager {
   }
 
   // ---------------- 玩家操控 ----------------
+  // 点地面/东西：算一条绕开障碍的路走过去；走不到的地方就直着走（撞上了会有提示）
+  goTo(x, z) {
+    this.path = this.world.findPath(this.x, this.z, x, z, this.radius + 0.02);
+    this.moveTarget = this.path?.length ? this.path[this.path.length - 1] : { x, z };
+    if (!this.path?.length) this.path = null;
+    this.stuck = 0;
+  }
+
   control(dt, input) {
     let ix = 0;
     let iz = 0;
@@ -475,6 +483,7 @@ export class Villager {
     }
     if (mag) {
       this.moveTarget = null;
+      this.path = null;
       // 按镜头的朝向把屏幕方向换成世界方向（yaw = 镜头绕方块转的角度）
       const yaw = input.yaw || 0;
       const c = Math.cos(yaw);
@@ -483,8 +492,13 @@ export class Villager {
       const l = Math.hypot(ix, iz);
       this.moveToward(this.x + (ix / l) * 2, this.z + (iz / l) * 2, dt, this.speed * (0.35 + 0.65 * mag));
     } else if (this.moveTarget) {
-      if (this.moveToward(this.moveTarget.x, this.moveTarget.z, dt, this.speed) || this.stuck > 1.2) {
+      // 沿着路线一段一段走；没有路线（走不到）就直着朝目标走
+      const wp = this.path ? this.path[0] : this.moveTarget;
+      const arrived = this.moveToward(wp.x, wp.z, dt, this.speed);
+      if (arrived && this.path && this.path.length > 1) this.path.shift();
+      else if (arrived || this.stuck > 1.2) {
         this.moveTarget = null;
+        this.path = null;
         this.stuck = 0;
       }
     } else {

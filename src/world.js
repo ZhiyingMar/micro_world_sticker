@@ -270,6 +270,139 @@ export class World {
     if (i >= 0) this.colliders.splice(i, 1);
   }
 
+  // ---------- 寻路 ----------
+  // 把地面切成小格子做 A*，再把折线拉直。只看固定的障碍（不管小人）。
+  // 返回 [{ x, z }, ...]（不含起点）；目标被障碍挡住时停在离它最近的空地；走不到返回 null
+  findPath(sx, sz, tx, tz, r) {
+    const C = 0.1; // 格子要细一点，夜都停电时斑马线边上那条窄缝才走得过去
+    const b = this.bounds;
+    const nx = Math.floor((b.maxX - b.minX) / C) + 1;
+    const nz = Math.floor((b.maxZ - b.minZ) / C) + 1;
+    const px = (i) => b.minX + i * C;
+    const pz = (j) => b.minZ + j * C;
+    const ci = (x) => THREE.MathUtils.clamp(Math.round((x - b.minX) / C), 0, nx - 1);
+    const cj = (z) => THREE.MathUtils.clamp(Math.round((z - b.minZ) / C), 0, nz - 1);
+    const cell = new Uint8Array(nx * nz); // 0 没算过，1 空地，2 有障碍
+    const free = (i, j) => {
+      if (i < 0 || j < 0 || i >= nx || j >= nz) return false;
+      const k = j * nx + i;
+      if (!cell[k]) cell[k] = this.blocked(px(i), pz(j), r) ? 2 : 1;
+      return cell[k] === 1;
+    };
+    // 离 (i, j) 最近的空地（一圈一圈往外找）
+    const nearestFree = (i, j, maxRing) => {
+      if (free(i, j)) return [i, j];
+      for (let ring = 1; ring <= maxRing; ring++) {
+        let best = null;
+        let bd = Infinity;
+        for (let di = -ring; di <= ring; di++) {
+          for (let dj = -ring; dj <= ring; dj++) {
+            if (Math.max(Math.abs(di), Math.abs(dj)) !== ring || !free(i + di, j + dj)) continue;
+            const d = di * di + dj * dj;
+            if (d < bd) {
+              bd = d;
+              best = [i + di, j + dj];
+            }
+          }
+        }
+        if (best) return best;
+      }
+      return null;
+    };
+    const s = nearestFree(ci(sx), cj(sz), 6);
+    const g = nearestFree(ci(tx), cj(tz), 20);
+    if (!s || !g) return null;
+    const S = s[1] * nx + s[0];
+    const G = g[1] * nx + g[0];
+
+    // A*（8 方向，斜着走时两边都得是空地，免得擦着墙角穿过去）
+    const gScore = new Float32Array(nx * nz).fill(Infinity);
+    const from = new Int32Array(nx * nz).fill(-1);
+    const closed = new Uint8Array(nx * nz);
+    const heap = []; // [f, k]
+    const push = (f, k) => {
+      heap.push([f, k]);
+      for (let i = heap.length - 1; i > 0; ) {
+        const p = (i - 1) >> 1;
+        if (heap[p][0] <= heap[i][0]) break;
+        [heap[p], heap[i]] = [heap[i], heap[p]];
+        i = p;
+      }
+    };
+    const pop = () => {
+      const top = heap[0];
+      const last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        for (let i = 0; ; ) {
+          const l = i * 2 + 1;
+          const rr = l + 1;
+          let m = i;
+          if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+          if (rr < heap.length && heap[rr][0] < heap[m][0]) m = rr;
+          if (m === i) break;
+          [heap[m], heap[i]] = [heap[i], heap[m]];
+          i = m;
+        }
+      }
+      return top;
+    };
+    const h = (k) => Math.hypot((k % nx) - g[0], Math.floor(k / nx) - g[1]);
+    gScore[S] = 0;
+    push(h(S), S);
+    while (heap.length) {
+      const [, k] = pop();
+      if (k === G) break;
+      if (closed[k]) continue;
+      closed[k] = 1;
+      const i = k % nx;
+      const j = Math.floor(k / nx);
+      for (let di = -1; di <= 1; di++) {
+        for (let dj = -1; dj <= 1; dj++) {
+          if (!di && !dj) continue;
+          const ni = i + di;
+          const nj = j + dj;
+          if (!free(ni, nj) || (di && dj && (!free(i + di, j) || !free(i, j + dj)))) continue;
+          const nk = nj * nx + ni;
+          const ng = gScore[k] + (di && dj ? Math.SQRT2 : 1);
+          if (ng < gScore[nk]) {
+            gScore[nk] = ng;
+            from[nk] = k;
+            push(ng + h(nk), nk);
+          }
+        }
+      }
+    }
+    if (from[G] === -1 && G !== S) return null;
+
+    // 格子路线 → 坐标，终点用真正的目标（如果它本身是空地）
+    const pts = [];
+    for (let k = G; k !== -1 && k !== S; k = from[k]) pts.unshift({ x: px(k % nx), z: pz(Math.floor(k / nx)) });
+    if (pts.length && !this.blocked(tx, tz, r)) pts[pts.length - 1] = { x: tx, z: tz };
+    // 拉直：能直接看到的点就跳过去
+    const out = [];
+    let cur = { x: sx, z: sz };
+    let i = 0;
+    while (i < pts.length) {
+      let j = pts.length - 1;
+      while (j > i && !this.lineClear(cur.x, cur.z, pts[j].x, pts[j].z, r)) j--;
+      out.push(pts[j]);
+      cur = pts[j];
+      i = j + 1;
+    }
+    return out;
+  }
+
+  // 从 a 到 b 一路上都没有障碍
+  lineClear(ax, az, bx, bz, r) {
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.08);
+    for (let i = 1; i <= n; i++) {
+      const t = i / n;
+      if (this.blocked(ax + (bx - ax) * t, az + (bz - az) * t, r)) return false;
+    }
+    return true;
+  }
+
   // 玩家正撞着的、带提示的障碍
   blockerNear(x, z, r) {
     for (const c of this.colliders) {

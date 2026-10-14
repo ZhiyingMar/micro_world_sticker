@@ -8,7 +8,8 @@ import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
 
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+// stencil：人被挡住时画剪影要用
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, stencil: true });
 renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -246,6 +247,39 @@ function spawnPlayer() {
   player.heading = Math.PI;
   player.root.rotation.y = Math.PI;
   world.player = player;
+  addSilhouette(player.root);
+}
+
+// 人被房子、树挡住时，挡住的那部分画成半透明的剪影（镜头能随便转，经常会转到建筑后面）
+// 原理：人身上看得见的像素先在模板缓冲里记一下；剪影只画在“没记过、而且有东西挡在前面”的地方，
+// 这样手臂被自己身体挡住这种情况不会冒出剪影
+const silhouetteMat = new THREE.MeshBasicMaterial({
+  color: '#ffd27a',
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+  depthFunc: THREE.GreaterDepth,
+  stencilWrite: true,
+  stencilRef: 1,
+  stencilFunc: THREE.NotEqualStencilFunc,
+});
+function addSilhouette(root) {
+  const meshes = [];
+  root.traverse((o) => o.isMesh && meshes.push(o));
+  for (const m of meshes) {
+    // 人身上的材质单独复制一份（材质是按颜色共用的，别影响到别的东西）
+    m.material = m.material.clone();
+    Object.assign(m.material, {
+      stencilWrite: true,
+      stencilRef: 1,
+      stencilFunc: THREE.AlwaysStencilFunc,
+      stencilZPass: THREE.ReplaceStencilOp,
+    });
+    const s = new THREE.Mesh(m.geometry, silhouetteMat);
+    s.renderOrder = 20;
+    s.castShadow = s.receiveShadow = false;
+    m.add(s);
+  }
 }
 
 // 手机竖屏时提示一次：横过来画面更大
@@ -426,26 +460,26 @@ function handleClick(cx, cy, touch = false) {
   if (hit.type === 'item') {
     const g = hit.obj;
     if (distToPlayer(g.position.x, g.position.z) < 1.6) collect(hit.id);
-    else player.moveTarget = { x: g.position.x, z: g.position.z };
+    else player.goTo(g.position.x, g.position.z);
   } else if (hit.type === 'repair') {
     const r = world.repairs.get(hit.id);
     if (distToPlayer(r.x, r.z) < r.reach) doRepair(hit.id);
-    else player.moveTarget = { x: r.x, z: r.z };
+    else player.goTo(r.x, r.z);
   } else if (hit.type === 'interact') {
     const it = world.interacts.get(hit.id);
     if (distToPlayer(it.x, it.z) < it.reach) it.fn();
-    else player.moveTarget = { x: it.x, z: it.z };
+    else player.goTo(it.x, it.z);
   } else if (hit.type === 'villager') {
     if (distToPlayer(hit.v.x, hit.v.z) < 1.8) talkTo(hit.v);
-    else player.moveTarget = { x: hit.v.x, z: hit.v.z };
+    else player.goTo(hit.v.x, hit.v.z);
   } else if (hit.type === 'action' && hit.action === 'fridge') {
     const f = world.fridge.position;
     if (distToPlayer(f.x, f.z) < 2.0) openFridge();
-    else player.moveTarget = { x: f.x, z: f.z + 0.9 };
+    else player.goTo(f.x, f.z + 0.9);
   } else if (peekAt(hit.obj)) {
     sfx.click();
   } else {
-    player.moveTarget = { x: lp.x, z: lp.z };
+    player.goTo(lp.x, lp.z);
     world.fx.emit(lp.setY(0.1), { count: 3, spread: 0.1, size: 0.18, rise: 0.4, color: '#ffffff' });
   }
 }
