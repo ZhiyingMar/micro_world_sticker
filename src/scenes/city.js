@@ -541,9 +541,12 @@ export default {
 
     // ---------- 进度 ----------
     // 老存档已经通关这里：中间步骤也都当作做完了
-    if (w.complete) for (const f of ['coin', 'coffee', 'driver']) w.setFlag(f, true);
     // 直接看存档：搭场景时修复还没套用上去，isRepaired 还是 false
     const has = (id) => repairedIn('city').includes(id);
+    // 最早那版原型没有“叫醒司机”这一步：出租车放回去车就开了。那时的存档里出租车修好了，
+    // 却没有“发现过出租车”的记录（新版本一定是先发现、再修），中间步骤也当作做完，不然车永远不动
+    const legacyTaxi = has('taxi') && !w.flag('seen:taxi');
+    if (w.complete || legacyTaxi) for (const f of ['coin', 'coffee', 'driver']) w.setFlag(f, true);
     const found = (id) => foundIn('city').includes(id);
     let awake = w.flag('driver'); // 出租车司机醒了没有
     w.extraDone = () => w.flag('driver');
