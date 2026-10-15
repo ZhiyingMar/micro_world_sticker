@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeBubble, bubbleTexture } from './fx.js';
+import { makeBubble, bubbleTexture, contactShadow } from './fx.js';
 
 const IDLE_EMOTES = ['♪', '…', '✿', '?', '♥'];
 
@@ -23,6 +23,9 @@ export class Villager {
     this.root.userData.villager = this;
     this.voxel = world.kit.pixel;
     this.buildBody(opts.look || {});
+    this.shadow = contactShadow(0.27);
+    this.shadow.position.y = 0.01;
+    this.root.add(this.shadow);
 
     this.bubble = makeBubble();
     this.bubble.position.y = 1.45;
@@ -313,6 +316,7 @@ export class Villager {
   setSit(on, seatY = 0) {
     this.sitting = on;
     this.root.position.y = on ? seatY - 0.15 : 0;
+    this.shadow.position.y = 0.01 - this.root.position.y; // 坐着时影子还是落在地上
   }
 
   // ---------------- 日常 AI ----------------

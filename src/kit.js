@@ -50,10 +50,7 @@ export class Kit {
   }
 
   mesh(geo, color, opts) {
-    const me = new THREE.Mesh(geo, typeof color === 'object' && color.isMaterial ? color : this.m(color, opts));
-    me.castShadow = true;
-    me.receiveShadow = true;
-    return me;
+    return new THREE.Mesh(geo, typeof color === 'object' && color.isMaterial ? color : this.m(color, opts));
   }
 
   seg(n) {

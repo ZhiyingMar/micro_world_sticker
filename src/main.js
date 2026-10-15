@@ -11,28 +11,25 @@ const canvas = document.getElementById('c');
 // stencil：人被挡住时画剪影要用
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, stencil: true });
 renderer.setClearColor(0x000000, 0);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+// 2.5D：视野窄、镜头拉远，透视变形小，像在看一个小立体模型。不画实时阴影，人和物品脚下贴一块圆影
+const FOV = 20;
+// 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变
+const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.2, 250);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.zoomToCursor = true;
-controls.maxDistance = 26;
+controls.maxDistance = 26 * ZOOM;
 controls.rotateSpeed = 0.7;
 
 // 灯光
 const hemi = new THREE.HemisphereLight('#ffffff', '#888888', 1.5);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight('#ffffff', 2.5);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 });
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
 
 // 方块世界下面的影子
@@ -61,7 +58,7 @@ const input = { up: false, down: false, left: false, right: false, ax: 0, az: 0 
 let touchMode = matchMedia('(pointer: coarse)').matches;
 // 镜头跟着人：离人这么远时完全围着人转，拉远到全貌时慢慢过渡成围着整个方块转
 // 竖屏画面窄，同样距离看到的东西少很多，拉远一点
-const followDist = () => 11.5 * THREE.MathUtils.clamp(0.85 / camera.aspect, 1, 1.7);
+const followDist = () => 11.5 * ZOOM * THREE.MathUtils.clamp(0.85 / camera.aspect, 1, 1.7);
 
 // ---------------- 渲染尺寸 ----------------
 function applySize() {
@@ -160,7 +157,7 @@ function defaultView(def) {
     target.addScaledVector(up, ((b.y0 + b.y1) / 2 - (safe.y0 + safe.y1) / 2) * halfH);
   }
   const pos = target.clone().addScaledVector(dir, d);
-  controls.maxDistance = Math.max(26, d * 1.3);
+  controls.maxDistance = Math.max(26 * ZOOM, d * 1.3);
   return { pos, target };
 }
 
@@ -198,7 +195,7 @@ function loadScene(id) {
   applySize();
 
   const c = def.camera;
-  controls.minDistance = c.min || 2.5;
+  controls.minDistance = (c.min || 2.5) * ZOOM;
   controls.maxPolarAngle = c.maxPolar || 1.3;
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
@@ -266,7 +263,7 @@ const silhouetteMat = new THREE.MeshBasicMaterial({
 });
 function addSilhouette(root) {
   const meshes = [];
-  root.traverse((o) => o.isMesh && meshes.push(o));
+  root.traverse((o) => o.isMesh && !o.userData.contactShadow && meshes.push(o));
   for (const m of meshes) {
     // 人身上的材质单独复制一份（材质是按颜色共用的，别影响到别的东西）
     m.material = m.material.clone();
@@ -278,7 +275,6 @@ function addSilhouette(root) {
     });
     const s = new THREE.Mesh(m.geometry, silhouetteMat);
     s.renderOrder = 20;
-    s.castShadow = s.receiveShadow = false;
     m.add(s);
   }
 }
@@ -299,7 +295,7 @@ function peekAt(obj) {
   if (!o) return false;
   const { target, from } = o.userData.peek;
   const t = world.root.localToWorld(new THREE.Vector3(...target));
-  const p = world.root.localToWorld(new THREE.Vector3(...target).add(new THREE.Vector3(...from)));
+  const p = world.root.localToWorld(new THREE.Vector3(...target).add(new THREE.Vector3(...from).multiplyScalar(ZOOM)));
   // 已经在这个角度附近了，就当普通点击处理（继续放大）
   if (camera.position.distanceTo(p) < 0.6) return false;
   focus = { t: 0, dur: 0.8, fromT: controls.target.clone(), toT: t, fromP: camera.position.clone(), toP: p };
@@ -354,7 +350,7 @@ const ndc = new THREE.Vector2();
 
 // 点击判定时要跳过的东西：雨丝、粒子、光晕、看不见的物体、半透明玻璃
 function blocksPick(o) {
-  if (o.isSprite || o.isPoints || o.isLine) return false;
+  if (o.isSprite || o.isPoints || o.isLine || o.userData.contactShadow) return false;
   for (let p = o; p; p = p.parent) if (!p.visible) return false;
   if (o.userData.pickable) return true; // 物品的隐形点击范围
   const m = o.material;
@@ -669,6 +665,7 @@ function stopGame() {
 // ---------------- 收集 ----------------
 function popAway(g) {
   const y0 = g.position.y;
+  if (g.userData.shadow) g.userData.shadow.visible = false; // 飞起来时影子留在原地不好看，直接收掉
   const s0 = g.scale.x;
   anims.push({
     t: 0,
@@ -759,7 +756,7 @@ function checkDiscover() {
     let near = distToPlayer(r.x, r.z) < r.seeR;
     if (!near && !focus) {
       const sp = r.spot.getWorldPosition(new THREE.Vector3());
-      near = camera.position.distanceTo(sp) < 4;
+      near = camera.position.distanceTo(sp) < 4 * ZOOM;
     }
     if (near && world.discover(r.id)) {
       const p = partOf(world.def, r.id);
