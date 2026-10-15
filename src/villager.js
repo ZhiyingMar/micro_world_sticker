@@ -315,8 +315,7 @@ export class Villager {
 
   setSit(on, seatY = 0) {
     this.sitting = on;
-    this.root.position.y = on ? seatY - 0.15 : 0;
-    this.shadow.position.y = 0.01 - this.root.position.y; // 坐着时影子还是落在地上
+    this.root.position.y = on ? seatY - 0.15 : this.world.heightAt(this.x, this.z);
   }
 
   // ---------------- 日常 AI ----------------
@@ -516,6 +515,10 @@ export class Villager {
     else this.ai(dt);
 
     this.root.rotation.y = lerpAngle(this.root.rotation.y, this.heading, 1 - Math.exp(-dt * 10));
+    // 站在地面上（有高低的世界里跟着地走）；坐着时影子还是落在地上
+    const ground = this.world.heightAt(this.x, this.z);
+    if (!this.sitting) this.root.position.y = ground;
+    this.shadow.position.y = ground - this.root.position.y + 0.01;
 
     const m = this.moving;
     this.phase += dt * (this.controlled ? 13 : 10) * (m ? 1 : 0);

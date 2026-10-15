@@ -117,9 +117,11 @@ function defaultView(def) {
   const dir = new THREE.Vector3().setFromSpherical(sph).normalize();
 
   const H = c.fitH ?? 2.5;
+  const hw = world.size[0] / 2;
+  const hd = world.size[1] / 2;
   const pts = [];
-  for (const x of [-5, 5]) for (const z of [-5, 5]) pts.push(new THREE.Vector3(x, 0, z));
-  for (const x of [-5, 5]) pts.push(new THREE.Vector3(x, H, -5));
+  for (const x of [-hw, hw]) for (const z of [-hd, hd]) pts.push(new THREE.Vector3(x, 0, z));
+  for (const x of [-hw, hw]) pts.push(new THREE.Vector3(x, H, -hd));
   const safe = safeArea();
   _fitCam.fov = camera.fov;
   _fitCam.aspect = aspect;
@@ -170,6 +172,7 @@ function loadScene(id) {
   ui.closeDialog();
   world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal(), startGame: (id) => startGame(id) });
   scene.add(world.root);
+  blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
 
   const [sky, gnd, hi] = def.lights.hemi;
   hemi.color.set(sky);
@@ -203,14 +206,14 @@ function loadScene(id) {
   focus = null;
   hold = false;
 
-  state.current = id;
+  if (!def.test) state.current = id; // 测试场景不记进存档
   if (state.newMagnet === id) state.newMagnet = null;
   save();
 
   spawnPlayer();
   // 一进来镜头就在人身边，斜着看一点，像在看一个小立体模型
   const az = THREE.MathUtils.clamp(0.35, controls.minAzimuthAngle, controls.maxAzimuthAngle);
-  controls.target.set(player.x, 0.5, player.z);
+  controls.target.set(player.x, player.root.position.y + 0.5, player.z);
   camera.position.setFromSphericalCoords(followDist(), 0.82, az).add(controls.target);
   controls.update();
   intro = { t: 0 };
@@ -334,7 +337,7 @@ function updateCamera(dt) {
     const d = camera.position.distanceTo(controls.target);
     const far = overview.pos.distanceTo(overview.target);
     const k = THREE.MathUtils.smoothstep(d, followDist() + 1, Math.max(far * 0.9, followDist() + 2));
-    _want.set(player.x, 0.5, player.z).lerp(overview.target, k);
+    _want.set(player.x, player.root.position.y + 0.5, player.z).lerp(overview.target, k);
     _delta.copy(_want).sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 6));
     controls.target.add(_delta);
     camera.position.add(_delta);
@@ -1087,7 +1090,9 @@ function loop() {
 ui.setHint();
 syncTouchUI();
 const startDef = SCENES[state.current];
-loadScene(startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home');
+const TESTS = { terrain: 'terrainTest' }; // ?test=terrain 打开测试场景
+const testId = TESTS[new URLSearchParams(location.search).get('test')];
+loadScene(testId || (startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home'));
 loop();
 if (!state.seenIntro) {
   ui.intro().then(() => {

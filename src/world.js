@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Kit } from './kit.js';
 import { Sparkles, contactShadow } from './fx.js';
 import { Villager } from './villager.js';
+import { Terrain } from './terrain.js';
 import { foundIn, repairedIn, flagsIn, save } from './state.js';
 
 const proxyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
@@ -28,7 +29,10 @@ export class World {
     this.kit = new Kit(def.style);
     this.root = new THREE.Group();
     this.colliders = [];
-    this.bounds = { minX: -4.55, maxX: 4.55, minZ: -4.55, maxZ: 4.55, ...(def.bounds || {}) };
+    // 有高低的地面（没有的话就是平地，高度 0）
+    this.terrain = def.terrain ? new Terrain(def.terrain) : null;
+    this.size = this.terrain ? [this.terrain.w, this.terrain.d] : def.size || [10, 10];
+    this.bounds = { minX: -4.55, maxX: 4.55, minZ: -4.55, maxZ: 4.55, ...(this.terrain?.bounds || {}), ...(def.bounds || {}) };
     this.villagers = [];
     this.items = new Map();
     this.hiddenItems = new Map(); // 要等修好某处才出现的物品
@@ -79,6 +83,7 @@ export class World {
   blocked(x, z, r, self) {
     const b = this.bounds;
     if (x - r < b.minX || x + r > b.maxX || z - r < b.minZ || z + r > b.maxZ) return true;
+    if (this.terrain?.straddles(x, z, r)) return true; // 崖边
     for (const c of this.colliders) {
       if (c.type === 'box') {
         const cx = Math.max(c.minX, Math.min(x, c.maxX));
@@ -447,9 +452,13 @@ export class World {
     this.pois.push({ x, z, dur: 6, ...opts, taken: null });
   }
 
+  heightAt(x, z) {
+    return this.terrain ? this.terrain.heightAt(x, z) : 0;
+  }
+
   villager(opts, x, z) {
     const v = new Villager(this, opts);
-    v.root.position.set(x, 0, z);
+    v.root.position.set(x, this.heightAt(x, z), z);
     this.root.add(v.root);
     if (!opts.controlled) this.villagers.push(v);
     return v;

@@ -4,6 +4,7 @@ import pixel from './pixel.js';
 import city from './city.js';
 import london from './london.js';
 import beach from './beach.js';
+import terrainTest from './terrain-test.js';
 
 // 最后一块冰箱贴：不是一个世界，而是集齐所有世界之后的纪念合照，点开是结局画面
 const finale = {
@@ -16,7 +17,8 @@ const finale = {
   items: [],
 };
 
-export const SCENES = { home, forest, pixel, city, london, beach, finale };
+// terrainTest 是测试场景，不在冰箱上，用 ?test=terrain 打开
+export const SCENES = { home, forest, pixel, city, london, beach, finale, terrainTest };
 export const ORDER = ['home', 'forest', 'pixel', 'city', 'london', 'beach', 'finale'];
 // 小屋是家：冰箱就在小屋里，冰箱上贴的是“别的世界”，小屋自己不是冰箱贴
 export const HOME = 'home';
