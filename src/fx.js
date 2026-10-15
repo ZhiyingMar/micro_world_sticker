@@ -202,13 +202,15 @@ export function contactShadow(r) {
     c.width = c.height = 64;
     const g = c.getContext('2d');
     const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grd.addColorStop(0, 'rgba(30,24,40,0.42)');
-    grd.addColorStop(0.55, 'rgba(30,24,40,0.28)');
-    grd.addColorStop(1, 'rgba(30,24,40,0)');
+    // 贴图只管浓淡（越亮越不透明），颜色交给材质：不然深色会被当成线性颜色提亮，夜里在深色地面上反而发白
+    grd.addColorStop(0, 'rgb(115,115,115)');
+    grd.addColorStop(0.55, 'rgb(77,77,77)');
+    grd.addColorStop(1, 'rgb(0,0,0)');
     g.fillStyle = grd;
     g.fillRect(0, 0, 64, 64);
     contactMat = new THREE.MeshBasicMaterial({
-      map: new THREE.CanvasTexture(c),
+      color: '#140f1c',
+      alphaMap: new THREE.CanvasTexture(c),
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
