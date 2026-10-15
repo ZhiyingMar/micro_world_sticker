@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Kit } from './kit.js';
-import { Sparkles, contactShadow } from './fx.js';
+import { Sparkles } from './fx.js';
 import { Villager } from './villager.js';
 import { Terrain } from './terrain.js';
 import { foundIn, repairedIn, flagsIn, save } from './state.js';
@@ -51,9 +51,6 @@ export class World {
       for (const r of def.repairs) if (!done.includes(r.id)) done.push(r.id);
     }
     def.build(this);
-    this.root.updateMatrixWorld(true);
-    const surfaces = this.shadowSurfaces();
-    for (const g of [...this.items.values(), ...this.hiddenItems.values()]) this.addItemShadow(g, surfaces);
     // 已经修好的地方直接恢复原样（不播动画）
     if (def.repairs) {
       for (const id of [...repairedIn(def.id)]) this.repair(id, true);
@@ -137,31 +134,6 @@ export class World {
       this.items.set(id, g);
     }
     return g;
-  }
-
-  // 影子能落在上面的东西：看得见的实心物体（不算物品、小人、半透明的水和玻璃）
-  shadowSurfaces() {
-    const list = [];
-    const walk = (o) => {
-      if (!o.visible || o.userData.itemId || o.userData.villager) return;
-      const m = o.material;
-      if (o.isMesh && !o.userData.contactShadow && m !== proxyMat && m !== ghostMat && !(m && !Array.isArray(m) && m.transparent && m.opacity < 0.95)) list.push(o);
-      for (const c of o.children) walk(c);
-    };
-    walk(this.root);
-    return list;
-  }
-
-  // 物品下面贴一块圆影：往下找它“放在”哪个面上（地面、桌面、木头里），影子贴在那儿，不跟着上下浮动
-  addItemShadow(g, surfaces) {
-    const ray = new THREE.Raycaster(new THREE.Vector3(g.position.x, g.userData.baseY + 0.05, g.position.z), new THREE.Vector3(0, -1, 0), 0, 6);
-    const hit = ray.intersectObjects(surfaces, false)[0];
-    if (!hit) return;
-    const gap = g.userData.baseY - hit.point.y;
-    const s = contactShadow(0.24 * THREE.MathUtils.clamp(1.15 - gap * 0.35, 0.5, 1));
-    g.userData.groundY = hit.point.y + 0.01;
-    g.userData.shadow = s;
-    g.add(s);
   }
 
   // 让一个藏起来的物品出现
@@ -481,7 +453,6 @@ export class World {
       if (u.spin) g.rotation.y += dt * 1.1;
       const s = 1 + u.hover * 0.25;
       g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x, s, 1 - Math.exp(-dt * 12)));
-      if (u.shadow) u.shadow.position.y = (u.groundY - g.position.y) / g.scale.y;
       u.nextSparkle -= dt;
       if (u.nextSparkle <= 0) {
         u.nextSparkle = 1.8 + Math.random() * 2.2;

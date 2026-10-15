@@ -11,10 +11,12 @@ const canvas = document.getElementById('c');
 // stencil：人被挡住时画剪影要用
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, stencil: true });
 renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-// 2.5D：视野窄、镜头拉远，透视变形小，像在看一个小立体模型。不画实时阴影，人和物品脚下贴一块圆影
+// 2.5D：视野窄、镜头拉远，透视变形小，像在看一个小立体模型
 const FOV = 20;
 // 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变
 const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
@@ -30,6 +32,11 @@ controls.rotateSpeed = 0.7;
 const hemi = new THREE.HemisphereLight('#ffffff', '#888888', 1.5);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight('#ffffff', 2.5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 });
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
 
 // 方块世界下面的影子
@@ -173,6 +180,10 @@ function loadScene(id) {
   world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal(), startGame: (id) => startGame(id) });
   scene.add(world.root);
   blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
+  // 阴影只算方块范围内的：世界大了跟着放大
+  const sr = Math.hypot(...world.size) / 2 + 1;
+  Object.assign(sun.shadow.camera, { left: -sr, right: sr, top: sr, bottom: -sr });
+  sun.shadow.camera.updateProjectionMatrix();
 
   const [sky, gnd, hi] = def.lights.hemi;
   hemi.color.set(sky);
@@ -266,7 +277,7 @@ const silhouetteMat = new THREE.MeshBasicMaterial({
 });
 function addSilhouette(root) {
   const meshes = [];
-  root.traverse((o) => o.isMesh && !o.userData.contactShadow && meshes.push(o));
+  root.traverse((o) => o.isMesh && meshes.push(o));
   for (const m of meshes) {
     // 人身上的材质单独复制一份（材质是按颜色共用的，别影响到别的东西）
     m.material = m.material.clone();
@@ -278,6 +289,7 @@ function addSilhouette(root) {
     });
     const s = new THREE.Mesh(m.geometry, silhouetteMat);
     s.renderOrder = 20;
+    s.castShadow = s.receiveShadow = false;
     m.add(s);
   }
 }
@@ -353,7 +365,7 @@ const ndc = new THREE.Vector2();
 
 // 点击判定时要跳过的东西：雨丝、粒子、光晕、看不见的物体、半透明玻璃
 function blocksPick(o) {
-  if (o.isSprite || o.isPoints || o.isLine || o.userData.contactShadow) return false;
+  if (o.isSprite || o.isPoints || o.isLine) return false;
   for (let p = o; p; p = p.parent) if (!p.visible) return false;
   if (o.userData.pickable) return true; // 物品的隐形点击范围
   const m = o.material;
@@ -668,7 +680,6 @@ function stopGame() {
 // ---------------- 收集 ----------------
 function popAway(g) {
   const y0 = g.position.y;
-  if (g.userData.shadow) g.userData.shadow.visible = false; // 飞起来时影子留在原地不好看，直接收掉
   const s0 = g.scale.x;
   anims.push({
     t: 0,

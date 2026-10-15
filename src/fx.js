@@ -193,38 +193,6 @@ export function blobShadowTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-// 贴地圆影：不画实时阴影，人和物品脚下贴一块软软的深色圆片，看得出站在哪儿
-let contactMat = null;
-const contactGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
-export function contactShadow(r) {
-  if (!contactMat) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 64;
-    const g = c.getContext('2d');
-    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    // 贴图只管浓淡（越亮越不透明），颜色交给材质：不然深色会被当成线性颜色提亮，夜里在深色地面上反而发白
-    grd.addColorStop(0, 'rgb(115,115,115)');
-    grd.addColorStop(0.55, 'rgb(77,77,77)');
-    grd.addColorStop(1, 'rgb(0,0,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, 64, 64);
-    contactMat = new THREE.MeshBasicMaterial({
-      color: '#140f1c',
-      alphaMap: new THREE.CanvasTexture(c),
-      transparent: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-  }
-  const m = new THREE.Mesh(contactGeo, contactMat);
-  m.scale.setScalar(r);
-  m.renderOrder = 1;
-  m.userData.contactShadow = true;
-  return m;
-}
-
 // 漂浮的萤火虫/光点
 export function makeMotes(count, area, color, seed = 1) {
   const geo = new THREE.BufferGeometry();

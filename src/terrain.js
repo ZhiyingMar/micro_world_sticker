@@ -8,35 +8,6 @@
 import * as THREE from 'three';
 
 const DIRS = { '>': [1, 0], '<': [-1, 0], v: [0, 1], '^': [0, -1] };
-const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
-// 崖脚下的一条暗边（假的环境光遮蔽）：没有实时阴影，靠它看出“这里高起来一块”
-// 贴图只管浓淡，靠崖的一头最深，往外渐渐没了
-let footMat = null;
-function footShadeMat() {
-  if (!footMat) {
-    const c = document.createElement('canvas');
-    c.width = 1;
-    c.height = 64;
-    const g = c.getContext('2d');
-    const grd = g.createLinearGradient(0, 0, 0, 64);
-    grd.addColorStop(0, 'rgb(120,120,120)');
-    grd.addColorStop(0.35, 'rgb(55,55,55)');
-    grd.addColorStop(1, 'rgb(0,0,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, 1, 64);
-    footMat = new THREE.MeshBasicMaterial({
-      color: '#1e2a18',
-      alphaMap: new THREE.CanvasTexture(c),
-      transparent: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-  }
-  return footMat;
-}
 // 相邻两处地面高度差超过这个就算“崖”，走不过去（台阶是连续的斜坡，差不会超过）
 const MAX_STEP = 0.2;
 
@@ -114,16 +85,12 @@ export class Terrain {
       return m;
     };
     const top = 0.1; // 草皮厚度
-    // 越高的层草色越亮一点，从正上方看也分得出层
-    const grassOf = (lv) => '#' + new THREE.Color(grass).offsetHSL(0.01 * lv, -0.04 * lv, 0.045 * lv).getHexString();
-    const footGeo = {};
     for (let j = 0; j < this.d; j++) {
       for (let i = 0; i < this.w; i++) {
         const c = this.ch(i, j);
         const x = this.x0 + i + 0.5;
         const z = this.z0 + j + 0.5;
         const h = this.levelOf(i, j) * L;
-        this.footShade(g, i, j, footGeo, c === '~' || c === '=' || c === '|' ? -L - 0.045 : h + 0.003);
         if (c === '~' || c === '=' || c === '|') {
           // 水底的土 + 半透明水面
           const wy = -L;
@@ -147,7 +114,7 @@ export class Terrain {
         const dir = DIRS[c];
         box(1, h - top - bottom, 1, dirt, x, (bottom + h - top) / 2, z);
         if (!dir) {
-          box(1, top, 1, grassOf(this.levelOf(i, j)), x, h - top / 2, z);
+          box(1, top, 1, grass, x, h - top / 2, z);
           continue;
         }
         // 台阶：分 4 级，每级是从土柱顶到这一级高度的一块，最高一级和上面那层地一样高
@@ -164,26 +131,5 @@ export class Terrain {
     }
     w.root.add(g);
     return g;
-  }
-
-  // 这一格旁边有更高的格子时，在靠那边的地上铺一条暗边；高得越多，暗边越宽
-  footShade(g, i, j, cache, y) {
-    if (DIRS[this.ch(i, j)]) return; // 台阶上不铺
-    const lv = this.levelOf(i, j);
-    for (const [dx, dz] of SIDES) {
-      const ni = i + dx;
-      const nj = j + dz;
-      if (ni < 0 || nj < 0 || ni >= this.w || nj >= this.d || DIRS[this.ch(ni, nj)]) continue;
-      const diff = this.levelOf(ni, nj) - lv;
-      if (diff <= 0) continue;
-      const depth = Math.min(0.3 + diff * 0.15, 0.6);
-      const geo = (cache[depth] ||= new THREE.PlaneGeometry(1, depth).rotateX(-Math.PI / 2));
-      const m = new THREE.Mesh(geo, footShadeMat());
-      m.rotation.y = Math.atan2(-dx, -dz);
-      m.position.set(this.x0 + i + 0.5 + dx * (0.5 - depth / 2), y, this.z0 + j + 0.5 + dz * (0.5 - depth / 2));
-      m.renderOrder = 1;
-      m.userData.contactShadow = true; // 点击、物品影子都不把它当东西
-      g.add(m);
-    }
   }
 }
