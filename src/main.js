@@ -18,7 +18,7 @@ const scene = new THREE.Scene();
 const FOV = 20;
 // 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变
 const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.2, 250);
+const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.5, 250);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;

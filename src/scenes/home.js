@@ -264,7 +264,7 @@ function buildFurniture(w) {
   plant.add(at(k.cyl(0.4, 0.3, 0.55, '#e07a5f', 20), 0, 0.275, 0));
   plant.add(at(k.torus(0.4, 0.05, '#c9654d'), 0, 0.55, 0));
   plant.children[1].rotation.x = Math.PI / 2;
-  plant.add(at(k.cyl(0.37, 0.37, 0.04, '#7a5236', 20), 0, 0.53, 0));
+  plant.add(at(k.cyl(0.37, 0.37, 0.04, '#7a5236', 20), 0, 0.545, 0)); // 土面比盆口高一点，贴在同一高度会闪
   const leafSpots = [[0, 1.15, 0, 0.42], [-0.25, 0.9, 0.12, 0.3], [0.25, 0.95, -0.1, 0.32], [0.05, 1.5, -0.05, 0.3], [-0.15, 0.78, -0.2, 0.25], [0.25, 0.8, -0.15, 0.22]];
   plant.add(at(k.cyl(0.04, 0.05, 0.8, '#6b8f4a', 8), 0, 0.9, 0));
   for (const [x, y, z, r] of leafSpots) {
