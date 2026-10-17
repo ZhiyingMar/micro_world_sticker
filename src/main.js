@@ -6,6 +6,7 @@ import { state, save, foundIn, resetSave } from './state.js';
 import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
+import { updateOccluders } from './occlusion.js';
 
 const canvas = document.getElementById('c');
 // stencil：人被挡住时画剪影要用
@@ -1106,6 +1107,8 @@ function frame(dt, render = true) {
 
   if (game) game.g.update(dt);
   updateCamera(dt);
+  // 人走到楼后面：挡住的楼变半透明（玩小游戏时镜头对着大楼，全部恢复）
+  updateOccluders(world, camera, game ? null : player, dt);
   updateGreeting(dt);
   updateHover();
   if (render) renderer.render(scene, camera);

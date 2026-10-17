@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Kit } from './kit.js';
+import { Kit, isSharedMaterial } from './kit.js';
 import { Sparkles } from './fx.js';
 import { Villager } from './villager.js';
 import { Terrain } from './terrain.js';
@@ -40,6 +40,7 @@ export class World {
     this.repairs = new Map(); // 修复点：{ id, spot, x, z, reach, fn, can, seen }
     this.interacts = new Map(); // 可以互动的东西（售货机……）：{ id, obj, x, z, reach, label, icon, fn }
     this.hideouts = new Map(); // 能翻找材料的地方（垃圾桶、草丛……），见 hideout()
+    this.fadeables = []; // 挡住人时会变半透明的大件（楼），见 fadeable()
     this.restoredFns = [];
     this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
@@ -177,6 +178,30 @@ export class World {
     if (ry) obj.rotation.y = ry;
     this.root.add(obj);
     return obj;
+  }
+
+  /**
+   * 登记一个挡住人时会变半透明的大件（楼）
+   * @description 镜头随便转，人走到楼后面就看不见了。登记过的东西挡在镜头和人中间时会淡下去，
+   *   让人看得见楼后面的路和能翻的东西。按颜色共用的材质复制一份，免得把别的东西也淡掉；
+   *   本来就是这栋楼自己的材质（窗户、招牌）不复制，电力系统还拿着它们开关灯
+   * @param {THREE.Object3D} object 整栋楼（下面所有的网格一起淡）
+   */
+  fadeable(object) {
+    const own = (material) => (isSharedMaterial(material) ? material.clone() : material);
+    object.traverse((child) => {
+      if (!child.isMesh) {
+        return;
+      }
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map(own);
+      } else {
+        child.material = own(child.material);
+      }
+    });
+    object.userData.fade = 1;
+    this.fadeables.push(object);
+    return object;
   }
 
   // 把物体的包围盒登记成障碍物

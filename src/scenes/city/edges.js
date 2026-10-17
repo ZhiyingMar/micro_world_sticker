@@ -96,6 +96,7 @@ function backLane(world, power) {
     const result = backdropBuilding(world, { ...spec, depth: BACKDROP_DEPTH });
     placeOnGround(world, result.group, spec.x, BACKDROP_Z);
     world.solid(result.body);
+    world.fadeable(result.group);
     power.windows(result.windows, 0.45);
   }
 

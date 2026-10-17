@@ -15,6 +15,17 @@ function getToonGradient() {
 }
 
 const matCache = new Map();
+// 按颜色共用的材质：改它会连带改到所有同色的东西
+const sharedMaterials = new WeakSet();
+
+/**
+ * 这个材质是不是按颜色共用的那种
+ * @param {THREE.Material} material
+ * @returns {boolean}
+ */
+export function isSharedMaterial(material) {
+  return sharedMaterials.has(material);
+}
 
 export function makeMat(style, color, opts = {}) {
   const key = `${style}|${color}|${JSON.stringify(opts)}`;
@@ -24,6 +35,7 @@ export function makeMat(style, color, opts = {}) {
   else if (style === 'pixel') m = new THREE.MeshLambertMaterial({ color, flatShading: true, ...opts });
   else m = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, ...opts });
   matCache.set(key, m);
+  sharedMaterials.add(m);
   return m;
 }
 

@@ -1,6 +1,7 @@
 // 街区：一圈马路中间的那排楼：大楼、便利店、售货机、BAR，和大楼与便利店中间的小巷
 // 都是停电的样子搭起来，再登记到电力上，来电以后自己一点点亮
 import * as THREE from 'three';
+import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
 import { ramp } from './power.js';
 import { building, convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
@@ -40,6 +41,20 @@ function placeBuilding(world, { x, z, size }, look) {
 }
 
 /**
+ * 把招牌、天线这些挂到楼上（跟着楼一起变半透明）
+ * @param {{ group: THREE.Group }} result placeBuilding 返回的楼
+ * @param {{ x: number, z: number }} spot 楼的位置
+ * @param {THREE.Object3D} object 要挂上去的东西
+ * @param {number} x 世界坐标
+ * @param {number} y 世界坐标
+ * @param {number} z 世界坐标
+ */
+function attach(result, spot, object, x, y, z) {
+  result.group.add(at(object, x - spot.x, y, z - spot.z));
+  return object;
+}
+
+/**
  * 会玩俄罗斯方块的大楼：楼顶天线一闪一闪，正面挂着竖的“夜猫”招牌
  * @param {World} world
  * @param {object} power
@@ -52,9 +67,9 @@ function tower(world, power) {
 
   const top = TOWER.size[1];
   const antennaX = TOWER.x - 0.2;
-  world.add(kit.cyl(0.03, 0.03, 0.9, '#9a9db0', 6), antennaX, top + 0.5, TOWER.z);
+  attach(result, TOWER, kit.cyl(0.03, 0.03, 0.9, '#9a9db0', 6), antennaX, top + 0.5, TOWER.z);
   const beacon = kit.sphere(0.07, '#ff3b3b', 10, { emissive: '#ff2020', emissiveIntensity: 2 });
-  world.add(beacon, antennaX, top + 0.98, TOWER.z);
+  attach(result, TOWER, beacon, antennaX, top + 0.98, TOWER.z);
   const beaconGlow = glow('#ff4040', 0.9, 0.8);
   world.add(beaconGlow, antennaX, top + 0.98, TOWER.z);
   power.show(({ city }, time) => {
@@ -66,10 +81,11 @@ function tower(world, power) {
   const signX = TOWER.x + TOWER.size[0] / 2 - 0.22;
   const signTexture = world.texture(verticalSign('夜猫', '#4ff0ff'));
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 1.3), new THREE.MeshBasicMaterial({ map: signTexture, transparent: true }));
-  world.add(sign, signX, 3.0, BLOCK_FRONT + 0.01);
+  attach(result, TOWER, sign, signX, 3.0, BLOCK_FRONT + 0.01);
   const signGlow = glow('#4ff0ff', 2.2, 0.35);
   world.add(signGlow, signX, 3.0, BLOCK_FRONT + 0.2);
   power.neon(sign.material, signGlow, { op: 0.35, a: 0.5 });
+  world.fadeable(result.group);
 
   return { body: result.body, front: result.windows[0], sign: [sign, signGlow] };
 }
@@ -84,11 +100,11 @@ function bar(world, power) {
   const kit = world.kit;
   const result = placeBuilding(world, BAR, { wall: '#7a5f6e', frame: '#5a4352', dark: '#2e2533', lit: '#ffc48a', ratio: 0.6, seed: 9, roof: '#4a3a44' });
   power.windows(result.windows, 0);
-  world.add(waterTank(kit), BAR.x + 0.3, BAR.size[1] + 0.06, BAR.z - 0.3);
+  attach(result, BAR, waterTank(kit), BAR.x + 0.3, BAR.size[1] + 0.06, BAR.z - 0.3);
 
   const signTexture = world.texture(neonText('BAR', { color: '#ff5fa2', bg: 'rgba(20,8,30,0.85)' }));
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.36), new THREE.MeshBasicMaterial({ map: signTexture, transparent: true }));
-  world.add(sign, BAR.x, 1.0, BLOCK_FRONT + 0.01);
+  attach(result, BAR, sign, BAR.x, 1.0, BLOCK_FRONT + 0.01);
   const signGlow = glow('#ff5fa2', 1.8, 0.45);
   world.add(signGlow, BAR.x, 1.0, BLOCK_FRONT + 0.2);
   power.neon(sign.material, signGlow, { op: 0.45, a: 0, flicker: true });
@@ -96,7 +112,8 @@ function bar(world, power) {
   const closedTexture = world.texture(doorPlate('CLOSED', '#c8343a'));
   const openTexture = world.texture(doorPlate('OPEN', '#2f9a5a'));
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: closedTexture }));
-  world.add(plate, BAR.x, 0.62, BLOCK_FRONT + 0.02);
+  attach(result, BAR, plate, BAR.x, 0.62, BLOCK_FRONT + 0.02);
+  world.fadeable(result.group);
 
   world.add(stool(kit), STOOL[0], world.heightAt(...STOOL), STOOL[1]);
 
@@ -119,6 +136,7 @@ function shops(world, power) {
   store.group.scale.set(scale, 1, scale);
   world.add(store.group, storeX, 0, storeZ);
   world.solid(store.group);
+  world.fadeable(store.group);
 
   const storeGlow = glow('#fff1c4', 3.2, 0.35);
   world.add(storeGlow, storeX, 0.7, BLOCK_FRONT + 0.3);
