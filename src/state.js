@@ -47,6 +47,31 @@ export function flagsIn(sceneId) {
   return state.flags[sceneId] || (state.flags[sceneId] = []);
 }
 
+/**
+ * 背包里某种材料有多少
+ * @description 材料（瓶子、蘑菇……）各个世界共用一个背包，以后回家在工作台上合成用
+ * @param {string} id 材料 id，比如 plastic、glass
+ * @returns {number}
+ */
+export function materialCount(id) {
+  return state.materials?.[id] || 0;
+}
+
+/**
+ * 捡到材料，存进背包
+ * @param {string} id 材料 id
+ * @param {number} amount 捡到几个
+ * @returns {number} 现在一共有几个
+ */
+export function addMaterial(id, amount = 1) {
+  if (!state.materials) {
+    state.materials = {};
+  }
+  state.materials[id] = materialCount(id) + amount;
+  save();
+  return state.materials[id];
+}
+
 export function resetSave() {
   try {
     localStorage.removeItem(KEY);

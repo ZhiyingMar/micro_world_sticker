@@ -56,6 +56,49 @@ export class World {
       for (const id of [...repairedIn(def.id)]) this.repair(id, true);
       this.restored = this.fullyRepaired;
     }
+    if (def.scatter) {
+      this.scatterMaterials(def.scatter);
+    }
+  }
+
+  /**
+   * 每次进来，在几个能藏东西的地方随机撒上材料
+   * @param {{ material: string, count: number, spots: number[][] }[]} groups 每种材料撒几个、能撒在哪些 [x, z]
+   */
+  scatterMaterials(groups) {
+    for (const group of groups) {
+      const material = this.def.materials.find((entry) => entry.id === group.material);
+      const spots = [...group.spots];
+
+      for (let i = 0; i < group.count && spots.length; i++) {
+        const picked = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
+        this.placeMaterial(material, picked[0], picked[1], i);
+      }
+    }
+  }
+
+  /**
+   * 在地上放一个材料，走过去自动捡起
+   * @param {{ id: string, icon: string, name: string, make(kit) }} material 材料的定义
+   * @param {number} x
+   * @param {number} z
+   * @param {number} index 同一种材料的第几个（拼进 id 里，区分开）
+   */
+  placeMaterial(material, x, z, index) {
+    const key = `material:${material.id}:${index}`;
+    const y = this.heightAt(x, z) + 0.12;
+
+    const group = new THREE.Group();
+    group.add(material.make(this.kit));
+    const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), proxyMat);
+    proxy.castShadow = false;
+    proxy.userData.pickable = true;
+    group.add(proxy);
+
+    group.position.set(x, y, z);
+    group.userData = { itemId: key, material, baseY: y, spin: true, nextSparkle: 1 + Math.random() * 2, hover: 0 };
+    this.root.add(group);
+    this.items.set(key, group);
   }
 
   add(obj, x = 0, y = 0, z = 0, ry = 0) {

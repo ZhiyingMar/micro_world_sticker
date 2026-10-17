@@ -1,4 +1,4 @@
-import { state, foundIn, repairedIn } from './state.js';
+import { state, foundIn, repairedIn, materialCount } from './state.js';
 import { SCENES, MAGNETS, WORLDS, HOME } from './scenes/index.js';
 import { sfx } from './audio.js';
 
@@ -17,6 +17,18 @@ export const ui = {
     document.getElementById('app').style.setProperty('--scene-bg', def.bg);
     this._shown = new Set(); // 换了世界：已经完成的直接不显示
     this.renderGoal(def);
+    this.renderMaterials(def);
+  },
+
+  /**
+   * 标题卡下面一行：这个世界能捡的材料，背包里各有几个
+   * @param {object} def 当前世界的定义；没有 materials 的世界不显示
+   */
+  renderMaterials(def) {
+    const line = $('#scene-materials');
+    const materials = def.materials || [];
+    line.hidden = !materials.length;
+    line.textContent = materials.map((material) => `${material.icon} ${materialCount(material.id)}`).join('  ');
   },
 
   // broken：破败世界还没修好；bag：背包里的小道具 [{ icon, name }]

@@ -92,6 +92,8 @@ button { font-family: inherit; }
 #scene-emoji { font-size: 30px; line-height: 1; }
 #scene-name { font-size: 19px; font-weight: 800; letter-spacing: 1px; }
 #scene-style { font-size: 12px; color: var(--brown-soft); margin-top: 2px; }
+#scene-materials { font-size: 12px; font-weight: 700; color: var(--brown); margin-top: 3px; white-space: pre; }
+#scene-materials[hidden] { display: none; }
 body.style-pixel #scene-name,
 body.style-pixel #scene-style { font-family: "Courier New", monospace; }
 body.style-pixel #title-card,

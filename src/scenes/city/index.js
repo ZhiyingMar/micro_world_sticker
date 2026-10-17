@@ -22,7 +22,8 @@ import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
-import { MAP, LEVEL, REGIONS, SPAWN } from './layout.js';
+import { MAP, LEVEL, REGIONS, SPAWN, BOTTLE_SPOTS, BOTTLE_COUNT } from './layout.js';
+import { plasticBottle, glassBottle } from './models.js';
 
 /**
  * 地面每一格的颜色：人行道灰色，公园和花园是草地，观景台铺浅色地砖，后巷暗一些
@@ -76,6 +77,15 @@ export default {
     { id: 'moon', from: 'pixel', hint: '便利店后面空着的杆子', msg: '月光照进了小巷' },
     { id: 'taxi', from: 'pixel', hint: '马路边的出租车停靠位' },
     { id: 'sax', from: 'pixel', hint: '关着门的 BAR 门口', msg: '音乐响起来了' },
+  ],
+  // 夜都的材料：街上捡的瓶子，以后回家合成用
+  materials: [
+    { id: 'plastic', name: '塑料瓶', icon: '🧴', make: plasticBottle },
+    { id: 'glass', name: '玻璃瓶', icon: '🍾', make: glassBottle },
+  ],
+  scatter: [
+    { material: 'plastic', count: BOTTLE_COUNT.plastic, spots: BOTTLE_SPOTS.plastic },
+    { material: 'glass', count: BOTTLE_COUNT.glass, spots: BOTTLE_SPOTS.glass },
   ],
   items: [
     {
