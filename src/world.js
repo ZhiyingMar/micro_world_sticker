@@ -335,7 +335,8 @@ export class World {
   }
 
   // ---------- 小游戏 ----------
-  // opts: { title, hover, help, view: { target, halfW, halfH }, can(), start(api), stop(), key(k), update(dt) }
+  // opts: { title, hover, help, view: { target, halfW, halfH }, entrance: { x, z, reach }, can(), start(api), stop(), key(k), update(dt) }
+  // entrance：入口。有入口的，点它只会走过去，站到入口才开始（防误触）
   game(id, obj, opts) {
     obj.userData.game = id;
     this.games.set(id, { id, obj, ...opts });

@@ -472,7 +472,7 @@ function handleClick(cx, cy, touch = false) {
   if (touch && (!hit || hit.type === 'ground')) hit = pickNear(cx, cy, 34) || hit;
   if (!hit) return;
   if (hit.type === 'game') {
-    startGame(hit.id);
+    approachGame(world.games.get(hit.id));
     return;
   }
   // 点哪里走到哪里，够近了就互动
@@ -501,6 +501,26 @@ function handleClick(cx, cy, touch = false) {
   } else {
     player.goTo(lp.x, lp.z);
     world.fx.emit(lp.setY(0.1), { count: 3, spread: 0.1, size: 0.18, rise: 0.4, color: '#ffffff' });
+  }
+}
+
+/**
+ * 点了能玩的东西（大楼）：人已经站在入口就开始玩，不然只走过去
+ * @description 楼很大，转镜头、点楼后面的路时常会点到它，点一下就进游戏太容易误触。
+ *   走到入口以后按 E 或点按钮开始（入口那边登记了互动），站在入口再点一下楼也算开始
+ * @param {object} game world.game() 登记的小游戏；entrance 是入口 { x, z, reach }，没有入口的点了直接开始
+ */
+function approachGame(game) {
+  const entrance = game.entrance;
+  if (!entrance || !player) {
+    startGame(game.id);
+    return;
+  }
+
+  if (distToPlayer(entrance.x, entrance.z) < entrance.reach) {
+    startGame(game.id);
+  } else {
+    player.goTo(entrance.x, entrance.z);
   }
 }
 

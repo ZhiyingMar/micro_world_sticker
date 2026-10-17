@@ -10,6 +10,8 @@ import { TOWER, BLOCK_FRONT, CROWD_SPOTS, STREET_ENDS } from './layout.js';
 const LOOK = { wall: '#5b6285', frame: '#3e4463', dark: '#1d2136' };
 // 大楼正面中间：围观的人朝这儿看，烟花贴着这面墙放
 const FACING = [TOWER.x, BLOCK_FRONT];
+// 大楼门口：站在这儿按 E 或按钮开始玩；点大楼只会走到这儿
+const ENTRANCE = { x: TOWER.x, z: BLOCK_FRONT + 0.45, reach: 1.3 };
 
 export function createTowerGame(w, { power, tower, story }) {
   const powered = () => repairedIn('city').includes('sax');
@@ -51,8 +53,8 @@ export function createTowerGame(w, { power, tower, story }) {
   });
 
   // 走到大楼门口：提示可以玩（手机上没有鼠标悬停，靠这个发现）
-  w.interact('tower', new THREE.Object3D(), TOWER.x, BLOCK_FRONT + 0.45, {
-    reach: 1.3,
+  w.interact('tower', new THREE.Object3D(), ENTRANCE.x, ENTRANCE.z, {
+    reach: ENTRANCE.reach,
     icon: '🎮',
     short: '玩方块',
     label: '玩大楼俄罗斯方块',
@@ -74,7 +76,8 @@ export function createTowerGame(w, { power, tower, story }) {
   };
   w.game('tetris', tower.body, {
     title: '🏢 大楼俄罗斯方块',
-    hover: '这栋楼的窗户好像能玩？',
+    hover: '这栋楼的窗户好像能玩？到门口试试',
+    entrance: ENTRANCE,
     help: '← → 移动 · ↑ 旋转 · ↓ 加速 · 空格 一落到底 · Esc 不玩了',
     view: { target: [TOWER.x, 2.8, FACING[1]], halfW: 1.3, halfH: 2.7 },
     can: powered,
