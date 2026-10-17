@@ -310,9 +310,10 @@ export class Villager {
     this.heading = Math.atan2(x - this.x, z - this.z);
   }
 
+  // seatY：座位离脚下地面多高（放在高台上的长椅也一样写）
   setSit(on, seatY = 0) {
     this.sitting = on;
-    this.root.position.y = on ? seatY - 0.15 : this.world.heightAt(this.x, this.z);
+    this.root.position.y = this.world.heightAt(this.x, this.z) + (on ? seatY - 0.15 : 0);
   }
 
   // ---------------- 日常 AI ----------------
@@ -380,7 +381,17 @@ export class Villager {
         if (this.timer <= 0) this.chooseNext();
         break;
       case 'walk': {
-        const arrived = this.moveToward(this.target.x, this.target.z, dt, this.speed);
+        // 换了目标就重新算一条路（有高低的世界里要绕到台阶上去）；算不出来就直着走
+        if (this.walkFor !== this.target) {
+          this.walkFor = this.target;
+          this.walkPath = this.world.findPath(this.x, this.z, this.target.x, this.target.z, this.radius + 0.02);
+        }
+        const wp = this.walkPath?.[0] || this.target;
+        let arrived = this.moveToward(wp.x, wp.z, dt, this.speed);
+        if (arrived && this.walkPath?.length > 1) {
+          this.walkPath.shift();
+          arrived = false;
+        }
         if (arrived) {
           if (this.poi) {
             this.state = 'act';

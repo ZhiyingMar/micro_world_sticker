@@ -49,7 +49,8 @@ src/
   fx.js          闪光粒子、表情气泡、光晕、霓虹文字
   audio.js       WebAudio 合成的音效和环境声
   ui.js          界面：收集栏、对话框、冰箱、合成动画
-  scenes/        每个世界一个文件
+  terrain.js     有高低的地面：用文字地图描述
+  scenes/        每个世界一个文件；大的世界一个文件夹（比如 scenes/city/）
 ```
 
 ### 加一个新世界

@@ -74,8 +74,10 @@ export class Terrain {
   }
 
   // 代码方块占位：每格一根土柱子，顶上一层草；台阶一级一级；水、桥
-  build(w, { grass = '#a6e07f', dirt = '#c99a6b', water = '#7fd3ea', plank = '#b98a5a', bottom = -1.5 } = {}) {
+  // grass 可以是一个颜色，也可以是 (i, j, 高度层) => 颜色，比如城里人行道是灰的、公园是绿的
+  build(w, { grass = '#a6e07f', dirt = '#c99a6b', water = '#7fd3ea', plank = '#b98a5a', steps = ['#f2e8d4', '#e8dcc4'], bottom = -1.5 } = {}) {
     const k = w.kit;
+    const topColor = typeof grass === 'function' ? grass : () => grass;
     const L = this.level;
     const g = new THREE.Group();
     const box = (sx, sy, sz, color, x, y, z) => {
@@ -114,7 +116,7 @@ export class Terrain {
         const dir = DIRS[c];
         box(1, h - top - bottom, 1, dirt, x, (bottom + h - top) / 2, z);
         if (!dir) {
-          box(1, top, 1, grass, x, h - top / 2, z);
+          box(1, top, 1, topColor(i, j, this.levelOf(i, j)), x, h - top / 2, z);
           continue;
         }
         // 台阶：分 4 级，每级是从土柱顶到这一级高度的一块，最高一级和上面那层地一样高
@@ -125,7 +127,7 @@ export class Terrain {
           const off = -0.5 + len * (s + 0.5);
           const cx = x + dir[0] * off;
           const cz = z + dir[1] * off;
-          box(dir[0] ? len : 1, sh, dir[1] ? len : 1, s % 2 ? '#e8dcc4' : '#f2e8d4', cx, h - top + sh / 2, cz);
+          box(dir[0] ? len : 1, sh, dir[1] ? len : 1, steps[s % 2], cx, h - top + sh / 2, cz);
         }
       }
     }
