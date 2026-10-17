@@ -469,9 +469,17 @@ export class Villager {
   }
 
   // ---------------- 玩家操控 ----------------
-  // 点地面/东西：算一条绕开障碍的路走过去；走不到的地方就直着走（撞上了会有提示）
-  goTo(x, z) {
-    this.path = this.world.findPath(this.x, this.z, x, z, this.radius + 0.02);
+  /**
+   * 点地面/东西：算一条绕开障碍的路走过去；走不到的地方就直着走（撞上了会有提示）
+   * @param {number} x 目标位置
+   * @param {number} z 目标位置
+   * @param {boolean} avoidPeople 把别的小人也当成障碍。平时不用（小人会走开），被人堵住时重新绕路才用
+   */
+  goTo(x, z, avoidPeople = false) {
+    this.goal = { x, z };
+    this.rerouted = avoidPeople;
+    const avoid = avoidPeople ? this : null;
+    this.path = this.world.findPath(this.x, this.z, x, z, this.radius + 0.02, avoid);
     this.moveTarget = this.path?.length ? this.path[this.path.length - 1] : { x, z };
     if (!this.path?.length) this.path = null;
     this.stuck = 0;
@@ -506,8 +514,13 @@ export class Villager {
       // 沿着路线一段一段走；没有路线（走不到）就直着朝目标走
       const wp = this.path ? this.path[0] : this.moveTarget;
       const arrived = this.moveToward(wp.x, wp.z, dt, this.speed);
-      if (arrived && this.path && this.path.length > 1) this.path.shift();
-      else if (arrived || this.stuck > 1.2) {
+      const blockedByPeople = !arrived && this.stuck > 0.6 && !this.rerouted;
+      if (arrived && this.path && this.path.length > 1) {
+        this.path.shift();
+      } else if (blockedByPeople) {
+        // 窄路上站着人：绕开他们重新算一次路
+        this.goTo(this.goal.x, this.goal.z, true);
+      } else if (arrived || this.stuck > 1.2) {
         this.moveTarget = null;
         this.path = null;
         this.stuck = 0;

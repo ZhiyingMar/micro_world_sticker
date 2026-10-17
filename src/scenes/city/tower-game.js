@@ -5,11 +5,11 @@ import { rng } from '../../kit.js';
 import { sfx } from '../../audio.js';
 import { repairedIn } from '../../state.js';
 import { Tetris } from '../../tetris.js';
-import { TOWER, TOWER_FRONT, CROWD_SPOTS, STREET_ENDS } from './layout.js';
+import { TOWER, BLOCK_FRONT, CROWD_SPOTS, STREET_ENDS } from './layout.js';
 
 const LOOK = { wall: '#5b6285', frame: '#3e4463', dark: '#1d2136' };
 // 大楼正面中间：围观的人朝这儿看，烟花贴着这面墙放
-const FACING = [TOWER.x, TOWER_FRONT];
+const FACING = [TOWER.x, BLOCK_FRONT];
 
 export function createTowerGame(w, { power, tower, story }) {
   const powered = () => repairedIn('city').includes('sax');
@@ -51,7 +51,7 @@ export function createTowerGame(w, { power, tower, story }) {
   });
 
   // 走到大楼门口：提示可以玩（手机上没有鼠标悬停，靠这个发现）
-  w.interact('tower', new THREE.Object3D(), TOWER.x, TOWER_FRONT + 0.45, {
+  w.interact('tower', new THREE.Object3D(), TOWER.x, BLOCK_FRONT + 0.45, {
     reach: 1.3,
     icon: '🎮',
     short: '玩方块',

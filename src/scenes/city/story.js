@@ -1,5 +1,5 @@
 // 夜都的主线：停电了，把从像素小镇带来的月亮、出租车、萨克斯放回原处，城市一点点亮起来
-//   🌙 月亮挂回杆子上 → 月光照进小巷，红茶壶和一枚硬币出现
+//   🌙 月亮挂回杆子上 → 月光照进小巷，硬币和红茶壶出现（红茶壶在铁丝网后面，要绕到街区背面去拿）
 //   🪙 硬币 → 售货机买罐装咖啡 → ☕ 叫醒司机老周
 //   🚕 出租车回到停靠位 + 司机醒了 → 车流动起来，礼帽出现
 //   🎷 萨克斯还给老乔（要等月亮出来）→ 霓虹和窗户亮起来，红伞出现
@@ -12,7 +12,7 @@ import { createPeople } from './people.js';
 import { MOON, TAXI_BAY, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
 import pixel from '../pixel.js';
 
-export function createStory(w, { power, backRow, traffic }) {
+export function createStory(w, { power, block, traffic }) {
   const progress = loadProgress(w);
   const { has } = progress;
   const people = createPeople(w, progress, traffic);
@@ -52,8 +52,8 @@ export function createStory(w, { power, backRow, traffic }) {
     };
   }
 
-  vending(w, backRow.vending, toast);
-  repairs(w, { power, backRow, traffic, people, progress, startTraffic, toast });
+  vending(w, block.vending, toast);
+  repairs(w, { power, block, traffic, people, progress, startTraffic, toast });
   placeItems(w);
   return { refreshLines: people.refreshLines };
 }
@@ -103,7 +103,7 @@ function vending(w, obj, toast) {
   });
 }
 
-function repairs(w, { power, backRow, traffic, people, progress, startTraffic, toast }) {
+function repairs(w, { power, block, traffic, people, progress, startTraffic, toast }) {
   const k = w.kit;
   const { has } = progress;
 
@@ -114,7 +114,7 @@ function repairs(w, { power, backRow, traffic, people, progress, startTraffic, t
     seeR: 3.0,
     fn(instant) {
       power.turnOn('sky', instant);
-      w.unblock(backRow.alley.block);
+      block.alley.open();
       w.revealItem('teapot', instant);
       w.revealItem('coin', instant);
       people.refreshLines();
@@ -151,7 +151,7 @@ function repairs(w, { power, backRow, traffic, people, progress, startTraffic, t
     can: () => has('moon') || { name: '老乔', text: '这是我的萨克斯！可是天这么黑，我连谱子都看不清……等月亮出来再吹吧。' },
     fn(instant) {
       power.turnOn('city', instant);
-      backRow.bar.open();
+      block.bar.open();
       people.qiaoPlays();
       w.revealItem('umbrella', instant);
       if (!instant) {

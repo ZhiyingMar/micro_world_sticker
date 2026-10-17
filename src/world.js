@@ -279,7 +279,8 @@ export class World {
   // ---------- 寻路 ----------
   // 把地面切成小格子做 A*，再把折线拉直。只看固定的障碍（不管小人）。
   // 返回 [{ x, z }, ...]（不含起点）；目标被障碍挡住时停在离它最近的空地；走不到返回 null
-  findPath(sx, sz, tx, tz, r) {
+  // avoid：传一个小人进来时，别的小人也当成障碍（被人堵住了重新绕路用）
+  findPath(sx, sz, tx, tz, r, avoid = null) {
     const C = 0.1; // 格子要细一点，夜都停电时斑马线边上那条窄缝才走得过去
     const b = this.bounds;
     const nx = Math.floor((b.maxX - b.minX) / C) + 1;
@@ -292,7 +293,7 @@ export class World {
     const free = (i, j) => {
       if (i < 0 || j < 0 || i >= nx || j >= nz) return false;
       const k = j * nx + i;
-      if (!cell[k]) cell[k] = this.blocked(px(i), pz(j), r) ? 2 : 1;
+      if (!cell[k]) cell[k] = this.blocked(px(i), pz(j), r, avoid) ? 2 : 1;
       return cell[k] === 1;
     };
     // 离 (i, j) 最近的空地（一圈一圈往外找）
@@ -391,7 +392,7 @@ export class World {
     let i = 0;
     while (i < pts.length) {
       let j = pts.length - 1;
-      while (j > i && !this.lineClear(cur.x, cur.z, pts[j].x, pts[j].z, r)) j--;
+      while (j > i && !this.lineClear(cur.x, cur.z, pts[j].x, pts[j].z, r, avoid)) j--;
       out.push(pts[j]);
       cur = pts[j];
       i = j + 1;
@@ -400,11 +401,11 @@ export class World {
   }
 
   // 从 a 到 b 一路上都没有障碍
-  lineClear(ax, az, bx, bz, r) {
+  lineClear(ax, az, bx, bz, r, avoid = null) {
     const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.08);
     for (let i = 1; i <= n; i++) {
       const t = i / n;
-      if (this.blocked(ax + (bx - ax) * t, az + (bz - az) * t, r)) return false;
+      if (this.blocked(ax + (bx - ax) * t, az + (bz - az) * t, r, avoid)) return false;
     }
     return true;
   }

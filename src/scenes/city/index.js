@@ -1,11 +1,13 @@
-// 霓虹夜都 —— 夜晚的都市街区：亮灯的高楼、便利店、霓虹招牌、会礼让斑马线的小车
+// 霓虹夜都 —— 夜晚的都市街区：中间一排亮灯的楼，四周一圈马路，车绕着开、会礼让斑马线
+// 过了马路是边缘：坡上公园、社区花园、后巷、观景台
 // 刚到的时候全城停电：要把从像素小镇带来的月亮、出租车、萨克斯放回原处，城市才会一点点亮起来
 //
 // 文件分工：
 //   layout.js     地形文字地图、各处东西的位置
 //   models.js     模型（只造不摆）
 //   power.js      三路电力，各处的灯登记在上面
-//   sky.js / back-row.js / street.js / park.js   搭场景
+//   ring-road.js  一圈马路的几何：车道、怎么沿着车道走
+//   sky.js / block.js / street.js / edges.js   搭场景：夜空、街区、马路、边缘
 //   traffic.js    车流
 //   people.js     居民和台词
 //   story.js      主线：修复点、售货机、叫醒司机、藏起来的东西
@@ -14,18 +16,35 @@ import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { createPower } from './power.js';
 import { buildSky } from './sky.js';
-import { buildBackRow } from './back-row.js';
+import { buildBlock } from './block.js';
 import { buildStreet } from './street.js';
-import { buildPark } from './park.js';
+import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
-import { MAP, LEVEL, PARK_ROW, TERRACE_COL, SPAWN } from './layout.js';
+import { MAP, LEVEL, REGIONS, SPAWN } from './layout.js';
 
-// 地面颜色：人行道灰色，坡上的公园是草地，天台铺浅色地砖
-function groundColor(i, j, level) {
-  if (level >= 1 && j >= PARK_ROW) return '#3d6b55';
-  if (level >= 1 && i >= TERRACE_COL) return '#a9adbd';
+/**
+ * 地面每一格的颜色：人行道灰色，公园和花园是草地，观景台铺浅色地砖，后巷暗一些
+ * @param {number} col 第几列
+ * @param {number} row 第几行
+ * @param {number} level 高度层
+ * @returns {string}
+ */
+function groundColor(col, row, level) {
+  const raised = level >= 1;
+  if (raised && row >= REGIONS.parkFromRow) {
+    return '#3d6b55';
+  }
+  if (raised && col >= REGIONS.lookoutFromCol && row <= REGIONS.lookoutToRow) {
+    return '#a9adbd';
+  }
+  if (col <= REGIONS.gardenToCol && row > REGIONS.backLaneRow && row < REGIONS.parkFromRow - 1) {
+    return '#4d6b4a';
+  }
+  if (row <= REGIONS.backLaneRow) {
+    return '#6f7383';
+  }
   return '#8f93a3';
 }
 
@@ -80,7 +99,7 @@ export default {
       id: 'tophat',
       name: '绅士礼帽',
       icon: '🎩',
-      hint: '坡上公园的长椅上',
+      hint: '坡上公园，土坡后面的长椅上',
       make(k) {
         const g = new THREE.Group();
         g.add(at(k.cyl(0.09, 0.095, 0.16, '#26262e', 16), 0, 0.1, 0));
@@ -93,7 +112,7 @@ export default {
       id: 'teapot',
       name: '红茶壶',
       icon: '🫖',
-      hint: '大楼和便利店之间的小巷',
+      hint: '大楼和便利店之间的小巷，铁丝网后面',
       make(k) {
         const g = new THREE.Group();
         const body = k.sphere(0.12, '#f4f1ea', 18, { emissive: '#ffffff', emissiveIntensity: 0.15 });
@@ -114,12 +133,12 @@ export default {
     w.terrain.build(w, { grass: groundColor, dirt: '#4a4e5e', steps: ['#b3b7c6', '#9a9eae'] });
     const power = createPower(w);
     buildSky(w, power);
-    const backRow = buildBackRow(w, power);
+    const block = buildBlock(w, power);
     buildStreet(w, power);
-    buildPark(w);
+    buildEdges(w, power);
     const traffic = createTraffic(w, power);
-    const story = createStory(w, { power, backRow, traffic });
-    createTowerGame(w, { power, tower: backRow.tower, story });
+    const story = createStory(w, { power, block, traffic });
+    createTowerGame(w, { power, tower: block.tower, story });
     story.refreshLines();
   },
 };

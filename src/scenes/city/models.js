@@ -237,3 +237,179 @@ export function doorPlate(text, color) {
     g.fillText(text, W / 2, H / 2 + 2);
   });
 }
+
+/**
+ * 铁丝网：两根柱子，中间一张菱形网格，透过去看得见对面
+ * @param {World} world 用来登记贴图（切换世界时释放）
+ * @param {number} width 宽
+ * @param {number} height 高
+ * @returns {THREE.Group} 原点在底边中间，网面朝 ±z
+ */
+export function chainFence(world, width, height) {
+  const kit = world.kit;
+  const group = new THREE.Group();
+
+  const meshTexture = world.texture(
+    canvasTexture(128, 128, (context, size) => {
+      context.clearRect(0, 0, size, size);
+      context.strokeStyle = 'rgba(200, 205, 220, 0.9)';
+      context.lineWidth = 3;
+      const cell = 16;
+      for (let offset = -size; offset < size * 2; offset += cell) {
+        context.beginPath();
+        context.moveTo(offset, 0);
+        context.lineTo(offset + size, size);
+        context.moveTo(offset, size);
+        context.lineTo(offset + size, 0);
+        context.stroke();
+      }
+    }),
+  );
+  meshTexture.wrapS = THREE.RepeatWrapping;
+  meshTexture.wrapT = THREE.RepeatWrapping;
+  meshTexture.repeat.set(width * 2, height * 2);
+  const netMaterial = new THREE.MeshBasicMaterial({ map: meshTexture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+  group.add(at(new THREE.Mesh(new THREE.PlaneGeometry(width, height), netMaterial), 0, height / 2, 0));
+
+  for (const side of [-1, 1]) {
+    group.add(at(kit.cyl(0.03, 0.03, height + 0.1, '#7d8296', 8), (side * width) / 2, (height + 0.1) / 2, 0));
+  }
+  group.add(at(kit.box(width, 0.04, 0.04, '#7d8296', 0.01), 0, height, 0));
+  return group;
+}
+
+/**
+ * 修剪整齐的矮树篱
+ * @param {Kit} kit
+ * @param {number} length 沿 x 的长度
+ * @param {number} depth 沿 z 的厚度
+ * @returns {THREE.Mesh} 原点在底面中间
+ */
+export function hedge(kit, length, depth) {
+  const height = 0.45;
+  const mesh = kit.box(length, height, depth, '#2f5a46', 0.12);
+  mesh.geometry.translate(0, height / 2, 0);
+  return mesh;
+}
+
+/**
+ * 菜畦：一圈木框，里面几棵菜
+ * @param {Kit} kit
+ * @returns {THREE.Group} 1.2 × 0.8
+ */
+export function gardenBed(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(1.2, 0.22, 0.8, '#7a5a3e', 0.03), 0, 0.11, 0));
+  group.add(at(kit.box(1.1, 0.04, 0.7, '#4a3a2e', 0), 0, 0.23, 0));
+
+  for (let i = 0; i < 4; i++) {
+    const sprout = kit.sphere(0.12, i % 2 ? '#5fae55' : '#7fc96b', 10);
+    sprout.scale.y = 0.7;
+    group.add(at(sprout, -0.42 + i * 0.28, 0.3, (i % 2) * 0.2 - 0.1));
+  }
+  return group;
+}
+
+/**
+ * 花园里放工具的小棚子
+ * @param {Kit} kit
+ * @returns {THREE.Group} 1.0 × 0.9，门朝 +x
+ */
+export function shed(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(1.0, 1.0, 0.9, '#8a6a52', 0.04), 0, 0.5, 0));
+  const roof = kit.box(1.15, 0.08, 1.05, '#5a4a40', 0.02);
+  roof.rotation.z = 0.15;
+  group.add(at(roof, 0, 1.08, 0));
+  group.add(at(kit.box(0.04, 0.7, 0.4, '#5a4436', 0.01), 0.51, 0.35, 0));
+  return group;
+}
+
+/**
+ * 背景高楼：只有朝街这一面，进不去
+ * @param {World} world
+ * @param {{ width: number, height: number, depth: number, seed: number }} spec 宽、高、进深、窗户的随机种子
+ */
+export function backdropBuilding(world, { width, height, depth, seed }) {
+  return building(world, { size: [width, height, depth], wall: '#3f4766', frame: '#2c3350', dark: '#1d2238', lit: '#ffdca0', ratio: 0.45, seed, roof: '#2c3350' });
+}
+
+/**
+ * 垃圾桶（大的那种带盖子的）
+ * @param {Kit} kit
+ * @returns {THREE.Group} 0.9 × 0.5
+ */
+export function dumpster(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(0.9, 0.55, 0.5, '#3f7a5a', 0.04), 0, 0.3, 0));
+  const lid = kit.box(0.92, 0.05, 0.52, '#2f5a46', 0.02);
+  lid.rotation.x = -0.12;
+  group.add(at(lid, 0, 0.6, 0));
+  return group;
+}
+
+/**
+ * 挂在墙脚的空调外机
+ * @param {Kit} kit
+ * @returns {THREE.Group} 0.55 × 0.3，风扇朝 +z
+ */
+export function airConditioner(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(0.55, 0.4, 0.3, '#c9ccd6', 0.03), 0, 0.2, 0));
+  const fan = kit.cyl(0.13, 0.13, 0.02, '#5a5f70', 14);
+  fan.rotation.x = Math.PI / 2;
+  group.add(at(fan, -0.08, 0.2, 0.16));
+  return group;
+}
+
+/**
+ * 蹲着的小猫
+ * @param {Kit} kit
+ * @returns {THREE.Group} 脸朝 +z
+ */
+export function cat(kit) {
+  const color = '#2b2b33';
+  const group = new THREE.Group();
+  const body = kit.sphere(0.13, color, 12);
+  body.scale.set(0.9, 1, 1.2);
+  group.add(at(body, 0, 0.13, 0));
+  group.add(at(kit.sphere(0.09, color, 12), 0, 0.27, 0.1));
+  for (const side of [-1, 1]) {
+    group.add(at(kit.cone(0.035, 0.07, color, 4), side * 0.05, 0.36, 0.1));
+    group.add(at(kit.sphere(0.015, '#ffe680', 6, { emissive: '#ffe680', emissiveIntensity: 1.5 }), side * 0.035, 0.28, 0.18));
+  }
+  const tail = kit.cyl(0.02, 0.02, 0.25, color, 6);
+  tail.rotation.x = -1.0;
+  group.add(at(tail, 0, 0.12, -0.2));
+  return group;
+}
+
+/**
+ * 塑料瓶：透明蓝色瓶身，白瓶盖
+ * @param {Kit} kit
+ * @returns {THREE.Group} 横躺在地上
+ */
+export function plasticBottle(kit) {
+  const group = new THREE.Group();
+  const body = kit.cyl(0.05, 0.05, 0.2, '#8fd3ff', 10, { transparent: true, opacity: 0.75 });
+  group.add(body);
+  group.add(at(kit.cyl(0.025, 0.045, 0.05, '#8fd3ff', 10, { transparent: true, opacity: 0.75 }), 0, 0.12, 0));
+  group.add(at(kit.cyl(0.026, 0.026, 0.03, '#ffffff', 8), 0, 0.16, 0));
+  group.rotation.z = Math.PI / 2;
+  group.position.y = 0.05;
+  return group;
+}
+
+/**
+ * 玻璃瓶：绿色的，在灯下会反光
+ * @param {Kit} kit
+ * @returns {THREE.Group} 立在地上
+ */
+export function glassBottle(kit) {
+  const glass = { emissive: '#3fbf7a', emissiveIntensity: 0.35, transparent: true, opacity: 0.85 };
+  const group = new THREE.Group();
+  group.add(at(kit.cyl(0.055, 0.055, 0.2, '#3fbf7a', 12, glass), 0, 0.1, 0));
+  group.add(at(kit.cyl(0.022, 0.055, 0.07, '#3fbf7a', 12, glass), 0, 0.235, 0));
+  group.add(at(kit.cyl(0.022, 0.022, 0.06, '#3fbf7a', 8, glass), 0, 0.3, 0));
+  return group;
+}
