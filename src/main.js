@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { World } from './world.js';
 import { SCENES, HOME } from './scenes/index.js';
-import { state, save, foundIn, resetSave, addMaterial } from './state.js';
+import { state, save, foundIn, resetSave } from './state.js';
 import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
@@ -177,7 +177,14 @@ function loadScene(id) {
   if (player) player = null;
   talking = null;
   ui.closeDialog();
-  world = new World(def, { hemi, sun, toast: (t) => ui.toast(t), onChange: () => refreshGoal(), startGame: (id) => startGame(id) });
+  world = new World(def, {
+    hemi,
+    sun,
+    toast: (t) => ui.toast(t),
+    onChange: () => refreshGoal(),
+    onMaterial: () => ui.renderMaterials(world.def),
+    startGame: (id) => startGame(id),
+  });
   scene.add(world.root);
   blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
   // 阴影只算方块范围内的：世界大了跟着放大
@@ -548,8 +555,7 @@ function updateHover() {
   let tip = null;
   if (hit?.type === 'item') {
     hit.obj.userData.hover = 1;
-    const named = hit.obj.userData.thing || hit.obj.userData.material;
-    tip = named ? `✨ ${named.icon} ${named.name}` : '✨ 发现了什么！';
+    tip = hit.obj.userData.thing ? `✨ ${hit.obj.userData.thing.icon} ${hit.obj.userData.thing.name}` : '✨ 发现了什么！';
   } else if (hit?.type === 'repair') {
     const p = partOf(world.def, hit.id);
     tip = `✨ 这里少了 ${p.icon} ${p.name} · 点击放回`;
@@ -700,11 +706,6 @@ function collect(id) {
   const g = world.items.get(id);
   if (!g || busy) return;
   world.items.delete(id);
-  const material = g.userData.material;
-  if (material) {
-    pickUpMaterial(g, material);
-    return;
-  }
   // 小道具：放进背包
   const thing = g.userData.thing;
   if (thing) {
@@ -733,20 +734,6 @@ function collect(id) {
     busy = true;
     setTimeout(() => runCombine(def), 1300);
   }
-}
-
-/**
- * 捡起地上的材料：放进背包，标题下面的数量跟着变
- * @param {THREE.Group} object 地上的那个材料
- * @param {{ id: string, icon: string, name: string }} material 材料的定义
- */
-function pickUpMaterial(object, material) {
-  const total = addMaterial(material.id);
-  sfx.pickup();
-  world.fx.emit(object.position, { count: 10, spread: 0.25, size: 0.25, rise: 1.0, color: '#bfe6ff' });
-  popAway(object);
-  ui.toast(`捡到 ${material.icon} ${material.name}（一共 ${total} 个）`);
-  ui.renderMaterials(world.def);
 }
 
 // ---------------- 修复 ----------------
@@ -984,9 +971,21 @@ function nearestInteractable() {
     const d = distToPlayer(r.x, r.z);
     if (d < r.reach) return { type: 'repair', id: r.id };
   }
+  // 能翻的地方挨得近：挑离得最近的那个
+  let nearest = null;
+  let nearestDistance = Infinity;
   for (const it of world.interacts.values()) {
-    if (it.available && !it.available()) continue;
-    if (distToPlayer(it.x, it.z) < it.reach) return { type: 'interact', id: it.id, it };
+    if (it.available && !it.available()) {
+      continue;
+    }
+    const distance = distToPlayer(it.x, it.z);
+    if (distance < it.reach && distance < nearestDistance) {
+      nearest = it;
+      nearestDistance = distance;
+    }
+  }
+  if (nearest) {
+    return { type: 'interact', id: nearest.id, it: nearest };
   }
   let bd = 1.6;
   for (const v of world.villagers) {

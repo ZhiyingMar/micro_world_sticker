@@ -22,7 +22,7 @@ import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
-import { MAP, LEVEL, REGIONS, SPAWN, BOTTLE_SPOTS, BOTTLE_COUNT } from './layout.js';
+import { MAP, LEVEL, REGIONS, SPAWN, BOTTLE_HIDING } from './layout.js';
 import { plasticBottle, glassBottle } from './models.js';
 
 /**
@@ -83,10 +83,8 @@ export default {
     { id: 'plastic', name: '塑料瓶', icon: '🧴', make: plasticBottle },
     { id: 'glass', name: '玻璃瓶', icon: '🍾', make: glassBottle },
   ],
-  scatter: [
-    { material: 'plastic', count: BOTTLE_COUNT.plastic, spots: BOTTLE_SPOTS.plastic },
-    { material: 'glass', count: BOTTLE_COUNT.glass, spots: BOTTLE_SPOTS.glass },
-  ],
+  // 每次进来藏在哪：垃圾桶、草丛、路灯脚下，都要翻找
+  scatter: BOTTLE_HIDING,
   items: [
     {
       id: 'umbrella',

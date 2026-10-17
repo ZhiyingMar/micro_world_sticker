@@ -1,8 +1,9 @@
 // 街道：一圈马路（路面、中线、斑马线、路沿、出租车停靠位）、路灯、消防栓、公交站、司机睡觉的长椅
+import * as THREE from 'three';
 import { glow } from '../../fx.js';
 import { lampPost, hydrant, busShelter, bench } from './models.js';
 import { roundedLoop, centerRect } from './ring-road.js';
-import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT } from './layout.js';
+import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, LAMP_LITTER_OFFSET } from './layout.js';
 
 const ROAD_COLOR = '#2e3241';
 const LINE_COLOR = '#e8d27a';
@@ -210,15 +211,20 @@ function near(box, x, z, margin) {
 }
 
 /**
- * 路灯，跟着 street 电力亮
+ * 路灯，跟着 street 电力亮；灯杆脚下有时候扔着瓶子
  * @param {World} world
  * @param {object} power
  */
 function lamps(world, power) {
-  const list = LAMPS.map(([x, z, facing]) => {
+  const list = LAMPS.map(([x, z, facing], index) => {
     const lamp = lampPost(world.kit);
     world.add(lamp.group, x, world.heightAt(x, z), z, facing);
     world.solidCircle(x, z, 0.12);
+
+    // 瓶子扔在灯头那一侧的脚下，跟着灯杆转
+    const [offsetX, offsetZ] = LAMP_LITTER_OFFSET;
+    const litter = [offsetX * Math.cos(facing) + offsetZ * Math.sin(facing), -offsetX * Math.sin(facing) + offsetZ * Math.cos(facing)];
+    world.hideout(`lamp${index}`, new THREE.Object3D(), x, z, { tags: ['lamp'], name: '路灯脚下', icon: '🧴', show: 'open', offset: litter });
     return lamp;
   });
 

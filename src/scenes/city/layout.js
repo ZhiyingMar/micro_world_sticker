@@ -78,7 +78,7 @@ export const BLOCK_FRONT = -0.4;
 const BLOCK_DEPTH = 1.7;
 const BLOCK_CENTER_Z = BLOCK_FRONT - BLOCK_DEPTH / 2;
 
-export const TOWER = { x: -2.2, z: BLOCK_CENTER_Z, size: [1.8, 5.2, BLOCK_DEPTH] }; // 会玩俄罗斯方块的大楼
+export const TOWER = { x: -2.3, z: BLOCK_CENTER_Z, size: [1.6, 5.2, BLOCK_DEPTH] }; // 会玩俄罗斯方块的大楼
 // 便利店模型原本 2.6 × 2.0，在这里缩一点塞进街区
 export const STORE = { x: 0.6, z: BLOCK_FRONT - 0.85, scale: 0.85 };
 export const BAR = { x: 3.25, z: BLOCK_CENTER_Z, size: [1.7, 3.4, BLOCK_DEPTH] };
@@ -86,17 +86,27 @@ export const VENDING = [2.05, BLOCK_FRONT - 0.25]; // 售货机塞在便利店�
 export const STOOL = [3.85, BLOCK_FRONT + 0.3]; // 酒吧门口乐手的凳子，靠着墙角，不挡人行道
 export const MOON = [0.6, 4.3, BLOCK_FRONT - BLOCK_DEPTH + 0.05]; // 月亮挂在便利店后面的杆子上，杆子立在后人行道
 
-// 大楼和便利店中间的小巷：穿过整个街区，中间一道铁丝网，看得见对面但过不去
+// 大楼和便利店中间的小巷：便利店后厨扔垃圾的地方，穿过整个街区，中间一道铁丝网，看得见对面但过不去
 // 停电时整条巷子黑漆漆的，前后两头都进不去
 export const ALLEY = {
-  x: -0.9,
-  width: 0.8,
+  x: -1.0,
+  width: 1.0,
   front: BLOCK_FRONT,
   back: BLOCK_FRONT - BLOCK_DEPTH,
   fenceZ: BLOCK_CENTER_Z,
 };
-export const TEAPOT = [ALLEY.x, ALLEY.back + 0.35]; // 铁丝网后面那一半，要绕到街区背面去拿
-export const COIN = [ALLEY.x, ALLEY.front - 0.35];
+// 垃圾桶靠着大楼那面墙排，另一边留出走人的路
+const ALLEY_WALK_X = ALLEY.x + 0.15;
+export const TEAPOT = [ALLEY_WALK_X, ALLEY.back + 0.35]; // 铁丝网后面那一半，要绕到街区背面去拿
+export const COIN = [ALLEY_WALK_X, ALLEY.front - 0.35];
+// 后厨的垃圾桶：铁丝网两边各一个；便利店后门开在巷子里
+export const KITCHEN_BINS = [
+  [ALLEY.x - ALLEY.width / 2 + 0.2, ALLEY.fenceZ - 0.35],
+  [ALLEY.x - ALLEY.width / 2 + 0.2, ALLEY.fenceZ + 0.4],
+];
+export const KITCHEN_DOOR_Z = ALLEY.fenceZ - 0.45;
+// 售货机后面那条缝（便利店和 BAR 中间），从街区背面钻进去，最里面一个垃圾桶
+export const NOOK_BIN = [2.05, BLOCK_FRONT - 0.75];
 
 // 街区前人行道上的东西
 export const DRIVER_SEAT = [1.9, 0.75]; // 司机老周睡觉的长椅，在售货机前面的路边，中间留出买东西的地方
@@ -136,11 +146,17 @@ export const HEDGES = [
   [1.2, 1.9, 5.4, 5.7],
   [5.6, 5.9, 4.0, 6.0], // 从右边台阶上来，要绕到最前面才进得了公园
 ];
+// 灌木丛 [x, z, 半径, 深]：都能翻；深的（土坡后面）才可能藏玻璃瓶
 export const BUSHES = [
-  [-7.5, 5.2, 0.32],
+  [-7.5, 5.2, 0.32, true],
+  [-6.0, 4.8, 0.26, true], // 长椅旁边
   [-0.6, 6.6, 0.25],
   [3.6, 5.6, 0.28],
   [6.4, 6.4, 0.3],
+  [-3.2, 4.3, 0.26],
+  [3.3, 4.3, 0.24],
+  [-7.75, -0.62, 0.2], // 花园小棚子和菜畦中间
+  [-7.6, 3.2, 0.26], // 公交站后面
 ];
 export const UMBRELLA = [-7.5, 5.2]; // 藏在土坡上的树丛里
 
@@ -175,30 +191,14 @@ export const PLANTERS = [
 ];
 
 // ---------- 瓶子 ----------
-// 每次进来随机撒几个：塑料瓶多，在路边、花园这些常走的地方；玻璃瓶少，藏在难去的角落
-export const BOTTLE_SPOTS = {
-  plastic: [
-    [-3.5, 0.3], // 消防栓旁边
-    [-6.4, 2.7], // 公交站
-    [-6.4, -3.5], // 花园菜畦边
-    [0.2, -2.6], // 便利店后面
-    [4.55, -1.0], // 街区右边
-    [-2.5, 4.6], // 公园里
-    [0.0, 6.6], // 公园最前面
-    [7.5, 0.0], // 右边窄道
-    [-3.6, -5.6], // 后巷
-    [5.5, 3.5], // 马路对面人行道
-    [7.5, -6.3], // 观景台一层
-  ],
-  glass: [
-    [2.05, -1.8], // 售货机后面的缝里，要从街区背面钻进去
-    [-7.6, 4.6], // 土坡后面的长椅旁
-    [5.5, -6.6], // 观景台二层
-    [4.4, 5.4], // 公园右边高台上
-    [-7.5, -5.6], // 后巷最里面
-  ],
-};
-export const BOTTLE_COUNT = { plastic: 4, glass: 2 };
+// 瓶子都要翻找：后厨和售货机后面的垃圾桶、后巷的大垃圾桶、草丛、路灯脚下
+// 塑料瓶到处都可能有；玻璃瓶只藏在后厨垃圾桶和土坡后面的深草丛里
+export const BOTTLE_HIDING = [
+  { material: 'glass', count: 2, from: ['kitchen', 'deep'] },
+  { material: 'plastic', count: 4, from: ['bin', 'bush', 'lamp'] },
+];
+// 路灯脚下扔瓶子的位置（离灯杆多远）
+export const LAMP_LITTER_OFFSET = [0.3, 0.25];
 
 // ---------- 小人 ----------
 export const SPAWN = [0.3, 0.5];

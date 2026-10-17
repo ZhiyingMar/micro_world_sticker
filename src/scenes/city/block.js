@@ -3,8 +3,8 @@
 import * as THREE from 'three';
 import { glow, neonText } from '../../fx.js';
 import { ramp } from './power.js';
-import { building, convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence } from './models.js';
-import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, STOOL, ALLEY } from './layout.js';
+import { building, convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
+import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, STOOL, ALLEY, KITCHEN_BINS, KITCHEN_DOOR_Z, NOOK_BIN } from './layout.js';
 
 const DARK_ALLEY_SAY = '🌑 小巷里黑漆漆的，什么也看不见……';
 const FENCE_SAY = '🕸️ 铁丝网挡着……对面看得见，可是过不去';
@@ -147,13 +147,30 @@ function shops(world, power) {
     machineGlow.material.opacity = 0.35 * shop;
   });
 
+  // 售货机后面那条缝，最里面一个垃圾桶
+  placeBin(world, 'nook', NOOK_BIN, { tags: ['bin', 'kitchen'] });
+
   return machine.group;
 }
 
 /**
+ * 摆一个能翻的小垃圾桶
+ * @param {World} world
+ * @param {string} id 翻找点的名字
+ * @param {number[]} spot 位置 [x, z]
+ * @param {{ tags: string[], when?: Function }} options 标签；when 返回 false 时先不能翻
+ */
+function placeBin(world, id, [x, z], { tags, when }) {
+  const bin = kitchenBin(world.kit);
+  world.add(bin, x, world.heightAt(x, z), z, Math.PI / 2);
+  world.solid(bin);
+  world.hideout(id, bin, x, z, { tags, name: '垃圾桶', icon: '🗑️', when });
+}
+
+/**
  * 小巷：穿过整个街区，中间一道铁丝网
- * @description 铁丝网两边都看得见对面，但过不去，要绕到街区另一面才进得了另一半。
- *   停电时整条巷子黑漆漆的，两头都进不去；月光照进来才看得见
+ * @description 便利店后厨扔垃圾的地方。铁丝网两边都看得见对面，但过不去，要绕到街区另一面才进得了另一半。
+ *   停电时整条巷子黑漆漆的，两头都进不去；月光照进来才看得见，垃圾桶也才能翻
  * @param {World} world
  * @param {object} power
  * @returns {{ open() }} 月亮挂回去时调用，两头都能进了
@@ -163,6 +180,16 @@ function alley(world, power) {
   const left = ALLEY.x - half;
   const right = ALLEY.x + half;
   const depth = ALLEY.front - ALLEY.back;
+
+  // 后厨：便利店后门开在铁丝网后面那一半，垃圾桶靠着大楼那面墙，旁边堆几袋垃圾
+  // 巷子黑着的时候看不见，不能翻
+  let lit = false;
+  KITCHEN_BINS.forEach((spot, index) => {
+    placeBin(world, `kitchen${index}`, spot, { tags: ['bin', 'kitchen'], when: () => lit });
+    world.add(trashBag(world.kit), spot[0] + 0.05, 0, spot[1] + 0.32 * (index ? 1 : -1));
+  });
+  const door = kitchenDoor(world.kit);
+  world.add(door.group, right - 0.02, 0, KITCHEN_DOOR_Z, Math.PI);
 
   // 铁丝网：一直挡着
   const fence = chainFence(world, ALLEY.width, 1.8);
@@ -186,6 +213,7 @@ function alley(world, power) {
   });
 
   power.show(({ sky, city }) => {
+    door.bulb.material.emissiveIntensity = 1.2 * ramp(0.2, 0.6, city);
     darkMaterial.opacity = 0.92 * (1 - sky);
     dark.visible = sky < 0.99;
     for (const light of moonlights) {
@@ -195,6 +223,7 @@ function alley(world, power) {
 
   return {
     open() {
+      lit = true;
       mouths.forEach((collider) => world.unblock(collider));
     },
   };

@@ -3,7 +3,8 @@ import { Kit } from './kit.js';
 import { Sparkles } from './fx.js';
 import { Villager } from './villager.js';
 import { Terrain } from './terrain.js';
-import { foundIn, repairedIn, flagsIn, save } from './state.js';
+import { foundIn, repairedIn, flagsIn, save, addMaterial } from './state.js';
+import { sfx } from './audio.js';
 
 const proxyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
 // 修复点上“缺了东西”的半透明虚影
@@ -38,6 +39,7 @@ export class World {
     this.hiddenItems = new Map(); // 要等修好某处才出现的物品
     this.repairs = new Map(); // 修复点：{ id, spot, x, z, reach, fn, can, seen }
     this.interacts = new Map(); // 可以互动的东西（售货机……）：{ id, obj, x, z, reach, label, icon, fn }
+    this.hideouts = new Map(); // 能翻找材料的地方（垃圾桶、草丛……），见 hideout()
     this.restoredFns = [];
     this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
@@ -57,48 +59,117 @@ export class World {
       this.restored = this.fullyRepaired;
     }
     if (def.scatter) {
-      this.scatterMaterials(def.scatter);
+      this.hideMaterials(def.scatter);
     }
   }
 
+  // ---------- 翻找材料 ----------
+
   /**
-   * 每次进来，在几个能藏东西的地方随机撒上材料
-   * @param {{ material: string, count: number, spots: number[][] }[]} groups 每种材料撒几个、能撒在哪些 [x, z]
+   * 登记一个能翻找的地方：垃圾桶、草丛、路灯脚下……
+   * @description 每次进来随机挑几个藏上材料（见 hideMaterials），走过去按 E 翻，翻过就空了，下次进来重新藏
+   * @param {string} id 这个地方的名字，同一个世界里不重复
+   * @param {THREE.Object3D} object 点它就走过去翻（路灯这种不该点的，传一个空的 Object3D）
+   * @param {number} x 站在哪儿能翻
+   * @param {number} z 站在哪儿能翻
+   * @param {object} options
+   * @param {string[]} options.tags 标签，scatter 按标签挑地方，比如 bin、bush、lamp
+   * @param {string} options.name 叫什么，用在提示里：垃圾桶、草丛
+   * @param {string} options.icon 提示前面的图标
+   * @param {string} options.show 藏的东西怎么露出来：inside 完全看不见，peek 露出一点，open 就躺在地上
+   * @param {number[]} options.offset show 不是 inside 时，材料摆在离 (x, z) 多远的地方 [dx, dz]
+   * @param {number} options.reach 离多近能翻
+   * @param {Function} options.when 返回 false 时先不能翻（比如小巷还黑着）
    */
-  scatterMaterials(groups) {
+  hideout(id, object, x, z, { tags, name, icon, show = 'inside', offset = [0, 0], reach = 1.0, when = () => true }) {
+    const spot = { id, x, z, tags, name, show, offset, material: null, model: null, searched: false };
+    this.hideouts.set(id, spot);
+
+    // 躺在地上的（路灯脚下）不藏东西时没什么好翻的；垃圾桶、草丛空的也能翻，翻过就不再提示
+    const label = () => {
+      if (spot.show === 'open' && spot.material) {
+        return `捡起${spot.material.name}`;
+      }
+      return `翻翻${name}`;
+    };
+    const available = () => {
+      if (spot.searched || !when()) {
+        return false;
+      }
+      return spot.show !== 'open' || !!spot.material;
+    };
+    this.interact(`hideout:${id}`, object, x, z, { reach, icon, short: '翻找', label, available, fn: () => this.searchHideout(spot) });
+  }
+
+  /**
+   * 每次进来，挑几个能翻的地方藏上材料
+   * @description 先藏稀有的（组的顺序就是优先顺序），一个地方只藏一个
+   * @param {{ material: string, count: number, from: string[] }[]} groups 每种材料藏几个、藏在带哪些标签的地方
+   */
+  hideMaterials(groups) {
     for (const group of groups) {
       const material = this.def.materials.find((entry) => entry.id === group.material);
-      const spots = [...group.spots];
+      const candidates = [...this.hideouts.values()].filter((spot) => !spot.material && spot.tags.some((tag) => group.from.includes(tag)));
 
-      for (let i = 0; i < group.count && spots.length; i++) {
-        const picked = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
-        this.placeMaterial(material, picked[0], picked[1], i);
+      for (let i = 0; i < group.count && candidates.length; i++) {
+        const spot = candidates.splice(Math.floor(Math.random() * candidates.length), 1)[0];
+        this.hideIn(spot, material);
       }
     }
   }
 
   /**
-   * 在地上放一个材料，走过去自动捡起
+   * 把一个材料藏进某个地方；不是完全藏起来的，摆一个不动的模型
+   * @param {object} spot 能翻的地方
    * @param {{ id: string, icon: string, name: string, make(kit) }} material 材料的定义
-   * @param {number} x
-   * @param {number} z
-   * @param {number} index 同一种材料的第几个（拼进 id 里，区分开）
    */
-  placeMaterial(material, x, z, index) {
-    const key = `material:${material.id}:${index}`;
-    const y = this.heightAt(x, z) + 0.12;
+  hideIn(spot, material) {
+    spot.material = material;
+    if (spot.show === 'inside') {
+      return;
+    }
 
-    const group = new THREE.Group();
-    group.add(material.make(this.kit));
-    const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), proxyMat);
-    proxy.castShadow = false;
-    proxy.userData.pickable = true;
-    group.add(proxy);
+    const model = material.make(this.kit);
+    const x = spot.x + spot.offset[0];
+    const z = spot.z + spot.offset[1];
+    model.position.x = x;
+    model.position.z = z;
+    model.position.y += this.heightAt(x, z);
+    // 塞在草丛里的斜插着，只露出瓶口
+    if (spot.show === 'peek') {
+      model.rotation.x = 0.9;
+    }
+    model.rotation.y = Math.random() * Math.PI * 2;
+    // 点露出来的瓶子也能走过去捡
+    model.userData.interact = `hideout:${spot.id}`;
+    this.root.add(model);
+    spot.model = model;
+  }
 
-    group.position.set(x, y, z);
-    group.userData = { itemId: key, material, baseY: y, spin: true, nextSparkle: 1 + Math.random() * 2, hover: 0 };
-    this.root.add(group);
-    this.items.set(key, group);
+  /**
+   * 翻一个地方：有东西就放进背包，没有就说一声
+   * @param {object} spot 能翻的地方
+   */
+  searchHideout(spot) {
+    spot.searched = true;
+    const toast = (text) => this.env.toast?.(text);
+
+    if (!spot.material) {
+      sfx.pop();
+      toast(`翻了翻${spot.name}……什么也没有`);
+      return;
+    }
+
+    const material = spot.material;
+    const total = addMaterial(material.id);
+    const where = new THREE.Vector3(spot.x + spot.offset[0], this.heightAt(spot.x, spot.z) + 0.3, spot.z + spot.offset[1]);
+    spot.model?.removeFromParent();
+    spot.material = null;
+
+    sfx.pickup();
+    this.fx.emit(where, { count: 12, spread: 0.25, size: 0.25, rise: 1.0, color: '#bfe6ff' });
+    toast(`找到 ${material.icon} ${material.name}（一共 ${total} 个）`);
+    this.env.onMaterial?.();
   }
 
   add(obj, x = 0, y = 0, z = 0, ry = 0) {

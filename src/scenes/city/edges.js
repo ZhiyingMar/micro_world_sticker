@@ -31,7 +31,7 @@ function placeOnGround(world, object, x, z, facing = 0) {
 }
 
 /**
- * 坡上公园：树篱隔出弯弯曲曲的小路，左边土坡、右边高台
+ * 坡上公园：树篱隔出弯弯曲曲的小路，左边土坡、右边高台；灌木丛（包括花园里那几丛）都能翻
  * @description 长椅藏在土坡靠马路那一面，默认镜头被土坡和树挡住，要转镜头或者走过去才发现
  * @param {World} world
  */
@@ -57,9 +57,13 @@ function park(world) {
     world.colliders.push({ type: 'box', minX, maxX, minZ, maxZ });
   }
 
-  for (const [x, z, radius] of BUSHES) {
-    placeOnGround(world, bush(kit, radius), x, z);
-  }
+  // 灌木丛都能翻，瓶子塞在里面只露出一点
+  BUSHES.forEach(([x, z, radius, deep], index) => {
+    const shrub = placeOnGround(world, bush(kit, radius), x, z);
+    const tags = deep ? ['bush', 'deep'] : ['bush'];
+    const tucked = radius * 0.55;
+    world.hideout(`bush${index}`, shrub, x, z, { tags, name: '草丛', icon: '🌿', show: 'peek', offset: [tucked, tucked] });
+  });
 }
 
 /**
@@ -95,9 +99,11 @@ function backLane(world, power) {
     power.windows(result.windows, 0.45);
   }
 
-  for (const [x, z] of BACK_LANE_PROPS.dumpsters) {
-    world.solid(placeOnGround(world, dumpster(kit), x, z));
-  }
+  BACK_LANE_PROPS.dumpsters.forEach(([x, z], index) => {
+    const bin = placeOnGround(world, dumpster(kit), x, z);
+    world.solid(bin);
+    world.hideout(`dumpster${index}`, bin, x, z, { tags: ['bin'], name: '大垃圾桶', icon: '🗑️', reach: 1.1 });
+  });
   for (const [x, z] of BACK_LANE_PROPS.airCon) {
     world.solid(placeOnGround(world, airConditioner(kit), x, z));
   }

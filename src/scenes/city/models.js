@@ -413,3 +413,52 @@ export function glassBottle(kit) {
   group.add(at(kit.cyl(0.022, 0.022, 0.06, '#3fbf7a', 8, glass), 0, 0.3, 0));
   return group;
 }
+
+/**
+ * 后厨用的带轮子的小垃圾桶，盖子半掩着
+ * @param {Kit} kit
+ * @returns {THREE.Group} 0.4 × 0.4，原点在底面中间
+ */
+export function kitchenBin(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(0.4, 0.55, 0.4, '#3d5a7a', 0.04), 0, 0.31, 0));
+  const lid = kit.box(0.42, 0.05, 0.42, '#2c4560', 0.02);
+  lid.rotation.x = -0.25;
+  group.add(at(lid, 0, 0.62, -0.03));
+
+  for (const side of [-1, 1]) {
+    const wheel = kit.cyl(0.04, 0.04, 0.03, '#1d1d24', 10);
+    wheel.rotation.z = Math.PI / 2;
+    group.add(at(wheel, side * 0.15, 0.04, -0.17));
+  }
+  return group;
+}
+
+/**
+ * 扎好口的黑色垃圾袋
+ * @param {Kit} kit
+ * @returns {THREE.Group}
+ */
+export function trashBag(kit) {
+  const group = new THREE.Group();
+  const bag = kit.sphere(0.16, '#2a2a30', 12);
+  bag.scale.set(1, 0.8, 0.9);
+  group.add(at(bag, 0, 0.13, 0));
+  group.add(at(kit.cone(0.05, 0.1, '#2a2a30', 6), 0, 0.3, 0));
+  return group;
+}
+
+/**
+ * 后厨的后门：一扇铁门，门上一盏小灯
+ * @param {Kit} kit
+ * @returns {{ group: THREE.Group, bulb: THREE.Mesh }} 门朝 +x；小灯跟着城市电力亮
+ */
+export function kitchenDoor(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(0.04, 0.9, 0.5, '#6b7080', 0.01), 0, 0.45, 0));
+  group.add(at(kit.box(0.05, 0.04, 0.04, '#c9ccd6', 0.005), 0.02, 0.45, 0.17));
+  const bulb = kit.box(0.08, 0.06, 0.12, '#fff3d0', 0.01, { emissive: '#ffd98a', emissiveIntensity: 1.2 });
+  bulb.material = bulb.material.clone();
+  group.add(at(bulb, 0.05, 1.0, 0));
+  return { group, bulb };
+}
