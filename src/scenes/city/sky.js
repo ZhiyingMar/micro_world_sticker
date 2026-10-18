@@ -4,6 +4,12 @@ import { rng } from '../../kit.js';
 import { glow } from '../../fx.js';
 import { MOON } from './layout.js';
 
+// 月光的外圈：又大又淡的一圈冷光，让月亮像在夜空里晕开（不用后期泛光，几乎不费性能）
+// 大小是直径（世界单位），透明度是月亮全亮时的
+const MOON_HALO_SIZE = 6;
+const MOON_HALO_OPACITY = 0.7;
+const MOON_HALO_COLOR = '#b9c6ff';
+
 export function buildSky(w, power) {
   const k = w.kit;
   const [mx, my, mz] = MOON;
@@ -23,6 +29,8 @@ export function buildSky(w, power) {
   w.add(moon, mx, my, mz);
   const moonGlow = glow('#cfd8ff', 3, 0.5);
   w.add(moonGlow, mx, my, mz);
+  const moonHalo = glow(MOON_HALO_COLOR, MOON_HALO_SIZE, MOON_HALO_OPACITY);
+  w.add(moonHalo, mx, my, mz);
 
   // 星星围着方块撒一圈，世界大了跟着往外放
   const r = rng(77);
@@ -43,8 +51,10 @@ export function buildSky(w, power) {
 
   power.show(({ sky }, t) => {
     moon.visible = moonGlow.visible = sky > 0.01;
+    moonHalo.visible = moon.visible;
     moon.scale.setScalar(Math.max(0.001, sky));
     moonGlow.material.opacity = 0.5 * sky;
+    moonHalo.material.opacity = MOON_HALO_OPACITY * sky;
     starMat.opacity = (0.25 + 0.75 * sky) * (0.65 + Math.sin(t * 1.7) * 0.2);
   });
 }
