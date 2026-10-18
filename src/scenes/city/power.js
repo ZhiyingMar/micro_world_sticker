@@ -8,6 +8,12 @@ import * as THREE from 'three';
 // 亮度 v 在 from..to 之间平滑地从 0 变到 1：用来让东西一栋一栋、一盏一盏地亮
 export const ramp = (from, to, v) => THREE.MathUtils.smoothstep(v, from, to);
 
+// 夜都开了泛光：亮度超过 1 的东西才会往外晕开（见场景的 post.bloom.threshold）
+// 霓虹全亮时的亮度，压过门面、窗户，只有招牌的字晕出光来
+const NEON_PEAK = 1.6;
+// 停电时霓虹灯管不是全黑，还能看出一点颜色
+const NEON_OFF = 0.03;
+
 export function createPower(w) {
   const lines = { sky: { v: 0, t: 0 }, street: { v: 0, t: 0 }, city: { v: 0, t: 0 } };
   const views = [];
@@ -52,7 +58,7 @@ export function createPower(w) {
       power.show(({ city }, t) => {
         const flick = flicker && (Math.sin(t * 13) > 0.97 || (t % 7 > 6.6 && Math.sin(t * 40) > 0));
         const s = ramp(a, a + 0.4, city) * (flick ? 0.35 : 1);
-        mat.color.setScalar(0.03 + 0.97 * s);
+        mat.color.setScalar(NEON_OFF + (NEON_PEAK - NEON_OFF) * s);
         halo.material.opacity = op * s;
       });
     },
