@@ -7,7 +7,6 @@ import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
 import { updateOccluders } from './occlusion.js';
-import { createPost } from './post.js';
 
 const canvas = document.getElementById('c');
 // stencil：人被挡住时画剪影要用
@@ -24,7 +23,6 @@ const FOV = 20;
 const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.5, 250);
 const controls = new OrbitControls(camera, canvas);
-const post = createPost(renderer, scene, camera);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.zoomToCursor = true;
@@ -77,7 +75,6 @@ function applySize() {
   const pr = pixel ? Math.min(0.6, 600 / innerWidth) : Math.min(devicePixelRatio, touchMode ? 1.5 : 2);
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight);
-  post.setSize(innerWidth, innerHeight, pr);
   canvas.classList.toggle('pixelated', pixel);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -217,7 +214,6 @@ function loadScene(id) {
   syncHomeButton();
   refreshGoal();
   sfx.ambient(def.ambient || null);
-  post.use(def.post);
   applySize();
 
   const c = def.camera;
@@ -1135,7 +1131,7 @@ function frame(dt, render = true) {
   updateOccluders(world, camera, game ? null : player, dt);
   updateGreeting(dt);
   updateHover();
-  if (render) post.render();
+  if (render) renderer.render(scene, camera);
 }
 
 function loop() {
@@ -1170,7 +1166,6 @@ window.__mw = {
   },
   camera,
   controls,
-  post, // 对比效果：__mw.post.use(null) 关掉后期，__mw.post.use(__mw.world.def.post) 再打开
   travel,
   pick,
   // 窗口在后台时 requestAnimationFrame 会暂停，用它手动推进若干帧
