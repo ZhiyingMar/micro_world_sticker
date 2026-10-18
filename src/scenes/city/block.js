@@ -11,16 +11,6 @@ const DARK_ALLEY_SAY = '🌑 小巷里黑漆漆的，什么也看不见……';
 const FENCE_SAY = '🕸️ 铁丝网挡着……对面看得见，可是过不去';
 // 巷子两头黑着的时候挡住的那一段有多深
 const ALLEY_MOUTH = 0.45;
-// 便利店门面玻璃的自发光：停电时 / 全亮时。全亮也压在泛光门槛下面，不然整面玻璃糊成一团白光，盖过招牌
-const STORE_FRONT_OFF = 0.05;
-const STORE_FRONT_PEAK = 0.75;
-// 门面玻璃本身的颜色打几折：店里的灯是从里面透出来的（自发光），门口那盏照人行道的灯贴着玻璃，
-// 玻璃要是照原色反光，一下就超过泛光门槛
-const STORE_FRONT_ALBEDO = 0.3;
-// 便利店门口照人行道的那盏灯，全亮时的强度。离雨棚、地面很近，太亮会把它们照得超过泛光门槛，糊成一团
-const STORE_LIGHT_PEAK = 1.6;
-// 便利店门口那团暖光的透明度：泛光已经让门面自己晕开了，这团光只是淡淡地铺到人行道上，叠多了门面中间会白成一片
-const STORE_GLOW_OPACITY = 0.15;
 
 /**
  * 搭街区
@@ -148,11 +138,11 @@ function shops(world, power) {
   world.solid(store.group);
   world.fadeable(store.group);
 
-  const storeGlow = glow('#fff1c4', 3.2, STORE_GLOW_OPACITY);
+  const storeGlow = glow('#fff1c4', 3.2, 0.35);
   world.add(storeGlow, storeX, 0.7, BLOCK_FRONT + 0.3);
-  const storeLight = new THREE.PointLight('#fff1c4', STORE_LIGHT_PEAK, 4.5, 1.5);
+  const storeLight = new THREE.PointLight('#fff1c4', 4, 4.5, 1.5);
   world.add(storeLight, storeX, 0.9, BLOCK_FRONT + 0.5);
-  power.neon(store.sign.material, storeGlow, { op: STORE_GLOW_OPACITY, a: 0.2 });
+  power.neon(store.sign.material, storeGlow, { op: 0.35, a: 0.2 });
   world.poi(storeX - 0.4, BLOCK_FRONT + 0.6, { emote: '🍙', face: Math.PI, dur: 6 });
 
   const [vendingX, vendingZ] = VENDING;
@@ -163,13 +153,13 @@ function shops(world, power) {
   world.add(machineGlow, vendingX, 0.95, vendingZ + 0.45);
   world.poi(vendingX, vendingZ + 0.55, { emote: '🥤', face: Math.PI, dur: 5 });
 
-  const frontOn = store.front.material.color.clone().multiplyScalar(STORE_FRONT_ALBEDO);
+  const frontOn = store.front.material.color.clone();
   const frontOff = new THREE.Color('#2a2c38');
   power.show(({ city }) => {
     const shop = ramp(0.2, 0.6, city);
-    store.front.material.emissiveIntensity = STORE_FRONT_OFF + (STORE_FRONT_PEAK - STORE_FRONT_OFF) * shop;
+    store.front.material.emissiveIntensity = 0.05 + 1.05 * shop;
     store.front.material.color.copy(frontOff).lerp(frontOn, shop);
-    storeLight.intensity = STORE_LIGHT_PEAK * shop;
+    storeLight.intensity = 4 * shop;
     machine.panel.material.color.setScalar(0.15 + 0.85 * shop);
     machine.panel.material.emissiveIntensity = 0.05 + 0.85 * shop;
     machineGlow.material.opacity = 0.35 * shop;

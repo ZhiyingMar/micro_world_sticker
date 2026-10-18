@@ -63,11 +63,6 @@ export default {
     sun: ['#aab8ff', 0.9, [-6, 10, 5]],
   },
   camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
-  // 夜景靠光：霓虹、路灯、车灯往外晕开。亮度超过 threshold（线性亮度 1）的才晕，
-  // 被灯照亮的地面、便利店门面都压在它下面；不做色调映射，招牌颜色和原来一样鲜
-  post: {
-    bloom: { strength: 0.8, radius: 0.5, threshold: 1 },
-  },
   terrain: { map: MAP, level: LEVEL },
   spawn: SPAWN,
   // 第一次进来时主动打招呼：停电时和修好以后各一句（key 不同，各说一次）
