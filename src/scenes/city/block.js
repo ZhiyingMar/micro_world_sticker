@@ -215,8 +215,9 @@ function alley(world, power) {
   world.blocker(left, right, ALLEY.fenceZ - 0.05, ALLEY.fenceZ + 0.05, FENCE_SAY);
 
   // 停电时：黑漆漆的一团，两头挡住
+  // 正好填满巷子：宽了会伸进两边的楼，前面多出来会挡在大楼正面前，盖住俄罗斯方块最右边一列
   const darkMaterial = new THREE.MeshBasicMaterial({ color: '#04050d', transparent: true, opacity: 0.92, depthWrite: false });
-  const dark = new THREE.Mesh(new THREE.BoxGeometry(ALLEY.width + 0.2, 2.6, depth + 0.1), darkMaterial);
+  const dark = new THREE.Mesh(new THREE.BoxGeometry(ALLEY.width, 2.6, depth), darkMaterial);
   world.add(dark, ALLEY.x, 1.3, (ALLEY.front + ALLEY.back) / 2);
   const mouths = [
     world.blocker(left, right, ALLEY.front - ALLEY_MOUTH, ALLEY.front, DARK_ALLEY_SAY),
