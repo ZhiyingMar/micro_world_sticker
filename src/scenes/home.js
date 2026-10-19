@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { at } from '../kit.js';
 import { makeStarField } from '../fx.js';
+import { placeEaves, placeGarden } from './home-exterior.js';
 import { currentDecor, chooseDecor, decorTexture } from '../decor.js';
 
 const WOOD = '#d9a066';
@@ -21,6 +22,8 @@ const CAMERA_AZIMUTH = Math.atan2(CAMERA_POS[0] - CAMERA_TARGET[0], CAMERA_POS[2
 const CAMERA_MAX_OVER_OVERVIEW = 1.05;
 // 拉近最多到：屋子（不算外面的花园）差不多填满画面，边上裁掉一点
 const ROOM_SIZE = [10, 10];
+// 连外面一圈花园，整个方块的边长（屋子 10，四周各留一圈花园）
+const GARDEN_SIZE = 15;
 const CAMERA_CLOSE_UP_SCALE = 0.9;
 
 // 工作台：靠左墙，摆在落地灯和大盆栽中间，台面朝屋里（+x）
@@ -29,7 +32,7 @@ const WORKBENCH = { x: -4.15, z: 0.15, facing: Math.PI / 2 };
 const WORKBENCH_SIZE = { length: 1.2, depth: 0.6, height: 0.9 };
 // 人站在台面前多远就能用
 const WORKBENCH_REACH = 1.3;
-// 星空壁纸时外面那片星星：撒在多远的球壳上，按房间对角线的倍数算（最近也要在房间外面）
+// 星空壁纸时外面那片星星：撒在多远的球壳上，按整个方块对角线的倍数算（最近也要在花园外面）
 const STAR_SHELL_NEAR = 0.8;
 const STAR_SHELL_FAR = 3.5;
 // 撒在镜头正对面多大的锥形里（半角，弧度）：盖住镜头左右转、上下转能看到的范围
@@ -158,12 +161,12 @@ function buildRoom(w) {
 function placeBackdropStars(w) {
   const { pos, target } = w.def.camera;
   const towardCamera = new THREE.Vector3(...pos).sub(new THREE.Vector3(...target));
-  const roomDiagonal = Math.hypot(...w.size);
+  const worldDiagonal = Math.hypot(...w.size);
   const stars = makeStarField({
     away: towardCamera,
     spread: STAR_SPREAD,
-    near: roomDiagonal * STAR_SHELL_NEAR,
-    far: roomDiagonal * STAR_SHELL_FAR,
+    near: worldDiagonal * STAR_SHELL_NEAR,
+    far: worldDiagonal * STAR_SHELL_FAR,
     seed: STAR_SEED,
   });
 
@@ -485,6 +488,8 @@ export default {
     closeUp: { size: ROOM_SIZE, scale: CAMERA_CLOSE_UP_SCALE },
     maxAtOverview: CAMERA_MAX_OVER_OVERVIEW,
   },
+  // 整个方块算上花园；人只能在屋里走（bounds），走不到花园里
+  size: [GARDEN_SIZE, GARDEN_SIZE],
   bounds: { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 },
   spawn: [1.6, 2.8],
   // 第一次进来时，这个小人会主动打招呼
@@ -539,6 +544,8 @@ export default {
   ],
   build(w) {
     const room = buildRoom(w);
+    placeEaves(w);
+    placeGarden(w, GARDEN_SIZE);
     buildFurniture(w);
     placeWorkbench(w, room);
 
