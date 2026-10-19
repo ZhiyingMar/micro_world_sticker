@@ -254,6 +254,7 @@ function loadScene(id) {
   applyZoomLimits(def, overview);
   focus = null;
   hold = false;
+  recentering = false;
 
   if (!def.test) state.current = id; // 测试场景不记进存档
   if (state.newMagnet === id) state.newMagnet = null;
@@ -388,7 +389,7 @@ function updateCamera(dt) {
     const d = camera.position.distanceTo(controls.target);
     const far = overview.pos.distanceTo(overview.target);
     const k = THREE.MathUtils.smoothstep(d, followDist() + 1, Math.max(far * 0.9, followDist() + 2));
-    _want.set(player.x, player.root.position.y + 0.5, player.z).lerp(overview.target, k);
+    followPoint(_want).lerp(overview.target, k);
     _delta.copy(_want).sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 6));
     controls.target.add(_delta);
     camera.position.add(_delta);
@@ -397,6 +398,40 @@ function updateCamera(dt) {
 }
 const _want = new THREE.Vector3();
 const _delta = new THREE.Vector3();
+const _playerPoint = new THREE.Vector3();
+const _onScreen = new THREE.Vector3();
+
+// 不跟人的世界（camera.freeLook）：人走到离画面边多近（屏幕坐标，中心 0、边上 1）镜头才挪过去，挪到人回到这么靠中间为止
+const FREE_LOOK_EDGE = 0.75;
+const FREE_LOOK_SETTLED = 0.3;
+let recentering = false; // 不跟人的世界里，镜头正在挪回人身上
+
+/**
+ * 镜头这一帧想对准哪儿（拉远时还会再往方块中心偏）
+ * @description 一般世界一直对着人，人走出画面就看不见了。camera.freeLook 的世界（小屋只有一间屋子）不跟人：
+ *   缩放朝鼠标指的地方，想看哪儿就放大哪儿；人快走出画面时才把镜头挪回人身上
+ * @param {THREE.Vector3} out 结果写进这里
+ * @returns {THREE.Vector3} out
+ */
+function followPoint(out) {
+  _playerPoint.set(player.x, player.root.position.y + 0.5, player.z);
+  if (!world.def.camera.freeLook) {
+    return out.copy(_playerPoint);
+  }
+
+  _onScreen.copy(_playerPoint).project(camera);
+  const offCenter = Math.max(Math.abs(_onScreen.x), Math.abs(_onScreen.y));
+  if (offCenter > FREE_LOOK_EDGE) {
+    recentering = true;
+  } else if (offCenter < FREE_LOOK_SETTLED) {
+    recentering = false;
+  }
+
+  if (recentering) {
+    return out.copy(_playerPoint);
+  }
+  return out.copy(controls.target);
+}
 
 // ---------------- 拾取 / 点击 ----------------
 const raycaster = new THREE.Raycaster();

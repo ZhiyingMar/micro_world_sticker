@@ -486,6 +486,8 @@ export default {
     startAz: CAMERA_AZIMUTH,
     startPolar: CAMERA_START_TILT,
     fitSize: ROOM_SIZE,
+    // 镜头不跟人：放大朝鼠标指的地方，人快走出画面才跟过去
+    freeLook: true,
     min: CAMERA_MIN_DISTANCE,
     maxAtOverview: CAMERA_MAX_OVER_OVERVIEW,
   },
