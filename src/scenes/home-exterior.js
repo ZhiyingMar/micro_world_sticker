@@ -12,51 +12,50 @@ const HOUSE = {
 
 // ---------- 房檐 ----------
 
-// 房檐板从墙顶木线上方一点开始，往外、往下斜出去
+// 房檐板压在墙顶木线上方一点，往屋外往下斜出去，也往屋里往上伸进来一截（像屋顶被切开，从屋里看得到屋顶的边）
 const EAVE = {
-  baseY: 4.45, // 靠墙那条边的高度，比木线高一点，木线不会从瓦里戳出来
-  inset: 0.06, // 靠墙那条边比墙内侧再往屋外挪一点，从屋里看房檐像压在墙上
-  depth: 1.5, // 往外伸出去多远（沿斜面）
-  slope: THREE.MathUtils.degToRad(25), // 往下斜多少
+  baseY: 4.45, // 压在墙上那条线的高度，比木线高一点，木线不会从瓦里戳出来
+  inset: 0.06, // 压在墙上那条线比墙内侧再往屋外挪一点
+  depth: 1.5, // 往屋外伸出去多远（沿斜面）
+  inward: 0.9, // 往屋里伸进来多远（沿斜面）
+  slope: THREE.MathUtils.degToRad(25), // 坡度
   thickness: 0.14,
   endOverhang: 0.35, // 开口那头比墙多伸出去一点，看着像屋顶的边
   shingleRow: 0.3, // 一排瓦多宽
   color: '#d9735a',
   shingleColor: '#c45f48',
-  fasciaColor: '#fff6e8', // 房檐外边那根封檐板
+  fasciaColor: '#fff6e8', // 房檐两边的封檐板
 };
 
 /**
- * 房檐的一段：贴着一面墙的斜板，上面一排排瓦，外边一根封檐板
- * @description 在自己的坐标里搭：墙沿 x 从 0 到 length，屋外是 -z，板子往屋外往下斜；墙角那头切成 45° 斜角，和另一面墙的房檐拼成屋脊
+ * 房檐的一段：贴着一面墙的斜板，上面一排排瓦，里外两边各一根封檐板
+ * @description 在自己的坐标里搭：墙沿 x 从 0 到 length，压在墙上那条线是 y = 0，y 往屋外（往下斜）、负的 y 往屋里（往上斜）；
+ *   墙角那头切成俯视 45° 的斜角，和另一面墙的房檐拼成屋脊
  * @param {Kit} kit 造型工具箱
  * @param {number} length 墙多长
  * @param {'start' | 'end'} cornerAt 墙角在哪一头（那头切斜角，另一头多伸出去一点）
  * @returns {THREE.Group}
  */
 function buildEaveStrip(kit, length, cornerAt) {
-  const { depth, thickness, endOverhang } = EAVE;
+  const { depth, inward, thickness } = EAVE;
+  const edgesAt = (y) => eaveEdgesAt(y, length, cornerAt);
 
-  // 梯形：靠墙那条边 0 ~ length，外边在墙角那头多出去（斜角），另一头多出 endOverhang
-  // 斜角按俯视 45° 切：板子是斜的，往外伸 depth 在俯视里只有 depth × cos(坡度)，两段房檐的斜边才对得上
-  const miter = depth * Math.cos(EAVE.slope);
-  const outerStart = cornerAt === 'start' ? -miter : -endOverhang;
-  const outerEnd = cornerAt === 'end' ? length + miter : length + endOverhang;
-  const innerStart = cornerAt === 'start' ? 0 : -endOverhang;
-  const innerEnd = cornerAt === 'end' ? length : length + endOverhang;
+  const inner = edgesAt(-inward);
+  const outer = edgesAt(depth);
   const shape = new THREE.Shape([
-    new THREE.Vector2(innerStart, 0),
-    new THREE.Vector2(innerEnd, 0),
-    new THREE.Vector2(outerEnd, depth),
-    new THREE.Vector2(outerStart, depth),
+    new THREE.Vector2(inner.start, -inward),
+    new THREE.Vector2(inner.end, -inward),
+    new THREE.Vector2(outer.end, depth),
+    new THREE.Vector2(outer.start, depth),
   ]);
   const board = kit.mesh(new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false }), EAVE.color);
 
   // 板子的坐标：x 沿墙，y 往屋外（沿斜面），z 是板子的厚度方向（朝上）
   const slab = new THREE.Group();
   slab.add(board);
-  addShingles(kit, slab, { innerStart, innerEnd, outerStart, outerEnd });
-  addFascia(kit, slab, outerStart, outerEnd);
+  addShingles(kit, slab, edgesAt);
+  addFascia(kit, slab, outer, depth);
+  addFascia(kit, slab, inner, -inward);
 
   // 立起来：y 转到屋外（-z）并往下斜，厚度朝上
   slab.rotation.x = -(Math.PI / 2 + EAVE.slope);
@@ -66,36 +65,52 @@ function buildEaveStrip(kit, length, cornerAt) {
 }
 
 /**
- * 在房檐板上一排排铺瓦，每排按梯形在那个位置的宽度裁
+ * 房檐板在某一排（y）的左右两头
+ * @description 墙角那头按俯视 45° 斜着切：板子是斜的，沿斜面走 y 在俯视里只有 y × cos(坡度)，两段房檐的斜边才对得上；
+ *   开口那头比墙多伸出去 endOverhang
+ * @param {number} y 沿斜面离压在墙上那条线多远，往屋外为正
+ * @param {number} length 墙多长
+ * @param {'start' | 'end'} cornerAt 墙角在哪一头
+ * @returns {{ start: number, end: number }} 这一排从 x = start 到 x = end
+ */
+function eaveEdgesAt(y, length, cornerAt) {
+  const miter = y * Math.cos(EAVE.slope);
+  if (cornerAt === 'start') {
+    return { start: -miter, end: length + EAVE.endOverhang };
+  }
+  return { start: -EAVE.endOverhang, end: length + miter };
+}
+
+/**
+ * 在房檐板上一排排铺瓦，每排按那个位置的宽度裁
  * @param {Kit} kit 造型工具箱
  * @param {THREE.Group} slab 房檐板（自己的坐标：x 沿墙，y 往外，z 朝上）
- * @param {{ innerStart: number, innerEnd: number, outerStart: number, outerEnd: number }} edges 梯形四个角的 x
+ * @param {Function} edgesAt (y) 返回这一排的 { start, end }
  */
-function addShingles(kit, slab, { innerStart, innerEnd, outerStart, outerEnd }) {
-  const rows = Math.floor(EAVE.depth / EAVE.shingleRow);
+function addShingles(kit, slab, edgesAt) {
   const lip = 0.05; // 每排瓦的下沿厚一点，露出一道阴影线
+  const firstRow = Math.ceil(-EAVE.inward / EAVE.shingleRow);
+  const lastRow = Math.floor(EAVE.depth / EAVE.shingleRow);
 
-  for (let row = 1; row <= rows; row++) {
+  for (let row = firstRow; row <= lastRow; row++) {
     const y = row * EAVE.shingleRow - lip;
-    const along = y / EAVE.depth;
-    const start = innerStart + (outerStart - innerStart) * along;
-    const end = innerEnd + (outerEnd - innerEnd) * along;
+    const { start, end } = edgesAt(y);
     const shingle = kit.box(end - start, lip * 2, 0.04, EAVE.shingleColor, 0.01);
     slab.add(at(shingle, (start + end) / 2, y, EAVE.thickness + 0.01));
   }
 }
 
 /**
- * 房檐外边的封檐板：一根白木条，把瓦的边收干净
+ * 房檐边上的封檐板：一根白木条，把瓦的边收干净
  * @param {Kit} kit 造型工具箱
  * @param {THREE.Group} slab 房檐板
- * @param {number} start 外边从哪儿开始（x）
- * @param {number} end 外边到哪儿（x）
+ * @param {{ start: number, end: number }} edges 这条边从哪儿到哪儿（x）
+ * @param {number} y 这条边在哪（沿斜面，往屋外为正）
  */
-function addFascia(kit, slab, start, end) {
+function addFascia(kit, slab, edges, y) {
   const fasciaHeight = 0.2;
-  const fascia = kit.box(end - start, 0.06, fasciaHeight, EAVE.fasciaColor, 0.02);
-  slab.add(at(fascia, (start + end) / 2, EAVE.depth, EAVE.thickness - fasciaHeight / 2));
+  const fascia = kit.box(edges.end - edges.start, 0.06, fasciaHeight, EAVE.fasciaColor, 0.02);
+  slab.add(at(fascia, (edges.start + edges.end) / 2, y, EAVE.thickness - fasciaHeight / 2));
 }
 
 /**
@@ -123,7 +138,6 @@ const GARDEN_GROUND_Y = -0.3;
 const GARDEN_SOIL_DEPTH = 1.0; // 草地下面那层土有多厚（方块的侧面）
 const GARDEN_COLORS = {
   grass: '#a5d68c',
-  grassEdge: '#8cc476',
   soil: '#b58a5c',
   path: '#e9dcc4',
   fence: '#fff6e8',
