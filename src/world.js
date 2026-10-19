@@ -47,6 +47,8 @@ export class World {
     this.updaters = [];
     this.textures = [];
     this.fx = new Sparkles(this.root);
+    // 方块外面那一大片背景（CSS），场景可以在搭建时或之后换掉，见 setBackdrop()
+    this.backdrop = def.bg;
     // 这个世界的东西已经找齐了（老存档也算）：破败世界直接当作已经修好
     this.complete = def.items.length > 0 && def.items.every((i) => foundIn(def.id).includes(i.id));
     if (def.repairs && this.complete) {
@@ -575,6 +577,16 @@ export class World {
     this.root.add(v.root);
     if (!opts.controlled) this.villagers.push(v);
     return v;
+  }
+
+  /**
+   * 换掉方块外面那一大片背景
+   * @description 小屋换了壁纸，外面的底色和底纹跟着变
+   * @param {string} css 能直接放进 background 的值
+   */
+  setBackdrop(css) {
+    this.backdrop = css;
+    this.env.onBackdrop?.(css);
   }
 
   onUpdate(fn) {

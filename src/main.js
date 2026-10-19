@@ -185,6 +185,8 @@ function loadScene(id) {
     onChange: () => refreshGoal(),
     onMaterial: () => ui.renderMaterials(world.def),
     startGame: (id) => startGame(id),
+    onBackdrop: (css) => ui.setBackdrop(css),
+    openWorkbench: (onPick) => ui.openWorkbench(onPick),
   });
   scene.add(world.root);
   blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
@@ -210,7 +212,7 @@ function loadScene(id) {
     }, 1600);
   });
   // 先把界面画出来，取景时要量收集栏等占了多少地方
-  ui.setScene(def);
+  ui.setScene(def, world.backdrop);
   syncHomeButton();
   refreshGoal();
   sfx.ambient(def.ambient || null);
@@ -461,7 +463,7 @@ function distToPlayer(x, z) {
 }
 
 function handleClick(cx, cy, touch = false) {
-  if (busy || ui.fridgeOpen || game) return;
+  if (busy || ui.panelOpen || game) return;
   endGreeting();
   if (ui.dialogOpen) {
     endTalk();
@@ -567,7 +569,7 @@ canvas.addEventListener('pointerleave', () => {
 function updateHover() {
   if (hovered && hovered.type === 'item') hovered.obj.userData.hover = 0;
   hovered = null;
-  if (!hoverPos || busy || ui.fridgeOpen || down || game) {
+  if (!hoverPos || busy || ui.panelOpen || down || game) {
     ui.tooltip(null);
     return;
   }
@@ -608,7 +610,7 @@ function talkTo(v) {
 // 第一次进入一个世界（或世界有了大变化）时，有个小人主动打招呼
 function maybeGreet() {
   const g0 = world.def.greet;
-  if (!g0 || busy || game || ui.fridgeOpen) return;
+  if (!g0 || busy || game || ui.panelOpen) return;
   const g = typeof g0 === 'function' ? g0(world) : g0;
   const key = g.key || world.def.id;
   if (!state.greeted) state.greeted = {};
@@ -874,6 +876,16 @@ document.getElementById('fridge-close').addEventListener('click', () => {
   sfx.click();
   ui.closeFridge();
 });
+document.getElementById('bench-close').addEventListener('click', () => {
+  sfx.click();
+  ui.closeWorkbench();
+});
+// 点面板外面的空白处也能收起
+document.getElementById('workbench').addEventListener('click', (event) => {
+  if (event.target.id === 'workbench') {
+    ui.closeWorkbench();
+  }
+});
 document.getElementById('fridge').addEventListener('click', (e) => {
   if (e.target.id === 'fridge') ui.closeFridge();
 });
@@ -942,7 +954,7 @@ joy.addEventListener('pointerup', joyEnd);
 joy.addEventListener('pointercancel', joyEnd);
 
 document.getElementById('btn-action').addEventListener('click', () => {
-  if (busy || ui.fridgeOpen) return;
+  if (busy || ui.panelOpen) return;
   if (ui.dialogOpen) {
     endTalk();
     return;
@@ -1036,11 +1048,13 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'Escape') {
-    if (ui.fridgeOpen) ui.closeFridge();
+    if (ui.panelOpen) {
+      ui.closePanels();
+    }
     endTalk();
     return;
   }
-  if (busy || ui.fridgeOpen) return;
+  if (busy || ui.panelOpen) return;
   if (KEYMAP[e.code]) {
     input[KEYMAP[e.code]] = true;
     e.preventDefault();

@@ -1,23 +1,103 @@
-import { state, foundIn, repairedIn, materialCount } from './state.js';
+import { state, foundIn, repairedIn, materialCount, canAfford } from './state.js';
+import { DECOR_KINDS, currentDecor, ownsDecor, decorSwatch } from './decor.js';
 import { SCENES, MAGNETS, WORLDS, HOME } from './scenes/index.js';
 import { sfx } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * 各个世界的材料定义（图标、名字），按出现的世界顺序排
+ * @returns {{ id: string, name: string, icon: string }[]}
+ */
+function allMaterials() {
+  return Object.values(SCENES).flatMap((def) => def.materials || []);
+}
+
+/**
+ * 配方写成一行字：🧴×3 🍾×1
+ * @param {Object<string, number>} cost 每种材料要几个
+ * @returns {string}
+ */
+function costText(cost) {
+  const materials = allMaterials();
+  return Object.entries(cost)
+    .map(([id, amount]) => {
+      const material = materials.find((candidate) => candidate.id === id);
+      return `${material.icon}×${amount}`;
+    })
+    .join(' ');
+}
+
+/**
+ * 按这份配方，背包里每种材料还差几个（够的不列）
+ * @param {Object<string, number>} cost 每种材料要几个
+ * @returns {Object<string, number>}
+ */
+function missingFor(cost) {
+  const missing = {};
+  for (const [id, amount] of Object.entries(cost)) {
+    const short = amount - materialCount(id);
+    if (short > 0) {
+      missing[id] = short;
+    }
+  }
+  return missing;
+}
+
+/**
+ * 工作台面板上的一张卡片：小样图、名字、状态（使用中 / 做过了 / 配方）
+ * @param {object} entry 装修目录里的一款
+ * @param {boolean} inUse 是不是正在用的那款
+ * @returns {string}
+ */
+function decorCardHTML(entry, inUse) {
+  const owned = ownsDecor(entry);
+  let status;
+  let cardClass = '';
+  if (inUse) {
+    status = '使用中';
+    cardClass = 'in-use';
+  } else if (owned) {
+    status = '点一下换上';
+  } else {
+    status = costText(entry.cost);
+    cardClass = canAfford(entry.cost) ? 'can-craft' : 'short';
+  }
+
+  return `<button class="decor-card ${cardClass}" data-id="${entry.id}">
+      <div class="decor-swatch" style="background-image:url(${decorSwatch(entry)})"></div>
+      <div class="decor-name">${entry.name}</div>
+      <div class="decor-status">${status}</div>
+    </button>`;
+}
+
 export const ui = {
   // ---------- 标题 & 目标 ----------
-  setScene(def) {
+  /**
+   * 换上一个世界：标题卡、背景、目标栏、材料
+   * @param {object} def 世界的定义
+   * @param {string} backdrop 方块外面的背景 CSS；世界自己换过背景（小屋壁纸）时和 def.bg 不一样
+   */
+  setScene(def, backdrop = def.bg) {
     $('#scene-emoji').textContent = def.emoji;
     $('#scene-name').textContent = def.name;
     $('#scene-style').textContent = def.styleLabel;
     const cl = document.body.classList;
     [...cl].filter((c) => c.startsWith('style-')).forEach((c) => cl.remove(c));
     cl.add(`style-${def.style}`);
-    document.getElementById('app').style.setProperty('--scene-bg', def.bg);
+    this.setBackdrop(backdrop);
     this._shown = new Set(); // 换了世界：已经完成的直接不显示
     this.renderGoal(def);
     this.renderMaterials(def);
+  },
+
+  /**
+   * 换方块外面那一大片背景
+   * @param {string} css 能直接放进 background 的值
+   */
+  setBackdrop(css) {
+    document.getElementById('app').style.setProperty('--scene-bg', css);
   },
 
   /**
@@ -245,6 +325,99 @@ export const ui = {
 
   get fridgeOpen() {
     return !$('#fridge').hidden;
+  },
+
+  // ---------- 工作台 ----------
+  _benchKind: 'wallpaper',
+
+  /**
+   * 打开工作台：上面一行是背包里的材料，下面按壁纸 / 地板列出能做的款式
+   * @param {Function} onPick 选了一款时调用 (kind, entry)，返回 'switched' | 'crafted' | 'short'
+   */
+  openWorkbench(onPick) {
+    sfx.pop();
+    this._benchPick = onPick;
+    this._renderWorkbench();
+    $('#workbench').hidden = false;
+
+    $('#bench-tabs').onclick = (event) => {
+      const tab = event.target.closest('[data-kind]');
+      if (!tab) {
+        return;
+      }
+      sfx.click();
+      this._benchKind = tab.dataset.kind;
+      this._renderWorkbench();
+    };
+    $('#bench-list').onclick = (event) => {
+      const card = event.target.closest('[data-id]');
+      if (card) {
+        this._pickDecor(card);
+      }
+    };
+  },
+
+  /**
+   * 点了面板上的一款：做出来、换上，或者提示材料不够
+   * @param {HTMLElement} card 被点的那张卡片
+   */
+  _pickDecor(card) {
+    const kind = this._benchKind;
+    const entry = DECOR_KINDS[kind].list.find((candidate) => candidate.id === card.dataset.id);
+    if (entry === currentDecor(kind)) {
+      return;
+    }
+
+    const result = this._benchPick(kind, entry);
+    if (result === 'short') {
+      sfx.click();
+      card.classList.remove('shake');
+      void card.offsetWidth;
+      card.classList.add('shake');
+      $('#bench-tip').textContent = `材料还差 ${costText(missingFor(entry.cost))}`;
+      return;
+    }
+
+    if (result === 'crafted') {
+      sfx.fanfare();
+      this.toast(`做好了「${entry.name}」，已经换上啦`);
+    } else {
+      sfx.pop();
+    }
+    this._renderWorkbench();
+  },
+
+  /**
+   * 按现在的背包和装修，把面板重画一遍
+   */
+  _renderWorkbench() {
+    const kind = this._benchKind;
+    const using = currentDecor(kind);
+
+    $('#bench-materials').innerHTML = allMaterials()
+      .map((material) => `<span title="${material.name}">${material.icon} ${materialCount(material.id)}</span>`)
+      .join('');
+    $('#bench-tabs').innerHTML = Object.entries(DECOR_KINDS)
+      .map(([key, info]) => `<button class="bench-tab ${key === kind ? 'on' : ''}" data-kind="${key}">${info.label}</button>`)
+      .join('');
+    $('#bench-list').innerHTML = DECOR_KINDS[kind].list.map((entry) => decorCardHTML(entry, entry === using)).join('');
+
+    const hasAnyMaterial = allMaterials().some((material) => materialCount(material.id) > 0);
+    $('#bench-tip').textContent = hasAnyMaterial ? '点一款做出来，做过的随时换' : '还没有材料。去别的小世界翻翻垃圾桶、草丛，能捡到瓶子';
+  },
+
+  closeWorkbench() {
+    $('#workbench').hidden = true;
+  },
+
+  // 冰箱、工作台这类盖住整个画面的面板，开着的时候不能走动、点场景
+  get panelOpen() {
+    return this.fridgeOpen || !$('#workbench').hidden;
+  },
+
+  closePanels() {
+    this.closeFridge();
+    this.closeWorkbench();
   },
 
   // ---------- 合成冰箱贴 ----------
