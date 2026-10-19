@@ -36,6 +36,13 @@ npm run dev
 
 打包：`npm run build`，产物在 `dist/`，是纯静态文件，可以放到任意静态托管上。
 
+### 录宣传片
+
+网址后面加 `?trailer`（比如 `http://localhost:5173/?trailer`），点「● 开始录制」：游戏会按 `src/trailer/shots.js` 里的分镜自动演一遍小屋和霓虹夜都（约一分钟），连游戏音效一起录成 1080p 视频。开发服务器上录完直接存到 `recordings/`，不然点面板上的链接下载。
+
+- 是按真实时间录的：录的时候窗口要一直在前台、别被挡住，不然浏览器会降速，画面会掉帧
+- 宣传片用一份只在内存里的进度，不会动你自己的存档
+
 推送到 `main` 分支后，GitHub Actions（`.github/workflows/deploy.yml`）会自动打包并发布到 GitHub Pages。
 
 ## 代码结构
