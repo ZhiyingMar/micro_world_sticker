@@ -382,7 +382,7 @@ function updateCamera(dt) {
     camera.position.lerpVectors(focus.fromP, focus.toP, k);
     if (k >= 1) focus = null;
   } else if (player && !hold) {
-    // 镜头中心跟着人走（旋转、缩放交给 OrbitControls）；拉得越远越偏向整个方块的中心
+    // 镜头中心看 followPoint（旋转、缩放交给 OrbitControls）；拉得越远越偏向整个方块的中心
     const d = camera.position.distanceTo(controls.target);
     const far = overview.pos.distanceTo(overview.target);
     const k = THREE.MathUtils.smoothstep(d, followDist() + 1, Math.max(far * 0.9, followDist() + 2));
@@ -398,26 +398,25 @@ const _delta = new THREE.Vector3();
 const _playerPoint = new THREE.Vector3();
 const _onScreen = new THREE.Vector3();
 
-// 不跟人的世界（camera.freeLook）：人走到离画面边多近（屏幕坐标，中心 0、边上 1）镜头才挪过去，挪到人回到这么靠中间为止
-const FREE_LOOK_EDGE = 0.75;
+// 镜头不一直跟人：人走到离空白区域的边多近（按界面之间那块空白算，中心 0、边上 1）镜头才挪过去，挪到人回到这么靠中间为止
+// 按空白区域算而不是按整个屏幕：不然人会躲到下面的收集栏、旁边的提示卡底下
+const FREE_LOOK_EDGE = 0.8;
 const FREE_LOOK_SETTLED = 0.3;
-let recentering = false; // 不跟人的世界里，镜头正在挪回人身上
+let recentering = false; // 镜头正在挪回人身上
 
 /**
  * 镜头这一帧想对准哪儿（拉远时还会再往方块中心偏）
- * @description 一般世界一直对着人，人走出画面就看不见了。camera.freeLook 的世界（小屋只有一间屋子）不跟人：
- *   缩放朝鼠标指的地方，想看哪儿就放大哪儿；人快走出画面时才把镜头挪回人身上
+ * @description 镜头不一直跟着人：缩放朝鼠标指的地方，想看哪儿就放大哪儿；人快走出画面时才把镜头挪回人身上
  * @param {THREE.Vector3} out 结果写进这里
  * @returns {THREE.Vector3} out
  */
 function followPoint(out) {
   _playerPoint.set(player.x, player.root.position.y + 0.5, player.z);
-  if (!world.def.camera.freeLook) {
-    return out.copy(_playerPoint);
-  }
-
   _onScreen.copy(_playerPoint).project(camera);
-  const offCenter = Math.max(Math.abs(_onScreen.x), Math.abs(_onScreen.y));
+  const safe = safeArea();
+  const acrossX = (_onScreen.x - (safe.x0 + safe.x1) / 2) / ((safe.x1 - safe.x0) / 2);
+  const acrossY = (_onScreen.y - (safe.y0 + safe.y1) / 2) / ((safe.y1 - safe.y0) / 2);
+  const offCenter = Math.max(Math.abs(acrossX), Math.abs(acrossY));
   if (offCenter > FREE_LOOK_EDGE) {
     recentering = true;
   } else if (offCenter < FREE_LOOK_SETTLED) {
