@@ -1,6 +1,7 @@
 // 我的小屋 —— 动森风的温馨房间，起始世界
 import * as THREE from 'three';
 import { at } from '../kit.js';
+import { makeStarField } from '../fx.js';
 import { currentDecor, chooseDecor, decorTexture } from '../decor.js';
 
 const WOOD = '#d9a066';
@@ -12,6 +13,12 @@ const WORKBENCH = { x: -4.15, z: 0.15, facing: Math.PI / 2 };
 const WORKBENCH_SIZE = { length: 1.2, depth: 0.6, height: 0.9 };
 // 人站在台面前多远就能用
 const WORKBENCH_REACH = 1.3;
+// 星空壁纸时外面那片星星：撒在多远的球壳上，按房间对角线的倍数算（最近也要在房间外面）
+const STAR_SHELL_NEAR = 0.8;
+const STAR_SHELL_FAR = 3.5;
+// 撒在镜头正对面多大的锥形里（半角，弧度）：盖住镜头左右转、上下转能看到的范围
+const STAR_SPREAD = 1.2;
+const STAR_SEED = 11;
 
 /**
  * 搭小屋的地板、墙和墙上的摆设
@@ -100,6 +107,8 @@ function buildRoom(w) {
     hand1.rotation.x -= dt * 0.4;
   });
 
+  const stars = placeBackdropStars(w);
+
   /**
    * 换上一款壁纸或地板
    * @param {'wallpaper' | 'floor'} kind 哪一类
@@ -115,12 +124,41 @@ function buildRoom(w) {
     if (kind === 'wallpaper') {
       wainscotMat.color.set(entry.wainscot);
       w.setBackdrop(entry.backdrop);
+      stars.group.visible = !!entry.backdropStars;
     }
   };
 
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
   return { applyDecor };
+}
+
+/**
+ * 小屋外面那片星星，先藏着，换上星空壁纸时才露出来
+ * @description 星星撒在镜头背后那半边的远处，转镜头时远近星星错开移动，小屋才像真的飘在夜空里
+ * @param {World} w 小屋这个世界
+ * @returns {{ group: THREE.Group, update(t: number): void }} makeStarField 的结果
+ */
+function placeBackdropStars(w) {
+  const { pos, target } = w.def.camera;
+  const towardCamera = new THREE.Vector3(...pos).sub(new THREE.Vector3(...target));
+  const roomDiagonal = Math.hypot(...w.size);
+  const stars = makeStarField({
+    away: towardCamera,
+    spread: STAR_SPREAD,
+    near: roomDiagonal * STAR_SHELL_NEAR,
+    far: roomDiagonal * STAR_SHELL_FAR,
+    seed: STAR_SEED,
+  });
+
+  stars.group.visible = false;
+  w.add(stars.group);
+  w.onUpdate((dt, t) => {
+    if (stars.group.visible) {
+      stars.update(t);
+    }
+  });
+  return stars;
 }
 
 /**

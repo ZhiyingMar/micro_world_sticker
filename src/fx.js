@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { rng } from './kit.js';
 
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 
@@ -226,4 +227,113 @@ export function makeMotes(count, area, color, seed = 1) {
     mat.opacity = 0.6 + Math.sin(t * 2) * 0.3;
   };
   return pts;
+}
+
+// ---------- 远处的星空 ----------
+
+// 三层星星：越暗的越多、越小、越远，最亮的只有几颗、离得近一些
+// size 是屏幕上的像素（镜头一般拉得很远、视角很窄，按世界大小算会小得看不见）
+// depth 是这层在球壳里占哪一段：0 是最里面，1 是最外面
+const STAR_LAYERS = [
+  { count: 900, size: 5, opacity: 0.5, color: '#c9d2ff', depth: [0.55, 1] },
+  { count: 260, size: 7, opacity: 0.8, color: '#e8ecff', depth: [0.25, 0.75] },
+  { count: 45, size: 13, opacity: 1, color: '#fff4c2', depth: [0, 0.45] },
+];
+// 每层再分几组，各闪各的，看着不像一起呼吸
+const TWINKLE_GROUPS = 3;
+// 闪烁：亮度在 (1 - 幅度) ~ 1 之间来回，速度是每秒多少弧度
+const TWINKLE_DEPTH = 0.45;
+const TWINKLE_SPEED = [1.1, 2.3];
+
+/**
+ * 在方块后面撒一片很远的星星（3D 的点，不是贴在屏幕上的图）
+ * @description 星星在方块后面一层厚厚的球壳上，转镜头时远近不同的星星错开移动，才有"外面是夜空"的空间感；
+ *   只撒在背对镜头的一个锥形里（镜头看得到的那片），不会有星星飘在镜头和方块中间
+ * @param {object} options
+ * @param {THREE.Vector3} options.away 镜头所在的方向（从方块中心指向镜头），星星撒在它的正对面
+ * @param {number} options.spread 锥形的半角（弧度），要盖住镜头能转到的范围
+ * @param {number} options.near 球壳内半径（世界单位），要比方块大，星星才不会插进方块里
+ * @param {number} options.far 球壳外半径（世界单位）
+ * @param {number} options.seed 随机种子，同一个种子每次撒得一样
+ * @returns {{ group: THREE.Group, update(t: number): void }} 星星，和每帧调用的闪烁
+ */
+export function makeStarField({ away, spread, near, far, seed = 1 }) {
+  const random = rng(seed);
+  const behind = away.clone().normalize().negate();
+  const group = new THREE.Group();
+  const twinklers = [];
+
+  for (const layer of STAR_LAYERS) {
+    const perGroup = Math.ceil(layer.count / TWINKLE_GROUPS);
+    const layerNear = near + (far - near) * layer.depth[0];
+    const layerFar = near + (far - near) * layer.depth[1];
+
+    for (let i = 0; i < TWINKLE_GROUPS; i++) {
+      const positions = scatterInCone(perGroup, behind, spread, layerNear, layerFar, random);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+      const material = new THREE.PointsMaterial({
+        map: getStarTex(),
+        color: layer.color,
+        size: layer.size,
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: layer.opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      group.add(new THREE.Points(geometry, material));
+
+      const speed = TWINKLE_SPEED[0] + random() * (TWINKLE_SPEED[1] - TWINKLE_SPEED[0]);
+      twinklers.push({ material, peak: layer.opacity, speed, phase: random() * Math.PI * 2 });
+    }
+  }
+
+  const update = (t) => {
+    for (const twinkler of twinklers) {
+      const wave = (Math.sin(t * twinkler.speed + twinkler.phase) + 1) / 2;
+      twinkler.material.opacity = twinkler.peak * (1 - TWINKLE_DEPTH * wave);
+    }
+  };
+  return { group, update };
+}
+
+/**
+ * 在一个锥形里随机撒点：方向均匀落在锥形里，远近落在 near ~ far 之间
+ * @param {number} count 撒几个
+ * @param {THREE.Vector3} axis 锥形的中轴（单位向量）
+ * @param {number} spread 锥形半角（弧度）
+ * @param {number} near 最近多远
+ * @param {number} far 最远多远
+ * @param {Function} random 返回 0~1 的随机数
+ * @returns {Float32Array} 每三个数一个点 (x, y, z)
+ */
+function scatterInCone(count, axis, spread, near, far, random) {
+  const positions = new Float32Array(count * 3);
+  // 跟中轴垂直的两个方向，用来把"偏离中轴多少"转成真正的方向
+  const helper = Math.abs(axis.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const sideA = new THREE.Vector3().crossVectors(axis, helper).normalize();
+  const sideB = new THREE.Vector3().crossVectors(axis, sideA);
+  const direction = new THREE.Vector3();
+  const minCos = Math.cos(spread);
+
+  for (let i = 0; i < count; i++) {
+    // cos 均匀取，方向在锥形的球面上才是均匀的
+    const cosOff = minCos + random() * (1 - minCos);
+    const sinOff = Math.sqrt(1 - cosOff * cosOff);
+    const turn = random() * Math.PI * 2;
+    direction
+      .copy(axis)
+      .multiplyScalar(cosOff)
+      .addScaledVector(sideA, Math.cos(turn) * sinOff)
+      .addScaledVector(sideB, Math.sin(turn) * sinOff);
+
+    // 半径按体积均匀取，远处不会挤成一层
+    const radius = Math.cbrt(near ** 3 + random() * (far ** 3 - near ** 3));
+    positions[i * 3] = direction.x * radius;
+    positions[i * 3 + 1] = direction.y * radius;
+    positions[i * 3 + 2] = direction.z * radius;
+  }
+  return positions;
 }

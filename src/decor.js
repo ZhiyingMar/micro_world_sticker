@@ -225,6 +225,8 @@ export const WALLPAPERS = [
     cost: { plastic: 2, glass: 3 },
     wainscot: '#3b4282',
     backdrop: 'radial-gradient(ellipse at 30% 10%, #3b4282 0%, #1d2148 45%, #0d0f26 100%)',
+    // 外面围一圈 3D 星星，跟着镜头转，像小屋飘在夜空里
+    backdropStars: true,
     paint: paintStarryNight,
   },
 ];
