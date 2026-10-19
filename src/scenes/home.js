@@ -18,13 +18,13 @@ const CAMERA_TILT = [0.9, 1.15];
 // 一进来的俯角：比别的世界平一些，墙和家具立得起来
 const CAMERA_START_TILT = 1.05;
 const CAMERA_AZIMUTH = Math.atan2(CAMERA_POS[0] - CAMERA_TARGET[0], CAMERA_POS[2] - CAMERA_TARGET[2]);
-// 拉远最多到全貌再远一点点
-const CAMERA_MAX_OVER_OVERVIEW = 1.05;
-// 拉近最多到：屋子（不算外面的花园）差不多填满画面，边上裁掉一点
+// 全貌只框住屋子（不算外面的花园），屋子差不多填满画面；拉远最多就到这里，拉近随意
 const ROOM_SIZE = [10, 10];
+const CAMERA_MAX_OVER_OVERVIEW = 1;
+// 拉近最多到多近（和别的世界一样按 ZOOM 换算）
+const CAMERA_MIN_DISTANCE = 2.2;
 // 连外面一圈花园，整个方块的边长（屋子 10，四周各留一圈花园）
 const GARDEN_SIZE = 15;
-const CAMERA_CLOSE_UP_SCALE = 0.9;
 
 // 工作台：靠左墙，摆在落地灯和大盆栽中间，台面朝屋里（+x）
 const WORKBENCH = { x: -4.15, z: 0.15, facing: Math.PI / 2 };
@@ -474,7 +474,7 @@ export default {
     hemi: ['#fff4e0', '#c8a27a', 1.7],
     sun: ['#fff1d6', 2.4, [6, 11, 7]],
   },
-  // 拉近最多看得到整间屋子，拉远最多看全，转动只在斜着看的一小段里
+  // 拉远最多到屋子填满画面（花园只在边上露一点），拉近随意，转动只在斜着看的一小段里
   camera: {
     pos: CAMERA_POS,
     target: CAMERA_TARGET,
@@ -485,7 +485,8 @@ export default {
     maxPolar: CAMERA_TILT[1],
     startAz: CAMERA_AZIMUTH,
     startPolar: CAMERA_START_TILT,
-    closeUp: { size: ROOM_SIZE, scale: CAMERA_CLOSE_UP_SCALE },
+    fitSize: ROOM_SIZE,
+    min: CAMERA_MIN_DISTANCE,
     maxAtOverview: CAMERA_MAX_OVER_OVERVIEW,
   },
   // 整个方块算上花园；人只能在屋里走（bounds），走不到花园里

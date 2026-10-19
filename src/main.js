@@ -94,22 +94,15 @@ addEventListener('resize', () => {
 
 /**
  * 按世界的设置限制镜头能拉多近、多远
- * @description 小屋这种只看一间屋子的，最近也要看得到整间屋子，最远刚好看全，像在看一个摆在桌上的立体模型；
- *   其他世界照旧：最近按 camera.min，最远比全貌再远一点
+ * @description 最近按 camera.min；最远一般比全貌再远一点。小屋这种只看一间屋子的，最远就是全貌（屋子填满画面），
+ *   像在看一个摆在桌上的立体模型，不让拉得老远
  * @param {object} def 世界的定义，用它的 camera 设置
  * @param {{ pos: THREE.Vector3, target: THREE.Vector3 }} view 这个世界的全貌取景（defaultView 算出来的）
  */
 function applyZoomLimits(def, view) {
   const c = def.camera;
   const overviewDistance = view.pos.distanceTo(view.target);
-
-  if (c.closeUp) {
-    // 最近：刚好装下 closeUp.size 这么大的地面，再按 closeUp.scale 推近一点（边上裁掉一点）
-    const close = defaultView(def, c.closeUp.size);
-    controls.minDistance = close.pos.distanceTo(close.target) * c.closeUp.scale;
-  } else {
-    controls.minDistance = (c.min || 2.5) * ZOOM;
-  }
+  controls.minDistance = (c.min || 2.5) * ZOOM;
 
   if (c.maxAtOverview) {
     controls.maxDistance = Math.max(controls.minDistance, overviewDistance * c.maxAtOverview);
@@ -142,8 +135,9 @@ function safeArea() {
 
 const _fitCam = new THREE.PerspectiveCamera();
 // 开场全貌：让方块的地面（和后排的高处）刚好填满界面之间的空白
-// size：要装下多大的地面 [宽, 深]，默认整个世界
-function defaultView(def, size = world.size) {
+// 要装下多大的地面 [宽, 深]：默认整个世界，世界也可以用 camera.fitSize 只框住一部分（小屋只框屋子，不算花园）
+function defaultView(def) {
+  const size = def.camera.fitSize ?? world.size;
   const c = def.camera;
   const target = new THREE.Vector3(...c.target);
   const off = new THREE.Vector3(...c.pos).sub(target);
