@@ -67,6 +67,10 @@ let touchMode = matchMedia('(pointer: coarse)').matches;
 // 镜头跟着人：离人这么远时完全围着人转，拉远到全貌时慢慢过渡成围着整个方块转
 // 竖屏画面窄，同样距离看到的东西少很多，拉远一点
 const followDist = () => 11.5 * ZOOM * THREE.MathUtils.clamp(0.85 / camera.aspect, 1, 1.7);
+// 一进世界时镜头离正上方的角度（弧度）：斜着往下看，像在看一个小立体模型；世界自己限制了上下范围时夹在范围里
+const FOLLOW_POLAR = 0.82;
+// 一进世界时镜头从哪个方向看（弧度，0 是从 +z 往里看）：稍微偏右一点
+const FOLLOW_AZIMUTH = 0.35;
 
 // ---------------- 渲染尺寸 ----------------
 function applySize() {
@@ -82,8 +86,37 @@ function applySize() {
 addEventListener('resize', () => {
   applySize();
   // 横竖屏切换：全貌按新的屏幕重新取景
-  if (world) overview = defaultView(world.def);
+  if (world) {
+    overview = defaultView(world.def);
+    applyZoomLimits(world.def, overview);
+  }
 });
+
+/**
+ * 按世界的设置限制镜头能拉多近、多远
+ * @description 小屋这种只看一间屋子的，最近也要看得到整间屋子，最远刚好看全，像在看一个摆在桌上的立体模型；
+ *   其他世界照旧：最近按 camera.min，最远比全貌再远一点
+ * @param {object} def 世界的定义，用它的 camera 设置
+ * @param {{ pos: THREE.Vector3, target: THREE.Vector3 }} view 这个世界的全貌取景（defaultView 算出来的）
+ */
+function applyZoomLimits(def, view) {
+  const c = def.camera;
+  const overviewDistance = view.pos.distanceTo(view.target);
+
+  if (c.closeUp) {
+    // 最近：刚好装下 closeUp.size 这么大的地面，再按 closeUp.scale 推近一点（边上裁掉一点）
+    const close = defaultView(def, c.closeUp.size);
+    controls.minDistance = close.pos.distanceTo(close.target) * c.closeUp.scale;
+  } else {
+    controls.minDistance = (c.min || 2.5) * ZOOM;
+  }
+
+  if (c.maxAtOverview) {
+    controls.maxDistance = Math.max(controls.minDistance, overviewDistance * c.maxAtOverview);
+  } else {
+    controls.maxDistance = Math.max(26 * ZOOM, overviewDistance * 1.3);
+  }
+}
 
 // ---------------- 场景加载 ----------------
 // 界面元素在四边占掉的空间（NDC 坐标）。横跨屏幕中间的挡上下，竖跨中间的挡左右，角落里的小按钮不管
@@ -109,7 +142,8 @@ function safeArea() {
 
 const _fitCam = new THREE.PerspectiveCamera();
 // 开场全貌：让方块的地面（和后排的高处）刚好填满界面之间的空白
-function defaultView(def) {
+// size：要装下多大的地面 [宽, 深]，默认整个世界
+function defaultView(def, size = world.size) {
   const c = def.camera;
   const target = new THREE.Vector3(...c.target);
   const off = new THREE.Vector3(...c.pos).sub(target);
@@ -125,8 +159,8 @@ function defaultView(def) {
   const dir = new THREE.Vector3().setFromSpherical(sph).normalize();
 
   const H = c.fitH ?? 2.5;
-  const hw = world.size[0] / 2;
-  const hd = world.size[1] / 2;
+  const hw = size[0] / 2;
+  const hd = size[1] / 2;
   const pts = [];
   for (const x of [-hw, hw]) for (const z of [-hd, hd]) pts.push(new THREE.Vector3(x, 0, z));
   for (const x of [-hw, hw]) pts.push(new THREE.Vector3(x, H, -hd));
@@ -167,7 +201,6 @@ function defaultView(def) {
     target.addScaledVector(up, ((b.y0 + b.y1) / 2 - (safe.y0 + safe.y1) / 2) * halfH);
   }
   const pos = target.clone().addScaledVector(dir, d);
-  controls.maxDistance = Math.max(26 * ZOOM, d * 1.3);
   return { pos, target };
 }
 
@@ -219,11 +252,12 @@ function loadScene(id) {
   applySize();
 
   const c = def.camera;
-  controls.minDistance = (c.min || 2.5) * ZOOM;
+  controls.minPolarAngle = c.minPolar ?? 0;
   controls.maxPolarAngle = c.maxPolar || 1.3;
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
   overview = defaultView(def);
+  applyZoomLimits(def, overview);
   focus = null;
   hold = false;
 
@@ -232,10 +266,11 @@ function loadScene(id) {
   save();
 
   spawnPlayer();
-  // 一进来镜头就在人身边，斜着看一点，像在看一个小立体模型
-  const az = THREE.MathUtils.clamp(0.35, controls.minAzimuthAngle, controls.maxAzimuthAngle);
+  // 一进来镜头就在人身边，斜着看一点，像在看一个小立体模型（世界可以用 startAz / startPolar 自己定）
+  const az = THREE.MathUtils.clamp(c.startAz ?? FOLLOW_AZIMUTH, controls.minAzimuthAngle, controls.maxAzimuthAngle);
   controls.target.set(player.x, player.root.position.y + 0.5, player.z);
-  camera.position.setFromSphericalCoords(followDist(), 0.82, az).add(controls.target);
+  const polar = THREE.MathUtils.clamp(c.startPolar ?? FOLLOW_POLAR, controls.minPolarAngle, controls.maxPolarAngle);
+  camera.position.setFromSphericalCoords(followDist(), polar, az).add(controls.target);
   controls.update();
   intro = { t: 0 };
   world.root.scale.setScalar(0.001);

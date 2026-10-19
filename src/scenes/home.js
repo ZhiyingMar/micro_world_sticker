@@ -7,6 +7,22 @@ import { currentDecor, chooseDecor, decorTexture } from '../decor.js';
 const WOOD = '#d9a066';
 const WOOD_DARK = '#b07a45';
 
+// 镜头：从右前方斜着看进屋子（只有后墙、左墙两面墙，别的方向看过去是空的）
+const CAMERA_POS = [9.5, 9.5, 12.5];
+const CAMERA_TARGET = [0, 1, -0.5];
+// 左右以默认方向为中心，各能转多少（弧度，约 25°），转不到正对一面墙
+const CAMERA_TURN = 0.44;
+// 上下：镜头离正上方的角度范围（弧度）。越大看得越平，墙和家具越显得高；不让俯视到头顶，也不让压到贴地
+const CAMERA_TILT = [0.9, 1.15];
+// 一进来的俯角：比别的世界平一些，墙和家具立得起来
+const CAMERA_START_TILT = 1.05;
+const CAMERA_AZIMUTH = Math.atan2(CAMERA_POS[0] - CAMERA_TARGET[0], CAMERA_POS[2] - CAMERA_TARGET[2]);
+// 拉远最多到全貌再远一点点
+const CAMERA_MAX_OVER_OVERVIEW = 1.05;
+// 拉近最多到：屋子（不算外面的花园）差不多填满画面，边上裁掉一点
+const ROOM_SIZE = [10, 10];
+const CAMERA_CLOSE_UP_SCALE = 0.9;
+
 // 工作台：靠左墙，摆在落地灯和大盆栽中间，台面朝屋里（+x）
 const WORKBENCH = { x: -4.15, z: 0.15, facing: Math.PI / 2 };
 // 台面多长（沿墙）、多深、多高
@@ -455,7 +471,20 @@ export default {
     hemi: ['#fff4e0', '#c8a27a', 1.7],
     sun: ['#fff1d6', 2.4, [6, 11, 7]],
   },
-  camera: { pos: [9.5, 9.5, 12.5], target: [0, 1, -0.5], fitH: 4.4, minAz: 0.02, maxAz: 1.48, maxPolar: 1.25, min: 2.2 },
+  // 拉近最多看得到整间屋子，拉远最多看全，转动只在斜着看的一小段里
+  camera: {
+    pos: CAMERA_POS,
+    target: CAMERA_TARGET,
+    fitH: 4.4,
+    minAz: CAMERA_AZIMUTH - CAMERA_TURN,
+    maxAz: CAMERA_AZIMUTH + CAMERA_TURN,
+    minPolar: CAMERA_TILT[0],
+    maxPolar: CAMERA_TILT[1],
+    startAz: CAMERA_AZIMUTH,
+    startPolar: CAMERA_START_TILT,
+    closeUp: { size: ROOM_SIZE, scale: CAMERA_CLOSE_UP_SCALE },
+    maxAtOverview: CAMERA_MAX_OVER_OVERVIEW,
+  },
   bounds: { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 },
   spawn: [1.6, 2.8],
   // 第一次进来时，这个小人会主动打招呼
