@@ -25,7 +25,26 @@ function load() {
 
 export const state = load();
 
+// 只在内存里玩（宣传片模式）：不读也不写浏览器里的存档，录完玩家的进度一点不变
+let memoryOnly = false;
+
+/**
+ * 换成一份只在内存里的进度，之后 save() 不再写进浏览器
+ * @description 宣传片要从固定的进度开始演（夜都还停着电、冰箱上已经有夜都那块），又不能动玩家自己的存档
+ * @param {object} preset 要用的进度，没写到的字段按新存档补齐
+ */
+export function useMemorySave(preset) {
+  memoryOnly = true;
+  for (const key of Object.keys(state)) {
+    delete state[key];
+  }
+  Object.assign(state, fresh(), structuredClone(preset));
+}
+
 export function save() {
+  if (memoryOnly) {
+    return;
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
@@ -100,6 +119,9 @@ export function spendMaterials(cost) {
 }
 
 export function resetSave() {
+  if (memoryOnly) {
+    return;
+  }
   try {
     localStorage.removeItem(KEY);
   } catch {

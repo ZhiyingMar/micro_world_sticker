@@ -112,6 +112,20 @@ export const sfx = {
     ac();
     startAmbient();
   },
+  /**
+   * 拿一路和喇叭里一样的声音，给录像用
+   * @description 宣传片要把现场合成的音效、环境声一起录进视频；要在点过一次之后调用（浏览器要先有一次点击才肯出声）
+   * @returns {MediaStream | null} 浏览器不支持 WebAudio 时是 null
+   */
+  recordingStream() {
+    const c = ac();
+    if (!c) {
+      return null;
+    }
+    const tap = c.createMediaStreamDestination();
+    master.connect(tap);
+    return tap.stream;
+  },
   ambient(kind) {
     if (kind === ambientKind) return;
     ambientKind = kind;

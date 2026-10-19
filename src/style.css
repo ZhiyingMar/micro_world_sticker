@@ -905,3 +905,26 @@ body.touch #game-pad {
   border-top-color: var(--cream);
 }
 #speech .sp-name { font-size: 12px; font-weight: 800; color: var(--orange); margin-bottom: 2px; }
+
+/* ---------- 宣传片模式（?trailer） ---------- */
+/* 只露出要录的那块画布（按比例放在窗口正中）和控制面板；游戏界面、3D 画布都藏起来，3D 照样在后台画 */
+body.trailer #app { background: #000; }
+body.trailer #app > :not(#trailer-view):not(#trailer-panel) { display: none !important; }
+#trailer-view { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#trailer-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  max-width: 320px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 250, 240, 0.92);
+  color: #5a3d2b;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+}
+#trailer-panel .trailer-title { font-weight: 700; margin-bottom: 8px; }
+#trailer-panel .trailer-buttons { display: flex; gap: 8px; margin-bottom: 8px; }
+#trailer-panel .trailer-buttons[hidden] { display: none; }
+#trailer-panel .trailer-download { display: block; margin-top: 6px; color: #2f6fd6; word-break: break-all; }

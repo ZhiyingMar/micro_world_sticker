@@ -14,3 +14,6 @@ Thumbs.db
 .env.*
 *.log
 npm-debug.log*
+
+# 宣传片录出来的视频（?trailer）
+recordings

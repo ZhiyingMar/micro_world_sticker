@@ -74,9 +74,19 @@ const FOLLOW_POLAR = 0.82;
 const DEFAULT_TILT = [0.65, 1.25];
 // 一进世界时镜头从哪个方向看（弧度，0 是从 +z 往里看）：稍微偏右一点
 const FOLLOW_AZIMUTH = 0.35;
+// 宣传片模式（网址加 ?trailer）：按分镜自动演一遍小屋和夜都，录成视频
+const TRAILER_MODE = new URLSearchParams(location.search).has('trailer');
+// 宣传片的导演：有它时镜头归它管，每帧推进分镜，画完一帧交给它去录
+let director = null;
+// 固定的渲染尺寸 [宽, 高]（像素）：录视频时不跟着窗口变；平时是 null，跟着窗口
+let fixedRenderSize = null;
 
 // ---------------- 渲染尺寸 ----------------
 function applySize() {
+  if (fixedRenderSize) {
+    applyFixedSize(fixedRenderSize);
+    return;
+  }
   const pixel = world && world.def.style === 'pixel';
   // 平板屏幕分辨率很高，触控设备上限制一下渲染倍率，保证流畅
   const pr = pixel ? Math.min(0.6, 600 / innerWidth) : Math.min(devicePixelRatio, touchMode ? 1.5 : 2);
@@ -86,6 +96,20 @@ function applySize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
+/**
+ * 按固定尺寸渲染，不管窗口多大
+ * @description 录宣传片时视频是固定的 1080p，画面不能因为窗口大小、屏幕倍率而变
+ * @param {number[]} size [宽, 高]，像素
+ */
+function applyFixedSize([width, height]) {
+  renderer.setPixelRatio(1);
+  // 第三个参数 false：只改画布的像素尺寸，不改它在页面上的大小（页面上怎么摆由宣传片模式自己管）
+  renderer.setSize(width, height, false);
+  canvas.classList.remove('pixelated');
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
 addEventListener('resize', () => {
   applySize();
   // 横竖屏切换：全貌按新的屏幕重新取景
@@ -210,7 +234,14 @@ function loadScene(id) {
     onMaterial: () => ui.renderMaterials(world.def),
     startGame: (id) => startGame(id),
     onBackdrop: (css) => ui.setBackdrop(css),
-    openWorkbench: (onPick) => ui.openWorkbench(onPick),
+    // 拍宣传片时不弹面板：导演直接选分镜里写好的那款
+    openWorkbench: (onPick) => {
+      if (director) {
+        director.openWorkbench(onPick);
+      } else {
+        ui.openWorkbench(onPick);
+      }
+    },
   });
   scene.add(world.root);
   blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
@@ -1200,12 +1231,20 @@ function frame(dt, render = true) {
   }
 
   if (game) game.g.update(dt);
-  updateCamera(dt);
+  if (director) {
+    director.update(dt);
+  } else {
+    updateCamera(dt);
+  }
   // 人走到楼后面：挡住的楼变半透明（玩小游戏时镜头对着大楼，全部恢复）
   updateOccluders(world, camera, game ? null : player, dt);
   updateGreeting(dt);
   updateHover();
-  if (render) renderer.render(scene, camera);
+  if (render) {
+    renderer.render(scene, camera);
+    // 要在画完的同一帧里把画面拷走：WebGL 画布下一帧就清空了
+    director?.afterRender(canvas);
+  }
 }
 
 function loop() {
@@ -1219,17 +1258,62 @@ syncTouchUI();
 const startDef = SCENES[state.current];
 const TESTS = { terrain: 'terrainTest' }; // ?test=terrain 打开测试场景
 const testId = TESTS[new URLSearchParams(location.search).get('test')];
-loadScene(testId || (startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home'));
-loop();
-if (!state.seenIntro) {
-  ui.intro().then(() => {
-    state.seenIntro = true;
-    save();
-    setTimeout(maybeGreet, 400);
-    maybeRotateHint();
+if (TRAILER_MODE) {
+  startTrailer().catch((error) => {
+    console.error('宣传片模式启动失败', error);
+    throw error;
   });
 } else {
-  maybeRotateHint();
+  startPlaying();
+}
+
+/**
+ * 平时的启动：回到上次所在的世界，第一次玩先看开场说明
+ */
+function startPlaying() {
+  loadScene(testId || (startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home'));
+  loop();
+  if (!state.seenIntro) {
+    ui.intro().then(() => {
+      state.seenIntro = true;
+      save();
+      setTimeout(maybeGreet, 400);
+      maybeRotateHint();
+    });
+  } else {
+    maybeRotateHint();
+  }
+}
+
+/**
+ * 宣传片模式的启动：按需加载分镜和录像代码，交给它们接管
+ * @description 宣传片的代码只在 ?trailer 时才加载，平时玩不会多下载
+ */
+async function startTrailer() {
+  const { runTrailer } = await import('./trailer/index.js');
+  runTrailer({
+    renderer,
+    camera,
+    controls,
+    zoom: ZOOM,
+    get world() {
+      return world;
+    },
+    get player() {
+      return player;
+    },
+    loadScene,
+    loop,
+    collect,
+    doRepair,
+    setRenderSize(size) {
+      fixedRenderSize = size;
+      applySize();
+    },
+    setDirector(next) {
+      director = next;
+    },
+  });
 }
 
 // 调试用：在控制台里 window.__mw 可以看到状态
