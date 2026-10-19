@@ -62,7 +62,7 @@ export default {
     hemi: ['#6a78c0', '#1e2238', 1.0],
     sun: ['#aab8ff', 0.9, [-6, 10, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, maxPolar: 1.3, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, min: 2.5 },
   terrain: { map: MAP, level: LEVEL },
   spawn: SPAWN,
   // 第一次进来时主动打招呼：停电时和修好以后各一句（key 不同，各说一次）

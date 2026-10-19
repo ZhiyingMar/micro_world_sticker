@@ -69,6 +69,9 @@ let touchMode = matchMedia('(pointer: coarse)').matches;
 const followDist = () => 11.5 * ZOOM * THREE.MathUtils.clamp(0.85 / camera.aspect, 1, 1.7);
 // 一进世界时镜头离正上方的角度（弧度）：斜着往下看，像在看一个小立体模型；世界自己限制了上下范围时夹在范围里
 const FOLLOW_POLAR = 0.82;
+// 镜头上下能转的范围（离正上方的角度，弧度）：不能俯视到头顶，也不能压到贴地，一直是斜着看立体模型的感觉
+// 世界可以用 camera.minPolar / maxPolar 自己定（小屋只有两面墙，范围更窄）
+const DEFAULT_TILT = [0.65, 1.25];
 // 一进世界时镜头从哪个方向看（弧度，0 是从 +z 往里看）：稍微偏右一点
 const FOLLOW_AZIMUTH = 0.35;
 
@@ -94,8 +97,7 @@ addEventListener('resize', () => {
 
 /**
  * 按世界的设置限制镜头能拉多近、多远
- * @description 最近按 camera.min；最远一般比全貌再远一点。小屋这种只看一间屋子的，最远就是全貌（屋子填满画面），
- *   像在看一个摆在桌上的立体模型，不让拉得老远
+ * @description 最近按 camera.min；最远就是全貌（整个方块刚好填满画面），再远只是方块变小、背景变多，没什么好看的
  * @param {object} def 世界的定义，用它的 camera 设置
  * @param {{ pos: THREE.Vector3, target: THREE.Vector3 }} view 这个世界的全貌取景（defaultView 算出来的）
  */
@@ -103,12 +105,7 @@ function applyZoomLimits(def, view) {
   const c = def.camera;
   const overviewDistance = view.pos.distanceTo(view.target);
   controls.minDistance = (c.min || 2.5) * ZOOM;
-
-  if (c.maxAtOverview) {
-    controls.maxDistance = Math.max(controls.minDistance, overviewDistance * c.maxAtOverview);
-  } else {
-    controls.maxDistance = Math.max(26 * ZOOM, overviewDistance * 1.3);
-  }
+  controls.maxDistance = Math.max(controls.minDistance, overviewDistance);
 }
 
 // ---------------- 场景加载 ----------------
@@ -246,8 +243,8 @@ function loadScene(id) {
   applySize();
 
   const c = def.camera;
-  controls.minPolarAngle = c.minPolar ?? 0;
-  controls.maxPolarAngle = c.maxPolar || 1.3;
+  controls.minPolarAngle = c.minPolar ?? DEFAULT_TILT[0];
+  controls.maxPolarAngle = c.maxPolar ?? DEFAULT_TILT[1];
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
   overview = defaultView(def);

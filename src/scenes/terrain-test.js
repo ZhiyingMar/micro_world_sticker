@@ -62,7 +62,7 @@ export default {
     hemi: ['#e8f7ff', '#b5e39a', 1.9],
     sun: ['#fffbe8', 2.6, [6, 12, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: level * 2 + 1.5, maxPolar: 1.32, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: level * 2 + 1.5, min: 2.5 },
   terrain: { map: MAP, level },
   spawn: [-1.5, 5.5],
   next: 'home',

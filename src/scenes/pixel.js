@@ -74,7 +74,7 @@ export default {
     hemi: ['#eaf4ff', '#6fae5f', 1.7],
     sun: ['#ffffff', 2.8, [-5, 12, 8]],
   },
-  camera: { pos: [11.5, 11.5, 14.5], target: [0, 0.6, 0], fitH: 2.6, maxPolar: 1.3, min: 3 },
+  camera: { pos: [11.5, 11.5, 14.5], target: [0, 0.6, 0], fitH: 2.6, min: 3 },
   spawn: [0, 3.6],
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '方方', text: '欢迎来到像素小镇！这里一切都是方的，包括我的脑袋。' },

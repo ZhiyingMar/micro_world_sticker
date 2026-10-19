@@ -20,7 +20,6 @@ const CAMERA_START_TILT = 1.05;
 const CAMERA_AZIMUTH = Math.atan2(CAMERA_POS[0] - CAMERA_TARGET[0], CAMERA_POS[2] - CAMERA_TARGET[2]);
 // 全貌只框住屋子（不算外面的花园），屋子差不多填满画面；拉远最多就到这里，拉近随意
 const ROOM_SIZE = [10, 10];
-const CAMERA_MAX_OVER_OVERVIEW = 1;
 // 拉近最多到多近（和别的世界一样按 ZOOM 换算）
 const CAMERA_MIN_DISTANCE = 2.2;
 // 连外面一圈花园，整个方块的边长（屋子 10，四周各留一圈花园）
@@ -489,7 +488,6 @@ export default {
     // 镜头不跟人：放大朝鼠标指的地方，人快走出画面才跟过去
     freeLook: true,
     min: CAMERA_MIN_DISTANCE,
-    maxAtOverview: CAMERA_MAX_OVER_OVERVIEW,
   },
   // 整个方块算上花园；人只能在屋里走（bounds），走不到花园里
   size: [GARDEN_SIZE, GARDEN_SIZE],

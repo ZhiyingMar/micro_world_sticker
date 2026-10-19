@@ -403,7 +403,7 @@ export default {
     hemi: ['#fffaf0', '#f3dfa8', 1.8],
     sun: ['#fff4d6', 2.8, [6, 12, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: 2.6, maxPolar: 1.32, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: 2.6, min: 2.5 },
   spawn: [-1.0, 0.5],
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '小贝', text: '你来啦！我的小水桶不见了……你能帮我找找吗？' },

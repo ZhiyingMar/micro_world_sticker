@@ -96,7 +96,7 @@ export default {
     hemi: ['#e8f7ff', '#b5e39a', 1.9],
     sun: ['#fffbe8', 2.6, [6, 12, 5]],
   },
-  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: 3, maxPolar: 1.32, min: 2.5 },
+  camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: 3, min: 2.5 },
   spawn: [0, 3.9],
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '波波', text: '哇，新面孔！欢迎来到童话森林～听说这里藏着几样“像素的东西”。' },
