@@ -581,7 +581,7 @@ export class World {
 
   /**
    * 换掉方块外面那一大片背景
-   * @description 小屋换了壁纸，外面的底色和底纹跟着变
+   * @description 小屋换了壁纸，外面的底色跟着变
    * @param {string} css 能直接放进 background 的值
    */
   setBackdrop(css) {

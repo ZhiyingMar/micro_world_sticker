@@ -1,7 +1,7 @@
 // 我的小屋 —— 动森风的温馨房间，起始世界
 import * as THREE from 'three';
 import { at } from '../kit.js';
-import { currentDecor, chooseDecor, decorTexture, wallpaperBackdrop } from '../decor.js';
+import { currentDecor, chooseDecor, decorTexture } from '../decor.js';
 
 const WOOD = '#d9a066';
 const WOOD_DARK = '#b07a45';
@@ -114,7 +114,7 @@ function buildRoom(w) {
 
     if (kind === 'wallpaper') {
       wainscotMat.color.set(entry.wainscot);
-      w.setBackdrop(wallpaperBackdrop(entry));
+      w.setBackdrop(entry.backdrop);
     }
   };
 

@@ -11,9 +11,6 @@ const FLOOR_TILE_PX = 512;
 const FLOOR_REPEAT = [1.6, 1.6];
 // 工作台面板上的小样，画多大（像素）
 const SWATCH_PX = 96;
-// 方块外面那一大片背景：壁纸图案放大铺开，压得很淡，只当底纹
-const BACKDROP_TILE_PX = 220;
-const BACKDROP_PATTERN_ALPHA = 0.22;
 
 // ---------- 壁纸图案 ----------
 
@@ -92,10 +89,8 @@ function paintPinkGingham(context, width, height) {
  * @param {number} height 画布高，像素
  */
 function paintStarryNight(context, width, height) {
-  const gradient = context.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, '#2c3170');
-  gradient.addColorStop(1, '#1d2148');
-  context.fillStyle = gradient;
+  // 纯色底：图案要一块块平铺，上下有渐变的话每块接缝处都会断一道
+  context.fillStyle = '#252a5e';
   context.fillRect(0, 0, width, height);
 
   // 星星位置写死成一张表，每次画出来一样，接缝处也不会断
@@ -197,7 +192,8 @@ function paintTiles(context, width, height, lightColor, darkColor, perSide) {
 
 // ---------- 目录 ----------
 
-// cost 为空的是一开始就有的；wainscot 是墙裙的颜色；backdrop 是方块外面那一大片背景的渐变
+// cost 为空的是一开始就有的；wainscot 是墙裙的颜色
+// backdrop 是方块外面那一大片背景：只用渐变，不铺图案（铺了像一张贴纸，小屋浮在上面没有空间感）
 export const WALLPAPERS = [
   {
     id: 'cream-dots',
@@ -205,8 +201,6 @@ export const WALLPAPERS = [
     cost: {},
     wainscot: '#a8cfa0',
     backdrop: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
-    // 一开始的样子保持原样，外面不铺底纹
-    backdropPattern: false,
     paint: paintCreamDots,
   },
   {
@@ -215,7 +209,6 @@ export const WALLPAPERS = [
     cost: { plastic: 3 },
     wainscot: '#7fbfa8',
     backdrop: 'radial-gradient(circle at 50% 30%, #f3fbf6 0%, #d3eee2 55%, #a9d8c3 100%)',
-    backdropPattern: true,
     paint: paintMintStripes,
   },
   {
@@ -224,7 +217,6 @@ export const WALLPAPERS = [
     cost: { plastic: 4, glass: 1 },
     wainscot: '#e8a0b4',
     backdrop: 'radial-gradient(circle at 50% 30%, #fff6f6 0%, #fbd9de 55%, #f0b3c0 100%)',
-    backdropPattern: true,
     paint: paintPinkGingham,
   },
   {
@@ -233,7 +225,6 @@ export const WALLPAPERS = [
     cost: { plastic: 2, glass: 3 },
     wainscot: '#3b4282',
     backdrop: 'radial-gradient(ellipse at 30% 10%, #3b4282 0%, #1d2148 45%, #0d0f26 100%)',
-    backdropPattern: true,
     paint: paintStarryNight,
   },
 ];
@@ -350,34 +341,18 @@ const swatchCache = new Map();
  */
 export function decorSwatch(entry) {
   if (!swatchCache.has(entry.id)) {
-    swatchCache.set(entry.id, paintToDataURL(entry.paint, SWATCH_PX, 1));
+    swatchCache.set(entry.id, paintToDataURL(entry.paint, SWATCH_PX));
   }
   return swatchCache.get(entry.id);
-}
-
-/**
- * 换上这款壁纸以后，方块外面那一大片背景的 CSS
- * @description 动森那种感觉：屋里换了壁纸，整个画面的底色跟着变，外面再淡淡铺一层同样的图案
- * @param {object} wallpaper 目录里的一款壁纸
- * @returns {string} 能直接放进 background 的值
- */
-export function wallpaperBackdrop(wallpaper) {
-  if (!wallpaper.backdropPattern) {
-    return wallpaper.backdrop;
-  }
-
-  const pattern = paintToDataURL(wallpaper.paint, BACKDROP_TILE_PX, BACKDROP_PATTERN_ALPHA);
-  return `url(${pattern}) center / ${BACKDROP_TILE_PX}px repeat, ${wallpaper.backdrop}`;
 }
 
 /**
  * 把一个图案画到小画布上，导出成 data URL
  * @param {Function} paint 图案的画法 (context, width, height)
  * @param {number} sizePx 画多大，像素（正方形）
- * @param {number} alpha 整体透明度，0~1
  * @returns {string}
  */
-function paintToDataURL(paint, sizePx, alpha) {
+function paintToDataURL(paint, sizePx) {
   const canvas = document.createElement('canvas');
   canvas.width = sizePx;
   canvas.height = sizePx;
@@ -389,7 +364,6 @@ function paintToDataURL(paint, sizePx, alpha) {
   paint(source.getContext('2d'), WALLPAPER_TILE_PX, WALLPAPER_TILE_PX);
 
   const context = canvas.getContext('2d');
-  context.globalAlpha = alpha;
   context.drawImage(source, 0, 0, sizePx, sizePx);
   return canvas.toDataURL();
 }
