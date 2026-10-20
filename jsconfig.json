@@ -1,0 +1,20 @@
+{
+  // 类型检查的设置（只检查，不编译：代码还是 .js，Vite 照常跑）
+  // 运行：npm run typecheck
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "allowJs": true,
+    // 不是全部文件都查：哪个文件第一行写了 // @ts-check 才查哪个，一个个慢慢加
+    "checkJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": false,
+    // 先不查"可能是 null"：main.js 里 world、player 这些一开始是 null 的变量会报两百多处，
+    // 等文件都接上类型以后再打开（打开的做法见 doc/08-类型检查.md）
+    "strictNullChecks": false
+  },
+  "include": ["src/**/*"]
+}
