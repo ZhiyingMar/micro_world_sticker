@@ -21,7 +21,8 @@ const scene = new THREE.Scene();
 const FOV = 20;
 // 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变
 const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.5, 250);
+// 宽高比先按 1 占个位，进世界时 applySize 再按窗口设：页面可能在 0 尺寸的窗口里加载，这时窗口宽高比是 0/0
+const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 250);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -57,6 +58,8 @@ let busy = false; // 合成动画/切换场景时锁定操作
 let intro = null; // 方块落下动画
 let focus = null; // 相机平滑移动
 let overview = null; // 拉远看整个方块时的镜头 { pos, target }（原来的“上帝视角”）
+// 进世界时窗口还没有大小（比如内嵌面板还没显示），全貌和开场镜头都没法取景，等窗口有了大小再补上
+let framingPending = false;
 let hold = false; // 镜头暂时不跟着人走（往电话亭里看的时候），人一动就恢复
 let game = null; // 正在玩的小游戏：{ g, pos, target }
 let greeting = null; // 小人正在主动打招呼：{ v, t }
@@ -82,11 +85,28 @@ let director = null;
 let fixedRenderSize = null;
 
 // ---------------- 渲染尺寸 ----------------
+/**
+ * 窗口现在有没有大小
+ * @description 页面在还没显示的内嵌面板里加载时窗口是 0×0，这时按窗口取景要除以 0，镜头位置会变成 NaN
+ * @returns {boolean} 宽和高都大于 0
+ */
+function viewportHasArea() {
+  return innerWidth > 0 && innerHeight > 0;
+}
+
+/**
+ * 按窗口大小设置渲染尺寸和镜头的宽高比
+ * @description 窗口没有大小时什么也看不见，保留上一次的宽高比，不把 0/0 写进镜头
+ */
 function applySize() {
   if (fixedRenderSize) {
     applyFixedSize(fixedRenderSize);
     return;
   }
+  if (!viewportHasArea()) {
+    return;
+  }
+
   const pixel = world && world.def.style === 'pixel';
   // 平板屏幕分辨率很高，触控设备上限制一下渲染倍率，保证流畅
   const pr = pixel ? Math.min(0.6, 600 / innerWidth) : Math.min(devicePixelRatio, touchMode ? 1.5 : 2);
@@ -112,8 +132,19 @@ function applyFixedSize([width, height]) {
 
 addEventListener('resize', () => {
   applySize();
-  // 横竖屏切换：全貌按新的屏幕重新取景
-  if (world) {
+  // 窗口缩成 0 尺寸（面板被收起）时没法取景，保留原来的，等它重新有大小
+  if (!world) {
+    return;
+  }
+  if (!viewportHasArea()) {
+    return;
+  }
+
+  if (framingPending) {
+    // 进世界时窗口还是 0 尺寸：现在有大小了，补上一进世界时的取景，镜头回到人身边
+    frameWorld(world.def);
+  } else {
+    // 横竖屏切换：全貌按新的屏幕重新取景
     overview = defaultView(world.def);
     applyZoomLimits(world.def, overview);
   }
@@ -278,8 +309,6 @@ function loadScene(id) {
   controls.maxPolarAngle = c.maxPolar ?? DEFAULT_TILT[1];
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
-  overview = defaultView(def);
-  applyZoomLimits(def, overview);
   focus = null;
   hold = false;
   recentering = false;
@@ -289,14 +318,32 @@ function loadScene(id) {
   save();
 
   spawnPlayer();
+  if (viewportHasArea()) {
+    frameWorld(def);
+  } else {
+    framingPending = true;
+  }
+  intro = { t: 0 };
+  world.root.scale.setScalar(0.001);
+}
+
+/**
+ * 一进世界时的取景：算全貌、限制能拉多远，把镜头放到人身边
+ * @description 这些都按窗口大小算，窗口还是 0 尺寸时由 resize 等到窗口有了大小再调
+ * @param {object} def 世界的定义，用它的 camera 设置
+ */
+function frameWorld(def) {
+  const c = def.camera;
+  overview = defaultView(def);
+  applyZoomLimits(def, overview);
+
   // 一进来镜头就在人身边，斜着看一点，像在看一个小立体模型（世界可以用 startAz / startPolar 自己定）
   const az = THREE.MathUtils.clamp(c.startAz ?? FOLLOW_AZIMUTH, controls.minAzimuthAngle, controls.maxAzimuthAngle);
   controls.target.set(player.x, player.root.position.y + 0.5, player.z);
   const polar = THREE.MathUtils.clamp(c.startPolar ?? FOLLOW_POLAR, controls.minPolarAngle, controls.maxPolarAngle);
   camera.position.setFromSphericalCoords(followDist(), polar, az).add(controls.target);
   controls.update();
-  intro = { t: 0 };
-  world.root.scale.setScalar(0.001);
+  framingPending = false;
 }
 
 function travel(id) {
@@ -400,6 +447,10 @@ const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
 const easeOutBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
 
 function updateCamera(dt) {
+  // 还没取景（窗口是 0 尺寸）：全貌还没算，跟人的时候会往它那儿偏，先不动镜头
+  if (framingPending) {
+    return;
+  }
   if (game) {
     camera.position.lerp(game.pos, 1 - Math.exp(-dt * 4));
     game.look.lerp(game.target, 1 - Math.exp(-dt * 4));
