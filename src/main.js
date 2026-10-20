@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';//鼠标或触摸屏
 import { World } from './world.js';
@@ -7,6 +8,9 @@ import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
 import { updateOccluders } from './occlusion.js';
+
+/** @typedef {import('./types.js').SceneDef} SceneDef */
+/** @typedef {import('./types.js').GameDef} GameDef */
 
 const canvas = document.getElementById('c');
 // stencil：人被挡住时画剪影要用
@@ -122,7 +126,7 @@ addEventListener('resize', () => {
 /**
  * 按世界的设置限制镜头能拉多近、多远
  * @description 最近按 camera.min；最远就是全貌（整个方块刚好填满画面），再远只是方块变小、背景变多，没什么好看的
- * @param {object} def 世界的定义，用它的 camera 设置
+ * @param {SceneDef} def 世界的定义，用它的 camera 设置
  * @param {{ pos: THREE.Vector3, target: THREE.Vector3 }} view 这个世界的全貌取景（defaultView 算出来的）
  */
 function applyZoomLimits(def, view) {
@@ -601,7 +605,7 @@ function handleClick(cx, cy, touch = false) {
  * 点了能玩的东西（大楼）：人已经站在入口就开始玩，不然只走过去
  * @description 楼很大，转镜头、点楼后面的路时常会点到它，点一下就进游戏太容易误触。
  *   走到入口以后按 E 或点按钮开始（入口那边登记了互动），站在入口再点一下楼也算开始
- * @param {object} game world.game() 登记的小游戏；entrance 是入口 { x, z, reach }，没有入口的点了直接开始
+ * @param {GameDef} game world.game() 登记的小游戏；没有入口（entrance）的点了直接开始
  */
 function approachGame(game) {
   const entrance = game.entrance;
@@ -972,13 +976,14 @@ document.getElementById('bench-close').addEventListener('click', () => {
   ui.closeWorkbench();
 });
 // 点面板外面的空白处也能收起
+// target 是真正点到的那个元素，currentTarget 是挂监听的面板本身：两者一样 = 点在面板的空白处
 document.getElementById('workbench').addEventListener('click', (event) => {
-  if (event.target.id === 'workbench') {
+  if (event.target === event.currentTarget) {
     ui.closeWorkbench();
   }
 });
 document.getElementById('fridge').addEventListener('click', (e) => {
-  if (e.target.id === 'fridge') ui.closeFridge();
+  if (e.target === e.currentTarget) ui.closeFridge();
 });
 
 // ---------------- 声音 ----------------
@@ -1000,7 +1005,8 @@ function syncTouchUI() {
 }
 
 const joy = document.getElementById('joystick');
-const stick = joy.querySelector('.stick');
+// querySelector 只知道找到的是个 Element；这里一定是 index.html 里那个 div，告诉检查器它是 HTMLElement（才有 style）
+const stick = /** @type {HTMLElement} */ (joy.querySelector('.stick'));
 let joyId = null;
 function joyMove(e) {
   const r = joy.getBoundingClientRect();
