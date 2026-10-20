@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';//鼠标或触摸屏
 import { World } from './world.js';
 import { SCENES, HOME } from './scenes/index.js';
 import { state, save, foundIn, resetSave } from './state.js';
