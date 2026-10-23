@@ -12,7 +12,9 @@
 //   forage.js    灌木丛、树桩、落叶堆：能翻的地方，每次进来随机长小蘑菇
 //   woods.js     显眼的几棵树、四周的树墙、空心木头（爱心在里面）、栅栏
 //   scenery.js   一簇簇的花、满地草丛、侧面小石头、萤火虫
-//   life.js      风吹树冠、蝴蝶、池塘里跳起来的鱼
+//   life.js      风吹树冠、蝴蝶（人走近会被惊飞）、池塘里跳起来的鱼
+//   splashes.js  水面上的波纹和溅起的水珠（踩踏脚石、鱼跳都用）
+//   touch.js     碰一下会有反应的：踩踏脚石溅水花、桥上的脚步声、撞到蘑菇屋菌盖会弹、路过小红蘑菇会弹
 //   people.js    居民和台词
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -25,6 +27,8 @@ import { buildForage } from './forage.js';
 import { buildScenery } from './scenery.js';
 import { createPeople } from './people.js';
 import { bringToLife } from './life.js';
+import { createSplashes } from './splashes.js';
+import { createTouch } from './touch.js';
 import { mushroomPickup } from './models.js';
 import { MAP, LEVEL, SPAWN, FIT_HEIGHT, MUSHROOM_HIDING } from './layout.js';
 
@@ -108,7 +112,7 @@ export default {
   ],
   build(world) {
     const ground = buildGround(world);
-    buildVillage(world);
+    const village = buildVillage(world);
     buildPond(world, ground);
     buildHill(world);
     buildForage(world);
@@ -116,6 +120,8 @@ export default {
     const woods = buildWoods(world);
     buildScenery(world);
     createPeople(world);
-    bringToLife(world, { crowns: woods.crowns, waterSurface: ground.waterSurface });
+    const splashes = createSplashes(world, ground.waterSurface);
+    bringToLife(world, { crowns: woods.crowns, waterSurface: ground.waterSurface, splashes });
+    createTouch(world, { houses: village.houses, splashes });
   },
 };

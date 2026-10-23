@@ -144,6 +144,17 @@ export const LEAF_PILES = [
 ];
 export const MUSHROOM_HIDING = [{ material: 'mushroom', count: 5, from: ['bush', 'stump', 'leaves'] }];
 
+// ---------- 碰一下会弹的小红蘑菇 ----------
+// 一小簇一小簇长在林子边上、村子里，走过去它们会弹一下 [x, z]
+export const TOADSTOOLS = [
+  [-2.2, -2.3], // 村子里，去池塘的路边
+  [1.6, -6.2], // 山腰老树后面
+  [5.6, 2.4], // 右边草地
+  [-4.0, 5.9], // 空心木头前面
+  [6.4, -4.6], // 山顶，塔的右边
+  [-6.2, 0.4], // 小土坡上
+];
+
 // ---------- 小人 ----------
 export const SPAWN = [-1.4, 5.2];
 export const VILLAGERS = {

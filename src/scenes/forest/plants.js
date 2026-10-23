@@ -175,6 +175,39 @@ export function bush(kit, radius, color = '#7fd06a') {
 }
 
 /**
+ * 林子里的小红蘑菇：白色的柄，红色的圆帽子上三个白点
+ * @description 只是看的，路过会弹一下，和能捡的橙色小蘑菇不一样
+ * @param {Kit} kit
+ * @param {number} size 大小，1 大约 0.17 高
+ * @returns {{ group: THREE.Group, cap: THREE.Group }} cap 是帽子（原点在帽子底面），碰一下时让它弹
+ */
+export function toadstool(kit, size) {
+  const group = new THREE.Group();
+  const stemHeight = 0.12 * size;
+  group.add(at(kit.cyl(0.025 * size, 0.035 * size, stemHeight, '#fff3dd', 8), 0, stemHeight / 2, 0));
+
+  const cap = new THREE.Group();
+  cap.position.y = stemHeight - 0.01 * size;
+  const capRadius = 0.07 * size;
+  const dome = kit.dome(capRadius, '#e8524a', Math.PI / 2, 12);
+  dome.scale.y = 0.75;
+  cap.add(dome);
+
+  // 帽子上三个白点，绕一圈错开
+  const dots = 3;
+  const elevation = 0.75;
+  for (let i = 0; i < dots; i++) {
+    const around = (i / dots) * Math.PI * 2 + 0.4;
+    const dot = kit.sphere(0.014 * size, '#ffffff', 6);
+    dot.position.set(Math.cos(around) * Math.cos(elevation) * capRadius, Math.sin(elevation) * capRadius * 0.75, Math.sin(around) * Math.cos(elevation) * capRadius);
+    cap.add(dot);
+  }
+
+  group.add(cap);
+  return { group, cap };
+}
+
+/**
  * 一片小花：每朵花一根茎、一圈花瓣、一个黄花心，几百朵一次画完
  * @param {Kit} kit
  * @param {{ x: number, y: number, z: number, color: string, scale: number, turn: number }[]} blooms 每朵花在哪、什么颜色、多大、转多少

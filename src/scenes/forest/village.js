@@ -12,11 +12,10 @@ const DOORSTEP_STAY = 6;
 /**
  * 搭蘑菇屋村
  * @param {World} world 童话森林
+ * @returns {{ houses: { x: number, z: number, radius: number, size: number, cap: THREE.Group }[] }} 每座屋子在哪、墙多粗、多大、菌盖（碰一下会弹）
  */
 export function buildVillage(world) {
-  for (const house of HOUSES) {
-    placeHouse(world, house);
-  }
+  return { houses: HOUSES.map((house) => placeHouse(world, house)) };
 }
 
 /**
@@ -24,16 +23,19 @@ export function buildVillage(world) {
  * @description 菌盖很大，人走到屋子后面会被挡住，所以登记成会变半透明的大件
  * @param {World} world
  * @param {object} house layout 里 HOUSES 的一项
+ * @returns {{ x: number, z: number, radius: number, size: number, cap: THREE.Group }}
  */
 function placeHouse(world, house) {
-  const model = mushroomHouse(world.kit, house);
-  world.add(model, house.x, world.heightAt(house.x, house.z), house.z, house.facing);
-  world.solidCircle(house.x, house.z, house.stemRadius + WALL_PAD);
-  world.fadeable(model);
+  const { group, cap } = mushroomHouse(world.kit, house);
+  const radius = house.stemRadius + WALL_PAD;
+  world.add(group, house.x, world.heightAt(house.x, house.z), house.z, house.facing);
+  world.solidCircle(house.x, house.z, radius);
+  world.fadeable(group);
 
   // 站在门口往外看
   const doorDistance = house.stemRadius + DOORSTEP;
   const doorX = house.x + Math.sin(house.facing) * doorDistance;
   const doorZ = house.z + Math.cos(house.facing) * doorDistance;
   world.poi(doorX, doorZ, { emote: house.emote, face: house.facing, dur: DOORSTEP_STAY });
+  return { x: house.x, z: house.z, radius, size: house.capRadius, cap };
 }

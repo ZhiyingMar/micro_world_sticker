@@ -19,21 +19,23 @@ export const TOWER_BASE_RADIUS = 0.85;
  * @param {number} options.capRadius 菌盖的半径
  * @param {string} options.capColor 菌盖的颜色
  * @param {number} options.seed 白点怎么撒，同一个数每次都一样
- * @returns {THREE.Group}
+ * @returns {{ group: THREE.Group, cap: THREE.Group }} cap 是整个菌盖（原点在菌盖底面），碰一下时让它弹
  */
 export function mushroomHouse(kit, { stemRadius, stemHeight, capRadius, capColor, seed }) {
   const group = new THREE.Group();
   group.add(at(kit.cyl(stemRadius * 0.9, stemRadius, stemHeight, '#fff3dd', 24), 0, stemHeight / 2, 0));
 
-  // 菌盖坐在菌柄顶上往下一点，底下一圈浅色的菌褶
-  const capY = stemHeight - 0.1;
-  const cap = kit.dome(capRadius, capColor, Math.PI / 2, 28);
-  cap.scale.y = CAP_FLATTEN;
-  group.add(at(cap, 0, capY, 0));
-  group.add(at(kit.cyl(capRadius * 0.98, capRadius * 0.6, 0.12, '#f7e3c3', 28), 0, stemHeight - 0.12, 0));
-  for (const dot of capDots(kit, capRadius, capY, seed)) {
-    group.add(dot);
+  // 菌盖坐在菌柄顶上往下一点，底下一圈浅色的菌褶；菌盖、菌褶、白点放在一组里一起弹
+  const cap = new THREE.Group();
+  cap.position.y = stemHeight - 0.1;
+  const dome = kit.dome(capRadius, capColor, Math.PI / 2, 28);
+  dome.scale.y = CAP_FLATTEN;
+  cap.add(dome);
+  cap.add(at(kit.cyl(capRadius * 0.98, capRadius * 0.6, 0.12, '#f7e3c3', 28), 0, -0.02, 0));
+  for (const dot of capDots(kit, capRadius, seed)) {
+    cap.add(dot);
   }
+  group.add(cap);
 
   // 门、门把手
   group.add(at(kit.box(stemRadius * 0.6, stemHeight * 0.55, 0.12, '#a0663a', 0.08), 0, stemHeight * 0.275, stemRadius * 0.93));
@@ -45,18 +47,17 @@ export function mushroomHouse(kit, { stemRadius, stemHeight, capRadius, capColor
   roundWindow.rotation.x = Math.PI / 2;
   roundWindow.rotation.y = windowAngle;
   group.add(at(roundWindow, Math.sin(windowAngle) * stemRadius * 0.95, stemHeight * 0.62, Math.cos(windowAngle) * stemRadius * 0.95));
-  return group;
+  return { group, cap };
 }
 
 /**
  * 菌盖上的白点：随机撒在菌盖表面，压扁了贴着菌盖
  * @param {Kit} kit
  * @param {number} capRadius 菌盖的半径
- * @param {number} capY 菌盖底面的高度
  * @param {number} seed 随机种子
- * @returns {THREE.Mesh[]}
+ * @returns {THREE.Mesh[]} 位置以菌盖底面中心为原点
  */
-function capDots(kit, capRadius, capY, seed) {
+function capDots(kit, capRadius, seed) {
   const random = rng(seed);
   const dots = [];
 
@@ -66,13 +67,13 @@ function capDots(kit, capRadius, capY, seed) {
     const dot = kit.sphere(capRadius * (0.1 + random() * 0.06), '#ffffff', 12);
     dot.position.set(
       Math.cos(around) * Math.cos(elevation) * capRadius,
-      capY + Math.sin(elevation) * capRadius * CAP_FLATTEN,
+      Math.sin(elevation) * capRadius * CAP_FLATTEN,
       Math.sin(around) * Math.cos(elevation) * capRadius,
     );
     dot.scale.set(1, 0.35, 1);
 
     // 让压扁的那面贴着菌盖：朝菌盖表面的法线方向看过去，再转平
-    dot.lookAt(dot.position.x * 2, (dot.position.y - capY) * 3 + capY, dot.position.z * 2);
+    dot.lookAt(dot.position.x * 2, dot.position.y * 3, dot.position.z * 2);
     dot.rotateX(Math.PI / 2);
     dots.push(dot);
   }

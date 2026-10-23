@@ -49,6 +49,39 @@ function noise(c) {
   return noiseBuf;
 }
 
+/**
+ * 一小下噪声：水花、脚步这种“沙”的一声
+ * @param {object} options
+ * @param {number} options.highpass 低于这个频率的切掉（赫兹）
+ * @param {number} options.lowpass 高于这个频率的切掉（赫兹）
+ * @param {number} options.duration 多长（秒）
+ * @param {number} options.volume 多响
+ */
+function noiseBurst({ highpass, lowpass, duration, volume }) {
+  const c = ac();
+  if (!c || state.muted) {
+    return;
+  }
+
+  const source = c.createBufferSource();
+  source.buffer = noise(c);
+  const high = c.createBiquadFilter();
+  high.type = 'highpass';
+  high.frequency.value = highpass;
+  const low = c.createBiquadFilter();
+  low.type = 'lowpass';
+  low.frequency.value = lowpass;
+
+  const gain = c.createGain();
+  const start = c.currentTime;
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(high).connect(low).connect(gain).connect(master);
+  // 从噪声里随便哪一段开始放，每一下听起来都不太一样
+  source.start(start, Math.random() * 1.5);
+  source.stop(start + duration + 0.02);
+}
+
 // ---------- 环境声（雨声等），跟着场景切换 ----------
 let ambientKind = null;
 let ambientNodes = null;
@@ -249,6 +282,33 @@ export const sfx = {
   horn() {
     tone(392, 0, 0.18, { type: 'square', vol: 0.05 });
     tone(392, 0.22, 0.25, { type: 'square', vol: 0.05 });
+  },
+  // 踩在踏脚石上：“扑”一小声水花，加一个往下滑的“咚”
+  splash() {
+    tone(900, 0, 0.12, { type: 'sine', vol: 0.12, slide: 0.45 });
+    noiseBurst({ highpass: 600, lowpass: 2600, duration: 0.18, volume: 0.22 });
+  },
+  /**
+   * 木桥上走一步：短短一声“咚”
+   * @param {boolean} left 左脚还是右脚，两只脚高低不一样，听起来是在走路
+   */
+  plank(left) {
+    tone(left ? 210 : 180, 0, 0.07, { type: 'triangle', vol: 0.26, slide: 0.7 });
+    noiseBurst({ highpass: 200, lowpass: 900, duration: 0.05, volume: 0.12 });
+  },
+  /**
+   * 蘑菇被碰了弹一下：“啵嘤”
+   * @param {number} pitch 音高倍数，大蘑菇低、小蘑菇高
+   */
+  boing(pitch = 1) {
+    tone(180 * pitch, 0, 0.32, { type: 'sine', vol: 0.28, slide: 2.4 });
+    tone(360 * pitch, 0.04, 0.22, { type: 'triangle', vol: 0.1, slide: 1.8 });
+  },
+  // 蝴蝶被惊飞：轻轻几下“扑棱”
+  flutter() {
+    for (let i = 0; i < 4; i++) {
+      tone(1400 + i * 120, i * 0.035, 0.03, { type: 'triangle', vol: 0.05, slide: 1.3 });
+    }
   },
   // 动森风格的“叽里咕噜”说话声
   blip() {
