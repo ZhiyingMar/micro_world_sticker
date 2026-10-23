@@ -55,6 +55,7 @@ function distanceToSegment(x, z, start, end) {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
   const lengthSquared = dx * dx + dz * dz;
-  const t = lengthSquared > 0 ? THREE.MathUtils.clamp(((x - start.x) * dx + (z - start.z) * dz) / lengthSquared, 0, 1) : 0;
-  return Math.hypot(x - (start.x + dx * t), z - (start.z + dz * t));
+  // 投影到线段上走到哪儿（0 是起点，1 是终点）
+  const along = lengthSquared > 0 ? THREE.MathUtils.clamp(((x - start.x) * dx + (z - start.z) * dz) / lengthSquared, 0, 1) : 0;
+  return Math.hypot(x - (start.x + dx * along), z - (start.z + dz * along));
 }
