@@ -1,6 +1,7 @@
 // 植物模型（森林、小屋花园共用）：几种树、灌木、成片的小花和草丛。只负责造出来，摆在哪由用它的地方决定
 // 树都把树冠单独放在一个 crown 组里，原点在树干顶上，风吹的时候只摇树冠
 // 花和草一摆就是几百棵，用 InstancedMesh 一次画完，不然一棵一个网格太费
+// 风吹树冠怎么摇（swayInWind）也在这里，种了树的世界都用它
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { at, rng } from './kit.js';
@@ -12,6 +13,11 @@ const STEM_HEIGHT = 0.16;
 const PETALS = 5;
 const PETAL_RADIUS = 0.035;
 const PETAL_SPREAD = 0.04;
+// 风：树冠摇多快、摇多大角度（弧度）；风一阵大一阵小，多久一个来回
+const WIND_SPEED = 1.3;
+const WIND_ANGLE = 0.035;
+const GUST_SPEED = 0.25;
+const GUST_DEPTH = 0.4;
 // 草丛：一丛几根叶子，叶子多高、往外歪多少
 const BLADES = 5;
 const BLADE_HEIGHT = 0.17;
@@ -313,4 +319,29 @@ function instanced(geometry, material, placements) {
   });
   mesh.receiveShadow = true;
   return mesh;
+}
+
+// ---------- 风 ----------
+
+/**
+ * 风吹树冠：每棵树摇的步子错开，一阵风大一阵风小
+ * @description 树冠绕着树干顶轻轻晃，树干不动；整片林子一起动，画面才是活的
+ * @param {World} world 树在哪个世界
+ * @param {THREE.Group[]} crowns 所有树冠（tree() 返回的 crown）
+ */
+export function swayInWind(world, crowns) {
+  // 每棵树的步子跟着它在哪儿走，风像是从一边吹过去的
+  const phases = crowns.map((crown) => {
+    const position = crown.getWorldPosition(new THREE.Vector3());
+    return position.x * 0.6 + position.z * 0.4;
+  });
+
+  world.onUpdate((dt, time) => {
+    const gust = 1 - GUST_DEPTH + GUST_DEPTH * Math.sin(time * GUST_SPEED);
+    crowns.forEach((crown, index) => {
+      const phase = time * WIND_SPEED + phases[index];
+      crown.rotation.z = Math.sin(phase) * WIND_ANGLE * gust;
+      crown.rotation.x = Math.cos(phase * 0.8) * WIND_ANGLE * 0.6 * gust;
+    });
+  });
 }
