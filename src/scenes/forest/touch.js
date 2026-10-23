@@ -2,7 +2,7 @@
 // 这些反应只是好玩，不改进度、不进存档
 import { rng } from '../../kit.js';
 import { sfx } from '../../audio.js';
-import { toadstool } from './plants.js';
+import { toadstool } from '../../plants.js';
 import { distanceToPath, PATH_HALF_WIDTH } from './paths.js';
 import { TOADSTOOLS } from './layout.js';
 

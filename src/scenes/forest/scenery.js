@@ -4,7 +4,7 @@
 import { rng } from '../../kit.js';
 import { makeMotes } from '../../fx.js';
 import { sidePebble } from './models.js';
-import { flowerField, grassField } from './plants.js';
+import { flowerField, grassField } from '../../plants.js';
 import { distanceToPath, PATH_HALF_WIDTH } from './paths.js';
 import { PATHS, HOUSES, TREES, FLOWER_PATCHES } from './layout.js';
 

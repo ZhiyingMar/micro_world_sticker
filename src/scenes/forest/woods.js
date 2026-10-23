@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { rng } from '../../kit.js';
 import { hollowLog, picketFence } from './models.js';
-import { tree, bush } from './plants.js';
+import { tree, bush } from '../../plants.js';
 import { distanceToPath, PATH_HALF_WIDTH } from './paths.js';
 import { TREES, NAP_SPOT, LOG, HEART_INSET, LOG_PEEK_FROM, FENCE, FLOWER_SPOT, SPAWN, VILLAGERS, HOUSES, HOUSE_CLEARING } from './layout.js';
 

@@ -1,9 +1,9 @@
-// 森林里的植物模型：几种树、灌木、成片的小花和草丛。只负责造出来，摆在哪由用它的地方决定
+// 植物模型（森林、小屋花园共用）：几种树、灌木、成片的小花和草丛。只负责造出来，摆在哪由用它的地方决定
 // 树都把树冠单独放在一个 crown 组里，原点在树干顶上，风吹的时候只摇树冠
 // 花和草一摆就是几百棵，用 InstancedMesh 一次画完，不然一棵一个网格太费
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { at, rng } from '../../kit.js';
+import { at, rng } from './kit.js';
 
 // 树冠的深浅：暗面、本色、亮面各差多少亮度
 const SHADE_STEP = 0.06;

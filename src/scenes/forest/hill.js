@@ -1,7 +1,7 @@
 // 右后角的小山：山顶一座高塔，塔背后一圈花丛里藏着游戏卡带
 // 上山的路绕着山走：右边草地的台阶上山腰，沿山腰往左，再一级台阶上山顶
 import { fairyTower, TOWER_BASE_RADIUS } from './models.js';
-import { flowerField } from './plants.js';
+import { flowerField } from '../../plants.js';
 import { TOWER, FLOWER_RING, CARTRIDGE, TOWER_SPOT } from './layout.js';
 
 // 小旗摆得多快、摆多大角度（弧度）
