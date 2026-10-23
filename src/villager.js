@@ -40,6 +40,8 @@ export class Villager {
     this.phase = Math.random() * 10;
     this.moving = 0;
     this.sitting = false;
+    // 坐上有碰撞的座位前站在哪儿，站起来时挪回去（见 sitDown）
+    this.standSpot = null;
     this.moveTarget = null;
   }
 
@@ -367,9 +369,30 @@ export class Villager {
     this.timer = 0.4;
   }
 
+  /**
+   * 到了兴趣点，坐下
+   * @description 凳子这种有碰撞的座位，兴趣点定在凳子旁边（走得到的地方），seat 是凳子中心：
+   *   先从站的地方一步挪上座位再坐，站起来时挪回原地，不会卡在凳子的碰撞里
+   * @param {{ seat?: { x: number, z: number }, seatY?: number }} poi 兴趣点
+   */
+  sitDown(poi) {
+    if (poi.seat) {
+      this.standSpot = { x: this.x, z: this.z };
+      this.root.position.x = poi.seat.x;
+      this.root.position.z = poi.seat.z;
+    }
+    this.setSit(true, poi.seatY);
+  }
+
   releasePoi() {
     if (this.poi) this.poi.taken = null;
     this.poi = null;
+    if (this.standSpot) {
+      // 从座位上挪回刚才站的地方
+      this.root.position.x = this.standSpot.x;
+      this.root.position.z = this.standSpot.z;
+      this.standSpot = null;
+    }
     if (this.sitting) this.setSit(false);
   }
 
@@ -398,7 +421,7 @@ export class Villager {
             this.timer = this.poi.dur * (0.7 + Math.random() * 0.6);
             if (this.poi.face !== undefined) this.heading = this.poi.face;
             if (this.poi.emote) this.showBubble(this.poi.emote);
-            if (this.poi.sit) this.setSit(true, this.poi.seatY);
+            if (this.poi.sit) this.sitDown(this.poi);
           } else {
             this.state = 'idle';
             this.timer = 1.5 + Math.random() * 3;
