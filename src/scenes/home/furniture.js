@@ -78,7 +78,6 @@ export function buildFurniture(w) {
   for (let i = 0; i < 3; i++) counter.add(at(k.sphere(0.06, ['#f6a6b8', '#ffd84a', '#ffffff'][i], 10), -0.35 + (i - 1) * 0.07, 1.26 + (i % 2) * 0.05, 0.05));
   w.add(counter, 2.6, 0, -4.15);
   w.solid(counter);
-  w.poi(1.5, -3.55, { emote: '☀', face: Math.PI, dur: 5 });
 
   // 冰箱（点它可以打开冰箱贴收藏）
   const fridge = new THREE.Group();

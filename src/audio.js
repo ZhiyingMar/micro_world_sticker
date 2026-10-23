@@ -91,6 +91,8 @@ const AMBIENT = {
   city: { vol: 0.08, lowpass: 500 },
   sea: { vol: 0.3, lowpass: 900, swell: true },
   forest: { vol: 0.05, lowpass: 1400, birds: true },
+  // 小屋：屋里很轻的底噪（闷闷的，像隔着窗户的风），窗外隔一会儿有鸟叫
+  home: { vol: 0.025, lowpass: 700, birds: true },
 };
 
 // 鸟叫：隔几秒（随机）一只鸟叫几声，音高、几声都随机，声音很小，只是背景

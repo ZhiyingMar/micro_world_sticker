@@ -3,7 +3,9 @@
 //
 // 文件分工：
 //   layout.js     房子多大、镜头怎么看、工作台摆在哪、花园多大
-//   room.js       地板、两面墙、窗户、墙上的画和时钟；换壁纸地板时换它们的贴图
+//   room.js       地板、两面墙（后墙开了窗洞）、墙上的画和时钟；换壁纸地板时换它们的贴图
+//   window.js     窗户的模型：窗框、玻璃、窗台、窗帘
+//   sunbeam.js    窗户斜照进来的光柱、地上的亮斑、光里的灰尘；小人会去亮斑里晒太阳
 //   furniture.js  屋里的家具，摆好登记碰撞和兴趣点
 //   workbench.js  工作台：走过去按 E 换壁纸、地板
 //   eaves.js      墙顶的房檐
@@ -12,6 +14,7 @@
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildRoom } from './room.js';
+import { placeSunbeam } from './sunbeam.js';
 import { buildFurniture } from './furniture.js';
 import { placeWorkbench } from './workbench.js';
 import { placeEaves } from './eaves.js';
@@ -38,6 +41,8 @@ export default {
   style: 'cozy',
   styleLabel: '动森风 · 起点',
   magnetStyle: 'cozy',
+  // 屋里很安静，窗外有鸟叫
+  ambient: 'home',
   bg: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
   // 午后的暖光从左前方斜照进来：家具朝镜头的一面亮，影子往右后方拖；天光偏冷一点，暗面不发灰
   lights: {
@@ -114,6 +119,7 @@ export default {
   ],
   build(world) {
     const room = buildRoom(world);
+    placeSunbeam(world);
     placeEaves(world);
     placeGarden(world, GARDEN_SIZE);
     buildFurniture(world);

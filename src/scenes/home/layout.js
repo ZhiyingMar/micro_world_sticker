@@ -30,6 +30,9 @@ export const HOUSE = {
   wainscotThickness: 0.06,
 };
 
+// 后墙上的窗户：窗洞中心在哪（x、离地多高），窗洞多宽多高。墙上真的开了洞，看得到屋后的花园
+export const WINDOW = { x: 1.5, y: 2.45, width: 1.8, height: 1.4 };
+
 // 人能走的范围：只在屋里那块地板上，走不到花园里
 export const BOUNDS = { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 };
 export const SPAWN = [1.6, 2.8];

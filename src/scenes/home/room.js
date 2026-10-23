@@ -1,15 +1,21 @@
-// 房间本身：地板、后墙和左墙、墙裙顶线、窗户、墙上的画和时钟，换壁纸地板时只换它们的贴图
+// 房间本身：地板、后墙（开了窗洞）和左墙、墙裙顶线、窗户、墙上的画和时钟，换壁纸地板时只换它们的贴图
 import * as THREE from 'three';
 import { at, canvasTexture } from '../../kit.js';
 import { makeStarField } from '../../fx.js';
 import { currentDecor, decorTexture } from '../../decor.js';
 import { WOOD, WOOD_DARK } from './furniture.js';
-import { HOUSE } from './layout.js';
+import { buildWindow } from './window.js';
+import { HOUSE, WINDOW } from './layout.js';
 
 // 地板下面那圈木头地基：比地板四边多出来多少、多高、中心多低、圆角
 const FOUNDATION = { overhang: 0.15, height: 0.9, y: -0.72, radius: 0.15 };
 // 地板侧面的收边：木头的截面色，比地基浅一点，两层分得开
 const FLOOR_EDGE = WOOD;
+
+// 墙切开露出来的截面（后墙右头、左墙前头、窗洞四周）：奶油色的墙芯，不铺壁纸
+const WALL_EDGE = '#f3e6cf';
+// 窗框比墙面往屋里凸出来多少
+const WINDOW_INSET = 0.05;
 
 // 墙根、墙角一圈淡淡的阴影：家具和墙像是坐在地上，屋子不像几块板拼起来的
 const CORNER_SHADE = {
@@ -34,45 +40,15 @@ const STAR_SEED = 11;
  * 搭小屋的地板、墙和墙上的摆设
  * @description 壁纸、地板、墙裙用的是小屋自己的材质，工作台上换装修时只换它们的贴图和颜色，不用重新搭
  * @param {World} w 小屋这个世界
- * @returns {{ applyDecor(kind: string, entry: object): void }} 换装修用的小接口
+ * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[] }} 换装修用的小接口；两片窗帘（会被风吹得轻轻晃）
  */
 export function buildRoom(w) {
   const k = w.kit;
   const floorMat = buildFloor(w);
 
-  // 两面墙共用一份壁纸材质，换壁纸时一起换
-  const wpMat = new THREE.MeshStandardMaterial({ roughness: 0.9 });
-  const back = k.mesh(new THREE.BoxGeometry(9.6, 4.2, 0.3), wpMat);
-  w.add(back, 0, 2.1, -4.65);
-  const left = k.mesh(new THREE.BoxGeometry(0.3, 4.2, 9.6), wpMat);
-  w.add(left, -4.65, 2.1, 0);
-  // 墙裙 + 顶线（墙裙颜色跟着壁纸配）
-  const wainscotMat = new THREE.MeshStandardMaterial({ roughness: 0.82 });
-  w.add(k.box(9.6, 1.1, 0.06, wainscotMat, 0.02), 0, 0.55, -4.48);
-  w.add(k.box(0.06, 1.1, 9.6, wainscotMat, 0.02), -4.48, 0.55, 0);
-  w.add(k.box(9.7, 0.08, 0.1, '#ffffff', 0.03), 0, 1.12, -4.47);
-  w.add(k.box(0.1, 0.08, 9.7, '#ffffff', 0.03), -4.47, 1.12, 0);
-  w.add(k.box(9.9, 0.22, 0.42, '#e7c9a0', 0.08), 0, 4.25, -4.65);
-  w.add(k.box(0.42, 0.22, 9.9, '#e7c9a0', 0.08), -4.65, 4.25, 0);
-
-  // 窗户
-  const win = new THREE.Group();
-  win.add(k.box(2.1, 1.7, 0.14, '#ffffff', 0.05));
-  const glass = k.box(1.8, 1.4, 0.05, '#bfe8ff', 0.02, { emissive: '#bfe8ff', emissiveIntensity: 0.8 });
-  glass.position.z = 0.05;
-  win.add(glass);
-  win.add(at(k.box(0.08, 1.4, 0.08, '#ffffff', 0.02), 0, 0, 0.09));
-  win.add(at(k.box(1.8, 0.08, 0.08, '#ffffff', 0.02), 0, 0, 0.09));
-  win.add(at(k.box(2.3, 0.12, 0.3, '#ffffff', 0.04), 0, -0.88, 0.12));
-  for (const s of [-1, 1]) {
-    const curtain = k.box(0.45, 1.9, 0.1, '#f6a6b8', 0.05);
-    curtain.position.set(s * 1.2, -0.05, 0.18);
-    win.add(curtain);
-    const tie = k.torus(0.1, 0.03, '#f4a259');
-    tie.position.set(s * 1.2, -0.3, 0.24);
-    win.add(tie);
-  }
-  w.add(win, 1.5, 2.45, -4.45);
+  const { wallpaper: wpMat, wainscot: wainscotMat } = buildWalls(w);
+  const windowModel = buildWindow(k, WINDOW);
+  w.add(windowModel.group, WINDOW.x, WINDOW.y, -(HOUSE.wallInner - WINDOW_INSET));
   // 窗台上的小盆栽
   const sill = new THREE.Group();
   sill.add(k.cyl(0.11, 0.08, 0.16, '#e07a5f', 14));
@@ -137,7 +113,69 @@ export function buildRoom(w) {
 
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
-  return { applyDecor };
+  return { applyDecor, curtains: windowModel.curtains };
+}
+
+/**
+ * 后墙和左墙：后墙按窗户的位置开一个真的洞，墙裙、墙裙顶线、墙顶木线
+ * @description 两面墙共用一份壁纸材质，墙裙颜色跟着壁纸配，换壁纸时一起换
+ * @param {World} world 小屋这个世界
+ * @returns {{ wallpaper: THREE.MeshStandardMaterial, wainscot: THREE.MeshStandardMaterial }} 换装修时要换的两份材质
+ */
+function buildWalls(world) {
+  const kit = world.kit;
+  const wallpaper = new THREE.MeshStandardMaterial({ roughness: 0.9 });
+  const faces = [wallpaper, kit.m(WALL_EDGE)];
+  const length = HOUSE.half * 2;
+  const outside = -(HOUSE.wallInner + HOUSE.wallThickness);
+
+  const back = new THREE.Mesh(wallGeometry(length, WINDOW), faces);
+  world.add(back, 0, 0, outside);
+  const left = new THREE.Mesh(wallGeometry(length, null), faces);
+  world.add(left, outside, 0, 0, Math.PI / 2);
+  for (const wall of [back, left]) {
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+  }
+
+  // 墙裙 + 顶线（老的尺寸，和墙的内侧面对齐）
+  const wainscot = new THREE.MeshStandardMaterial({ roughness: 0.82 });
+  world.add(kit.box(9.6, 1.1, 0.06, wainscot, 0.02), 0, 0.55, -4.48);
+  world.add(kit.box(0.06, 1.1, 9.6, wainscot, 0.02), -4.48, 0.55, 0);
+  world.add(kit.box(9.7, 0.08, 0.1, '#ffffff', 0.03), 0, 1.12, -4.47);
+  world.add(kit.box(0.1, 0.08, 9.7, '#ffffff', 0.03), -4.47, 1.12, 0);
+  world.add(kit.box(9.9, 0.22, 0.42, '#e7c9a0', 0.08), 0, 4.25, -4.65);
+  world.add(kit.box(0.42, 0.22, 9.9, '#e7c9a0', 0.08), -4.65, 4.25, 0);
+  return { wallpaper, wainscot };
+}
+
+/**
+ * 一面墙的形状：从地面立起来的长方形，可以开一个窗洞，往 +z 挤出墙厚
+ * @description 正面、背面的贴图坐标按位置算，整面墙从 0 铺到 1，和原来的方块墙一样；开了洞图案也不挤歪。
+ *   截面（侧面）用第二份材质
+ * @param {number} length 墙多长，沿 x，中心在 0
+ * @param {{ x: number, y: number, width: number, height: number } | null} opening 窗洞的中心和大小，没有就是 null
+ * @returns {THREE.ExtrudeGeometry}
+ */
+function wallGeometry(length, opening) {
+  const half = length / 2;
+  const height = HOUSE.wallHeight;
+  const shape = new THREE.Shape([new THREE.Vector2(-half, 0), new THREE.Vector2(half, 0), new THREE.Vector2(half, height), new THREE.Vector2(-half, height)]);
+  if (opening) {
+    const left = opening.x - opening.width / 2;
+    const right = opening.x + opening.width / 2;
+    const bottom = opening.y - opening.height / 2;
+    const top = opening.y + opening.height / 2;
+    shape.holes.push(new THREE.Path([new THREE.Vector2(left, bottom), new THREE.Vector2(left, top), new THREE.Vector2(right, top), new THREE.Vector2(right, bottom)]));
+  }
+
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: HOUSE.wallThickness, bevelEnabled: false });
+  const position = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
+  for (let i = 0; i < position.count; i++) {
+    uv.setXY(i, (position.getX(i) + half) / length, position.getY(i) / height);
+  }
+  return geometry;
 }
 
 /**
