@@ -1,13 +1,14 @@
-// 池塘和小溪：水、桥、踏脚石都在地形地图里；这里摆岸边的石头、荷叶、荷花，和荷叶上的金币
+// 池塘和小溪：水、桥、踏脚石都在地形地图里，由地面画出来；这里摆水线上的石头、荷叶、荷花，和荷叶上的金币
 import { rng } from '../../kit.js';
 import { lilyPad, lotus, shoreRock } from './models.js';
 import { LILY_PADS, COIN_PAD, LOTUS_PAD, FISHING_SPOT, STREAM_SPOT } from './layout.js';
 
-// 岸边石头：每条岸边摆几块、多大、什么颜色，离岸边多远（往岸上缩一点，别悬在水上）
+// 岸边石头：每条岸边摆几块、多大、什么颜色；石头一半泡在水里，压在水线上
 const ROCKS_PER_EDGE = 3;
-const ROCK_RADIUS = [0.1, 0.17];
-const ROCK_COLORS = ['#d6d0c4', '#c4bdb0'];
-const ROCK_INSET = 0.1;
+const ROCK_RADIUS = [0.09, 0.16];
+const ROCK_COLORS = ['#d6d0c4', '#c4bdb0', '#b9b2a4'];
+// 石头中心离水面多高（负数是往水下）：露出来一小半
+const ROCK_SINK = -0.03;
 // 岸边石头沿着岸撒开的范围（一格边长的一部分，两头留空，免得拐角处叠在一起）
 const ROCK_SPREAD = 0.8;
 const ROCK_SEED = 3;
@@ -25,21 +26,23 @@ const STREAM_STAY = 5;
 /**
  * 搭池塘和小溪
  * @param {World} world 童话森林
+ * @param {{ waterSurface: number }} ground 画出来的地面（水面多高）
  */
-export function buildPond(world) {
-  shoreRocks(world);
-  lilyPads(world);
+export function buildPond(world, ground) {
+  shoreRocks(world, ground.waterSurface);
+  lilyPads(world, ground.waterSurface);
 
   world.poi(FISHING_SPOT.x, FISHING_SPOT.z, { emote: '🎣', face: FISHING_SPOT.face, dur: FISHING_STAY });
   world.poi(STREAM_SPOT.x, STREAM_SPOT.z, { emote: '🐟', face: STREAM_SPOT.face, dur: STREAM_STAY });
 }
 
 /**
- * 池塘和小溪岸边摆一圈小石头
- * @description 水格子和旁边平地之间是一道小崖，摆上石头看起来像岸，而不是地上切出来的方坑
+ * 池塘和小溪岸边的水线上摆一圈小石头
+ * @description 岸边已经磨圆了，再压一圈半泡在水里的石头，岸线更像天然的
  * @param {World} world
+ * @param {number} waterSurface 水面多高
  */
-function shoreRocks(world) {
+function shoreRocks(world, waterSurface) {
   const terrain = world.terrain;
   const random = rng(ROCK_SEED);
 
@@ -49,21 +52,22 @@ function shoreRocks(world) {
         continue;
       }
       for (const direction of NEIGHBORS) {
-        rocksAlongEdge(world, random, col, row, direction);
+        rocksAlongEdge(world, random, waterSurface, col, row, direction);
       }
     }
   }
 }
 
 /**
- * 一格水朝某个方向的那条边，如果对面是岸，就在岸上摆几块石头
+ * 一格水朝某个方向的那条边，如果对面是岸，就在水线上摆几块石头
  * @param {World} world
  * @param {Function} random 随机数
+ * @param {number} waterSurface 水面多高
  * @param {number} col 水格子的列
  * @param {number} row 水格子的行
  * @param {number[]} direction 朝哪边 [列, 行]
  */
-function rocksAlongEdge(world, random, col, row, direction) {
+function rocksAlongEdge(world, random, waterSurface, col, row, direction) {
   const terrain = world.terrain;
   const [dCol, dRow] = direction;
   const neighborCol = col + dCol;
@@ -78,11 +82,11 @@ function rocksAlongEdge(world, random, col, row, direction) {
     return;
   }
 
-  // 两格之间那条边的中点，往岸上缩一点
+  // 两格之间那条边的中点，正好是水线
   const centerX = terrain.x0 + col + 0.5;
   const centerZ = terrain.z0 + row + 0.5;
-  const edgeX = centerX + dCol * (0.5 + ROCK_INSET);
-  const edgeZ = centerZ + dRow * (0.5 + ROCK_INSET);
+  const edgeX = centerX + dCol * 0.5;
+  const edgeZ = centerZ + dRow * 0.5;
 
   for (let i = 0; i < ROCKS_PER_EDGE; i++) {
     // 沿着岸边（和 direction 垂直）撒开
@@ -91,17 +95,16 @@ function rocksAlongEdge(world, random, col, row, direction) {
     const z = edgeZ + dCol * along;
     const radius = ROCK_RADIUS[0] + random() * (ROCK_RADIUS[1] - ROCK_RADIUS[0]);
     const color = ROCK_COLORS[i % ROCK_COLORS.length];
-    world.add(shoreRock(world.kit, radius, color), x, world.heightAt(x, z), z);
+    world.add(shoreRock(world.kit, radius, color), x, waterSurface + ROCK_SINK, z, random() * Math.PI);
   }
 }
 
 /**
  * 水面上的荷叶、荷花，和放在一片荷叶上的金币
  * @param {World} world
+ * @param {number} surface 水面多高
  */
-function lilyPads(world) {
-  const surface = world.terrain.waterSurface;
-
+function lilyPads(world, surface) {
   for (const [x, z, radius] of LILY_PADS) {
     world.add(lilyPad(world.kit, radius), x, surface, z);
   }

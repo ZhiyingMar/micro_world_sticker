@@ -1,22 +1,15 @@
-// 到处撒的小点缀：小路上的石板、满地的小花、方块侧面嵌着的小石头、萤火虫
+// 到处撒的小点缀：满地的小花、方块侧面嵌着的小石头、萤火虫
 // 都只是看的，不挡路。要等别的东西都摆好、碰撞登记完了再撒，花才不会长进树干和屋子里
 import { rng } from '../../kit.js';
 import { makeMotes } from '../../fx.js';
-import { pathStone, flower, sidePebble } from './models.js';
-import { PATHS } from './layout.js';
+import { flower, sidePebble } from './models.js';
+import { distanceToPath, PATH_HALF_WIDTH } from './paths.js';
 
-// 小路：石板多大、隔多远一块，左右错开多少、随机歪多少
-const PATH_STONE_RADIUS = 0.2;
-const PATH_STONE_SPACING = 0.55;
-const PATH_STONE_SWAY = 0.1;
-const PATH_STONE_JITTER = 0.08;
-const PATH_SEED = 5;
-
-// 小花：每平方单位大约几朵，撒的时候最多试几次；离小路石板多近就不种
+// 小花：每平方单位大约几朵，撒的时候最多试几次；离路边多近就不种
 const FLOWERS_PER_AREA = 0.6;
 const FLOWER_TRIES_PER_FLOWER = 6;
 const FLOWER_ROOM = 0.12;
-const FLOWER_CLEAR_OF_PATH = 0.3;
+const FLOWER_CLEAR_OF_PATH = 0.08;
 const FLOWER_COLORS = ['#ff8fb1', '#ffffff', '#ffd84a', '#b38ee8', '#ff9a6b'];
 const FLOWER_SEED = 42;
 
@@ -39,74 +32,21 @@ const FIREFLY_SEED = 5;
  * @param {World} world 童话森林
  */
 export function buildScenery(world) {
-  const stones = pathStones(world);
-  flowers(world, stones);
+  flowers(world);
   sidePebbles(world);
   fireflies(world);
-}
-
-/**
- * 沿着 layout 里的小路铺石板
- * @param {World} world
- * @returns {number[][]} 每块石板的位置 [x, z]，撒花时避开
- */
-function pathStones(world) {
-  const random = rng(PATH_SEED);
-  const placed = [];
-
-  for (const path of PATHS) {
-    for (let i = 0; i < path.length - 1; i++) {
-      placed.push(...stonesAlong(world, random, path[i], path[i + 1]));
-    }
-  }
-  return placed;
-}
-
-/**
- * 一段直路上铺石板，一左一右错开着铺
- * @description 落在台阶上、悬在崖边的石板不铺（它是平的，铺上去会翘起来或者悬空）
- * @param {World} world
- * @param {Function} random 随机数
- * @param {number[]} start 这一段的起点 [x, z]
- * @param {number[]} end 这一段的终点 [x, z]
- * @returns {number[][]} 铺下的石板位置
- */
-function stonesAlong(world, random, start, end) {
-  const [startX, startZ] = start;
-  const dx = end[0] - startX;
-  const dz = end[1] - startZ;
-  const length = Math.hypot(dx, dz);
-  const count = Math.max(1, Math.round(length / PATH_STONE_SPACING));
-  const placed = [];
-
-  for (let i = 0; i < count; i++) {
-    const t = i / count;
-    // 和路垂直的方向上左右错开
-    const side = i % 2 ? PATH_STONE_SWAY : -PATH_STONE_SWAY;
-    const x = startX + dx * t + (-dz / length) * side + (random() - 0.5) * PATH_STONE_JITTER;
-    const z = startZ + dz * t + (dx / length) * side + (random() - 0.5) * PATH_STONE_JITTER;
-    const flat = world.terrain.isPlainGround(x, z) && !world.terrain.straddles(x, z, PATH_STONE_RADIUS);
-    if (!flat) {
-      continue;
-    }
-
-    world.add(pathStone(world.kit, PATH_STONE_RADIUS), x, world.heightAt(x, z), z, random() * Math.PI);
-    placed.push([x, z]);
-  }
-  return placed;
 }
 
 /**
  * 满地的小花：随机撒在空着的平地上
  * @description 种子固定，每次进来花都长在一样的地方
  * @param {World} world
- * @param {number[][]} stones 小路石板的位置，花不长在石板上
  */
-function flowers(world, stones) {
+function flowers(world) {
   const random = rng(FLOWER_SEED);
   const { minX, maxX, minZ, maxZ } = world.bounds;
   const wanted = Math.round((maxX - minX) * (maxZ - minZ) * FLOWERS_PER_AREA);
-  const nearPath = (x, z) => stones.some(([stoneX, stoneZ]) => Math.hypot(x - stoneX, z - stoneZ) < FLOWER_CLEAR_OF_PATH);
+  const nearPath = (x, z) => distanceToPath(x, z) < PATH_HALF_WIDTH + FLOWER_CLEAR_OF_PATH;
   let planted = 0;
 
   for (let tries = 0; tries < wanted * FLOWER_TRIES_PER_FLOWER && planted < wanted; tries++) {

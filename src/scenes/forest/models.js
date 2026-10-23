@@ -245,19 +245,6 @@ export function picketFence(kit, length) {
 }
 
 /**
- * 小路上的一块圆石板，薄薄地贴着地
- * @param {Kit} kit
- * @param {number} radius 石板的半径
- * @returns {THREE.Mesh}
- */
-export function pathStone(kit, radius) {
-  const stone = kit.cyl(radius, radius * 1.08, 0.05, '#e3ddd0', 14);
-  stone.castShadow = false;
-  stone.position.y = 0.025;
-  return stone;
-}
-
-/**
  * 方块侧面嵌着的小石头（扁扁的，贴在土上）
  * @param {Kit} kit
  * @param {number} radius 石头的半径

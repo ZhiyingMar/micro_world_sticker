@@ -94,15 +94,6 @@ export class Terrain {
     return false;
   }
 
-  /**
-   * 水面有多高
-   * @description 荷叶这种浮在水上的东西照着它摆
-   * @returns {number}
-   */
-  get waterSurface() {
-    return -this.level - WATER_DROP;
-  }
-
   get bounds() {
     const m = 0.05;
     return { minX: this.x0 + m, maxX: -this.x0 - m, minZ: this.z0 + m, maxZ: -this.z0 - m };
