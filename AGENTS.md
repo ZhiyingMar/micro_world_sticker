@@ -15,12 +15,40 @@ npm run build   # static build into dist/
 - `src/main.js` rendering, camera, input, collecting and switching worlds
 - `src/world.js` one world's container: colliders, items, villagers, repairs, pathfinding
 - `src/terrain.js` height map from a text map (see the spec in `TODO.md`, section 0)
-- `src/scenes/` one world per file, or one folder per world once it grows (e.g. `scenes/city/`)
+- `src/terrain-soft.js` the rounded, organic look for that terrain (natural worlds use it; the city keeps blocks)
+- `src/scenes/` one world per file, or one folder per world once it grows (e.g. `scenes/city/`, `scenes/forest/`)
 - Test scenes open via URL, e.g. `?test=terrain`
 
 ## Core Principles
 
 **Evidence > Guess | Root Cause > Workaround | Communication > Action | Correctness > Convenience**
+
+## Game Feel (游戏感)
+
+The target is a **cozy, handcrafted, living diorama** (think Animal Crossing, A Short Hike, Tiny Glade): a miniature world that looks made by hand, is always gently moving, and answers when you touch it. The opposite, what the user called "an intern's practice project", is a tech demo: the logic works, but it's primitives on a visible grid, the same prop copied around, nothing moving, no sound. Logic may be as gridded and simple as it likes; what the player sees and hears must not be. `src/scenes/forest/` is the reference implementation.
+
+**Looks handcrafted**
+
+- **Hide the grid.** Cliffs and corners are rounded, shorelines and paths curve, water is one continuous surface. Natural worlds use `src/terrain-soft.js`; block terrain is only for places meant to be man-made (the city's sidewalks and retaining walls).
+- **Variation, not copies.** Anything that repeats comes in a few kinds (tree species, sizes, colors), each placed with its own rotation and scale. Give volumes a dark, base and light shade so they read as 3D, not as flat blobs.
+- **Composition is designed, not sprinkled.** Dense at the far edges to frame the scene, open clearings in the middle, only low things near the camera so they don't block the view. Small things grow where they naturally would: flowers by doors, along path edges and around tree trunks, not a uniform random scatter.
+- **Landmarks get room to breathe.** Buildings and big features each get their own spot with a clearing around it, linked by paths. Never line them up in a row or pack them into one corner.
+- **Finish the edges.** The diorama's sides show soil layers; anything that reaches the edge (a stream, a path) is framed or stopped by props instead of being cut off.
+
+**Feels alive**
+
+- **Something is always moving:** wind in the foliage, flowing water, small creatures (butterflies, fish). Even a still frame should look like it's about to move.
+- **Every world has its own sound and light:** an `ambient` sound in the world definition, and a time-of-day light: a warm key light from the front-left so the faces toward the camera are lit and shadows trail away, plus a cooler sky fill so the shadow side doesn't go grey.
+
+**Answers your touch (game feel / "juice")**
+
+- When the player steps on, bumps into or walks near something, it reacts right away with motion (squash and stretch, wobble, flee), particles and a sound. Footsteps follow the walk cycle (`villager.phase`), not a timer, so they land on the steps.
+- Reactions are cosmetic: they never change progress or the save.
+- Keep reactions readable at play zoom: scale small creatures up, and keep collectibles visually distinct from decoration (orange pickup mushrooms vs. red decorative toadstools).
+
+**Check it like a player.** After a visual change, look at both the overview and play-height zoom, walk the routes, and ask: would this pass as a screenshot from a cozy indie game, or does it look like a tech demo? Red flags: a visible grid, one model copied many times, uniform random scatter, nothing moving, silence, flat noon light, props lined up in a row, things cut off at the edges.
+
+**Budget:** hundreds of small things (flowers, grass) go through `InstancedMesh`. Around 250k triangles per world is fine on desktop; check on a phone when a world grows past that.
 
 ## Code Organization
 
@@ -132,5 +160,6 @@ These rules apply to code written from now on. Existing code that breaks them st
 - No unapproved large refactors
 - Old saves still load
 - Checked in the browser (or said why not)
+- Visible changes pass the Game Feel check (overview and play-height zoom, no red flags)
 - Tech debt commented
 - No `--force` used
