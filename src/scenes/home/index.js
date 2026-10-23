@@ -39,9 +39,10 @@ export default {
   styleLabel: '动森风 · 起点',
   magnetStyle: 'cozy',
   bg: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
+  // 午后的暖光从左前方斜照进来：家具朝镜头的一面亮，影子往右后方拖；天光偏冷一点，暗面不发灰
   lights: {
-    hemi: ['#fff4e0', '#c8a27a', 1.7],
-    sun: ['#fff1d6', 2.4, [6, 11, 7]],
+    hemi: ['#eaf0ff', '#d6b088', 1.6],
+    sun: ['#ffe2b3', 2.7, [-4, 11, 8]],
   },
   // 拉远最多到屋子填满画面（花园只在边上露一点），拉近随意，转动只在斜着看的一小段里
   camera: {

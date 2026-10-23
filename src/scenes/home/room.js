@@ -1,9 +1,27 @@
 // 房间本身：地板、后墙和左墙、墙裙顶线、窗户、墙上的画和时钟，换壁纸地板时只换它们的贴图
 import * as THREE from 'three';
-import { at } from '../../kit.js';
+import { at, canvasTexture } from '../../kit.js';
 import { makeStarField } from '../../fx.js';
 import { currentDecor, decorTexture } from '../../decor.js';
-import { WOOD_DARK } from './furniture.js';
+import { WOOD, WOOD_DARK } from './furniture.js';
+import { HOUSE } from './layout.js';
+
+// 地板下面那圈木头地基：比地板四边多出来多少、多高、中心多低、圆角
+const FOUNDATION = { overhang: 0.15, height: 0.9, y: -0.72, radius: 0.15 };
+// 地板侧面的收边：木头的截面色，比地基浅一点，两层分得开
+const FLOOR_EDGE = WOOD;
+
+// 墙根、墙角一圈淡淡的阴影：家具和墙像是坐在地上，屋子不像几块板拼起来的
+const CORNER_SHADE = {
+  color: '#6b4426',
+  opacity: 0.32,
+  floorWidth: 0.75, // 墙根往屋里淡出去多宽
+  cornerWidth: 0.6, // 两面墙相交的竖角往两边淡出去多宽
+  lift: 0.004, // 离地面、墙面多远：贴得太近会和它们抢着画，一闪一闪的
+};
+// 阴影从深到浅怎么淡：[离深边多远（0~1）, 多深（0~1）]，前面掉得快，后面拖得长
+const SHADE_FALLOFF = [[0, 1], [0.25, 0.5], [0.55, 0.18], [1, 0]];
+const SHADE_TEXTURE_PX = 64;
 
 // 星空壁纸时外面那片星星：撒在多远的球壳上，按整个方块对角线的倍数算（最近也要在花园外面）
 const STAR_SHELL_NEAR = 0.8;
@@ -20,11 +38,7 @@ const STAR_SEED = 11;
  */
 export function buildRoom(w) {
   const k = w.kit;
-  // 地板方块
-  const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.75 });
-  const floor = k.mesh(new THREE.BoxGeometry(9.6, 0.3, 9.6), floorMat);
-  w.add(floor, 0, -0.15, 0);
-  w.add(k.box(9.9, 0.9, 9.9, WOOD_DARK, 0.15), 0, -0.72, 0);
+  const floorMat = buildFloor(w);
 
   // 两面墙共用一份壁纸材质，换壁纸时一起换
   const wpMat = new THREE.MeshStandardMaterial({ roughness: 0.9 });
@@ -99,6 +113,7 @@ export function buildRoom(w) {
     hand1.rotation.x -= dt * 0.4;
   });
 
+  placeCornerShade(w);
   const stars = placeBackdropStars(w);
 
   /**
@@ -123,6 +138,101 @@ export function buildRoom(w) {
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
   return { applyDecor };
+}
+
+/**
+ * 地板：顶面铺装修贴图，四个侧面是木头收边，下面一圈木头地基
+ * @param {World} world 小屋这个世界
+ * @returns {THREE.MeshStandardMaterial} 地板顶面的材质，换地板时换它的贴图
+ */
+function buildFloor(world) {
+  const kit = world.kit;
+  const size = HOUSE.half * 2;
+  const floorMaterial = new THREE.MeshStandardMaterial({ roughness: 0.75 });
+  const edgeMaterial = kit.m(FLOOR_EDGE);
+
+  // BoxGeometry 六个面依次是 +x、-x、+y、-y、+z、-z；只有顶面铺贴图，侧面铺的话会被拉成一道道条纹
+  const faces = [edgeMaterial, edgeMaterial, floorMaterial, edgeMaterial, edgeMaterial, edgeMaterial];
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(size, HOUSE.floorThickness, size), faces);
+  floor.castShadow = true;
+  floor.receiveShadow = true;
+  world.add(floor, 0, -HOUSE.floorThickness / 2, 0);
+
+  const foundationSize = size + FOUNDATION.overhang * 2;
+  world.add(kit.box(foundationSize, FOUNDATION.height, foundationSize, WOOD_DARK, FOUNDATION.radius), 0, FOUNDATION.y, 0);
+  return floorMaterial;
+}
+
+/**
+ * 在墙根和两面墙相交的墙角铺一圈淡淡的阴影
+ * @description 真的屋子里墙根、墙角总是暗一点；没有这一圈，地板和墙像是两块板硬拼在一起
+ * @param {World} world 小屋这个世界
+ */
+function placeCornerShade(world) {
+  const material = new THREE.MeshBasicMaterial({
+    color: CORNER_SHADE.color,
+    map: world.texture(shadeTexture()),
+    transparent: true,
+    opacity: CORNER_SHADE.opacity,
+    depthWrite: false,
+  });
+  // 墙裙的正面比墙面往屋里多出来一点，墙角的竖条下半截贴墙裙、上半截贴墙面
+  const wainscotFront = -(HOUSE.wallInner - HOUSE.wainscotThickness);
+  const wallFace = -HOUSE.wallInner;
+  const { floorWidth, cornerWidth, lift } = CORNER_SHADE;
+  const floorFar = HOUSE.half;
+  const wainscotTop = HOUSE.wainscotHeight;
+  const wallTop = HOUSE.wallHeight;
+  const quads = [
+    // 后墙根、左墙根（地上）：深的一边贴着墙
+    [[wainscotFront, lift, wainscotFront], [floorFar, lift, wainscotFront], [wainscotFront, lift, wainscotFront + floorWidth], [floorFar, lift, wainscotFront + floorWidth]],
+    [[wainscotFront, lift, wainscotFront], [wainscotFront, lift, floorFar], [wainscotFront + floorWidth, lift, wainscotFront], [wainscotFront + floorWidth, lift, floorFar]],
+    // 后墙、左墙上靠墙角的竖条：下半截在墙裙上，上半截在墙面上
+    [[wainscotFront, 0, wainscotFront + lift], [wainscotFront, wainscotTop, wainscotFront + lift], [wainscotFront + cornerWidth, 0, wainscotFront + lift], [wainscotFront + cornerWidth, wainscotTop, wainscotFront + lift]],
+    [[wallFace, wainscotTop, wallFace + lift], [wallFace, wallTop, wallFace + lift], [wallFace + cornerWidth, wainscotTop, wallFace + lift], [wallFace + cornerWidth, wallTop, wallFace + lift]],
+    [[wainscotFront + lift, 0, wainscotFront], [wainscotFront + lift, wainscotTop, wainscotFront], [wainscotFront + lift, 0, wainscotFront + cornerWidth], [wainscotFront + lift, wainscotTop, wainscotFront + cornerWidth]],
+    [[wallFace + lift, wainscotTop, wallFace], [wallFace + lift, wallTop, wallFace], [wallFace + lift, wainscotTop, wallFace + cornerWidth], [wallFace + lift, wallTop, wallFace + cornerWidth]],
+  ];
+
+  for (const [darkStart, darkEnd, fadeStart, fadeEnd] of quads) {
+    const shade = new THREE.Mesh(shadeQuad(darkStart, darkEnd, fadeStart, fadeEnd), material);
+    // 透明的阴影条要在地板、墙之后画
+    shade.renderOrder = 1;
+    world.add(shade);
+  }
+}
+
+/**
+ * 一条阴影：四个角围成的一块，深的那条边在 darkStart → darkEnd
+ * @param {number[]} darkStart 深边的一头 [x, y, z]
+ * @param {number[]} darkEnd 深边的另一头
+ * @param {number[]} fadeStart 淡边上对着 darkStart 的那头
+ * @param {number[]} fadeEnd 淡边上对着 darkEnd 的那头
+ * @returns {THREE.BufferGeometry}
+ */
+function shadeQuad(darkStart, darkEnd, fadeStart, fadeEnd) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([...darkStart, ...darkEnd, ...fadeStart, ...fadeEnd], 3));
+  // 贴图上边（v = 1）是深的
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 0, 0, 1, 0], 2));
+  // 两面都画：哪面朝镜头都看得到
+  geometry.setIndex([0, 2, 1, 1, 2, 3, 0, 1, 2, 1, 3, 2]);
+  return geometry;
+}
+
+/**
+ * 阴影条的贴图：白色，上边不透明，往下慢慢透明（颜色由材质给）
+ * @returns {THREE.CanvasTexture}
+ */
+function shadeTexture() {
+  return canvasTexture(1, SHADE_TEXTURE_PX, (context, width, height) => {
+    const gradient = context.createLinearGradient(0, 0, 0, height);
+    for (const [offset, strength] of SHADE_FALLOFF) {
+      gradient.addColorStop(offset, `rgba(255,255,255,${strength})`);
+    }
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+  });
 }
 
 /**

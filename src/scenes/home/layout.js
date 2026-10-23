@@ -18,11 +18,16 @@ export const CAMERA_MIN_DISTANCE = 2.2;
 // 连外面一圈花园，整个方块的边长（屋子 10，四周各留一圈花园）
 export const GARDEN_SIZE = 15;
 
-// 房子的尺寸：地板 9.6 × 9.6，中心在原点；墙厚 0.3
+// 房子的尺寸：地板 9.6 × 9.6，中心在原点
 export const HOUSE = {
   half: 4.8, // 地板边离中心多远
   wallInner: 4.5, // 墙的内侧面离中心多远
+  wallThickness: 0.3,
+  wallHeight: 4.2,
   trimTop: 4.36, // 墙顶那根木线的顶面高度
+  floorThickness: 0.3, // 地板那块板多厚（顶面在 0）
+  wainscotHeight: 1.1, // 墙裙多高
+  wainscotThickness: 0.06,
 };
 
 // 人能走的范围：只在屋里那块地板上，走不到花园里

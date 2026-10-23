@@ -1,14 +1,34 @@
 // 小屋装修：工作台上能合成的壁纸、地板
 // 每一款只是数据（叫什么、要几个材料、怎么画图案、配什么背景），小屋照着数据刷墙、铺地板
-import { canvasTexture } from './kit.js';
+import { canvasTexture, rng } from './kit.js';
 import { state, save, canAfford, spendMaterials } from './state.js';
 
 // 壁纸图案一块的像素大小，墙上横着铺几块、竖着铺几块
 const WALLPAPER_TILE_PX = 256;
 const WALLPAPER_REPEAT = [3, 1.4];
-// 地板图案一块的像素大小，地上铺几块
+// 地板图案一块的像素大小，地上铺几块（地板 9.6 宽，一块图大约 4 个单位）
 const FLOOR_TILE_PX = 512;
-const FLOOR_REPEAT = [1.6, 1.6];
+const FLOOR_REPEAT = [2.4, 2.4];
+// 木地板：一块图里横着几排板（一排约 0.4 宽，人高 1，看着像真的地板而不是几块大方砖）
+const PLANK_ROWS = 10;
+// 每块板多长（占图宽的比例，约 1.2 ~ 2.2 个单位），长短错开，接缝不排成一条线
+const PLANK_LENGTH = [0.3, 0.55];
+// 每块板深浅差多少（亮度倍数的范围）
+const PLANK_TONE = 0.1;
+// 每块板上几道木纹，木纹多深、多透明；木纹弯弯的，上下起伏多少（占一排高的比例）
+const GRAIN_LINES = 4;
+const GRAIN_DARKEN = 0.72;
+const GRAIN_ALPHA = 0.16;
+const GRAIN_WAVE = 0.12;
+// 一道木纹分几段画、每段弯多少（弧度）：段数够多才顺，弯得慢才像木头不像波浪线
+const GRAIN_SEGMENTS = 12;
+const GRAIN_BEND = 0.6;
+// 多少块板上有一个木节
+const KNOT_CHANCE = 0.07;
+// 缝多宽（占图宽的比例：512 像素的图是 3 像素），每排上沿一道亮边，看着板子有一点倒角
+const SEAM_RATIO = 3 / 512;
+const BEVEL_LIGHT = 'rgba(255,255,255,0.18)';
+const PLANK_SEED = 3;
 // 工作台面板上的小样，画多大（像素）
 const SWATCH_PX = 96;
 
@@ -135,7 +155,8 @@ function paintSparkle(context, x, y, size) {
 // ---------- 地板图案 ----------
 
 /**
- * 一排排错缝的木地板
+ * 一排排错缝的木地板：板子长短不一、深浅不一，上面有弯弯的木纹，偶尔一个木节
+ * @description 板子太宽、颜色一样的话，近看就是几块大色块；窄板子加木纹才像真的木头地板
  * @param {CanvasRenderingContext2D} context 画布
  * @param {number} width 画布宽，像素
  * @param {number} height 画布高，像素
@@ -143,24 +164,126 @@ function paintSparkle(context, x, y, size) {
  * @param {string} seamColor 木板之间缝的颜色
  */
 function paintPlanks(context, width, height, plankRGB, seamColor) {
-  const rows = 8;
-  const rowHeight = height / rows;
-  const plankLength = 256;
+  // 种子固定：每次画出来一样，大图和工作台上的小样也一样
+  const random = rng(PLANK_SEED);
+  const rowHeight = height / PLANK_ROWS;
+  const seamWidth = Math.max(1, width * SEAM_RATIO);
 
-  for (let row = 0; row < rows; row++) {
-    const offset = (row % 2) * (plankLength / 2);
-    for (let x = -offset; x < width; x += plankLength) {
-      // 每块板深浅差一点，看着像真木头
-      const shade = 0.92 + ((row * 7 + x) % 5) * 0.025;
-      const [red, green, blue] = plankRGB.map((channel) => Math.round(channel * shade));
-      context.fillStyle = `rgb(${red},${green},${blue})`;
-      context.fillRect(x, row * rowHeight, plankLength, rowHeight);
-      context.fillStyle = seamColor;
-      context.fillRect(x, row * rowHeight, 3, rowHeight);
+  for (let row = 0; row < PLANK_ROWS; row++) {
+    const top = row * rowHeight;
+    for (const plank of plankRow(random, width)) {
+      const look = { plankRGB, seamColor, seamWidth, tone: 1 + (random() - 0.5) * PLANK_TONE, knot: random() < KNOT_CHANCE };
+      // 跨过右边的板子在左边再画一遍，图左右接得上
+      for (const shift of [0, -width]) {
+        paintPlank(context, random, plank.start + shift, top, plank.length, rowHeight, look);
+      }
     }
+
     context.fillStyle = seamColor;
-    context.fillRect(0, row * rowHeight, width, 3);
+    context.fillRect(0, top, width, seamWidth);
+    context.fillStyle = BEVEL_LIGHT;
+    context.fillRect(0, top + seamWidth, width, seamWidth / 2);
   }
+}
+
+/**
+ * 一排板子从哪儿开始、各多长：从随便一个地方开始，一块接一块，正好铺满一圈图宽
+ * @param {Function} random 返回 0~1 的随机数
+ * @param {number} width 图宽，像素
+ * @returns {{ start: number, length: number }[]}
+ */
+function plankRow(random, width) {
+  const shortest = PLANK_LENGTH[0] * width;
+  const longest = PLANK_LENGTH[1] * width;
+  const planks = [];
+  let start = random() * width;
+  let left = width;
+
+  while (left > 0) {
+    let length = shortest + random() * (longest - shortest);
+    // 剩下的不够一块短板，就并进这一块，接缝不会挤在一起
+    const tooLittleLeft = left - length < shortest;
+    if (tooLittleLeft) {
+      length = left;
+    }
+    planks.push({ start, length });
+    start += length;
+    left -= length;
+  }
+  return planks;
+}
+
+/**
+ * 画一块板：底色、几道木纹、可能有个木节，头上一道缝
+ * @param {CanvasRenderingContext2D} context 画布
+ * @param {Function} random 返回 0~1 的随机数
+ * @param {number} x 板子左边，像素（可能超出画布，超出的部分画不出来）
+ * @param {number} y 板子上边，像素
+ * @param {number} length 板子多长，像素
+ * @param {number} rowHeight 板子多宽（一排多高），像素
+ * @param {{ plankRGB: number[], seamColor: string, seamWidth: number, tone: number, knot: boolean }} look 这块板的颜色和样子
+ */
+function paintPlank(context, random, x, y, length, rowHeight, look) {
+  const [red, green, blue] = look.plankRGB.map((channel) => Math.round(Math.min(255, channel * look.tone)));
+  const [grainRed, grainGreen, grainBlue] = [red, green, blue].map((channel) => Math.round(channel * GRAIN_DARKEN));
+
+  context.save();
+  context.beginPath();
+  context.rect(x, y, length, rowHeight);
+  context.clip();
+  context.fillStyle = `rgb(${red},${green},${blue})`;
+  context.fillRect(x, y, length, rowHeight);
+
+  // 木纹：顺着板子的细线，慢慢上下起伏
+  context.strokeStyle = `rgba(${grainRed},${grainGreen},${grainBlue},${GRAIN_ALPHA})`;
+  context.lineWidth = Math.max(1, rowHeight / 22);
+  for (let i = 0; i < GRAIN_LINES; i++) {
+    const baseY = y + rowHeight * (0.15 + random() * 0.7);
+    const wave = rowHeight * GRAIN_WAVE * (0.5 + random());
+    const phase = random() * Math.PI * 2;
+    context.beginPath();
+    for (let step = 0; step <= GRAIN_SEGMENTS; step++) {
+      const along = x + (length * step) / GRAIN_SEGMENTS;
+      const lineY = baseY + Math.sin(phase + step * GRAIN_BEND) * wave;
+      if (step === 0) {
+        context.moveTo(along, lineY);
+      } else {
+        context.lineTo(along, lineY);
+      }
+    }
+    context.stroke();
+  }
+
+  if (look.knot) {
+    paintKnot(context, x + length * (0.2 + random() * 0.6), y + rowHeight * (0.3 + random() * 0.4), rowHeight, [grainRed, grainGreen, grainBlue]);
+  }
+  context.restore();
+
+  context.fillStyle = look.seamColor;
+  context.fillRect(x, y, look.seamWidth, rowHeight);
+}
+
+/**
+ * 木板上的一个小木节：一个深色的扁圆，外面一圈淡淡的纹
+ * @param {CanvasRenderingContext2D} context 画布
+ * @param {number} x 中心，像素
+ * @param {number} y 中心，像素
+ * @param {number} rowHeight 一排多高，木节按它定大小
+ * @param {number[]} grainRGB 木纹的颜色 [r, g, b]
+ */
+function paintKnot(context, x, y, rowHeight, grainRGB) {
+  const [red, green, blue] = grainRGB;
+  const size = rowHeight * 0.12;
+
+  context.fillStyle = `rgba(${red},${green},${blue},0.3)`;
+  context.beginPath();
+  context.ellipse(x, y, size * 1.8, size, 0, 0, Math.PI * 2);
+  context.fill();
+
+  context.strokeStyle = `rgba(${red},${green},${blue},0.12)`;
+  context.beginPath();
+  context.ellipse(x, y, size * 3.2, size * 1.8, 0, 0, Math.PI * 2);
+  context.stroke();
 }
 
 /**
