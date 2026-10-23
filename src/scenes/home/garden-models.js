@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { at, noiseAt } from '../../kit.js';
+import { roundedPart } from './materials.js';
 
 const FENCE_COLOR = '#fff6e8';
 const WOOD = '#c48a54';
@@ -46,7 +47,7 @@ export function picketFence(kit, length, seed) {
   group.add(pickets);
 
   for (const ratio of RAIL_HEIGHTS) {
-    group.add(at(kit.box(length, RAIL_SIZE, RAIL_SIZE, FENCE_COLOR, 0.01), length / 2, PICKET.height * ratio, -PICKET.thickness));
+    group.add(at(roundedPart(kit, length, RAIL_SIZE, RAIL_SIZE, FENCE_COLOR, 0.01), length / 2, PICKET.height * ratio, -PICKET.thickness));
   }
   for (let i = 0; i < count; i += POST.every) {
     group.add(fencePost(kit, PICKET.height + POST.extra, i * spacing));
@@ -64,7 +65,7 @@ export function picketFence(kit, length, seed) {
  */
 function fencePost(kit, height, x) {
   const post = new THREE.Group();
-  post.add(at(kit.box(POST.size, height, POST.size, FENCE_COLOR, 0.02), 0, height / 2, -PICKET.thickness));
+  post.add(at(roundedPart(kit, POST.size, height, POST.size, FENCE_COLOR, 0.02), 0, height / 2, -PICKET.thickness));
   post.add(at(kit.sphere(POST.size * 0.6, FENCE_COLOR, 10), 0, height + POST.size * 0.3, -PICKET.thickness));
   post.position.x = x;
   return post;
@@ -81,7 +82,7 @@ export function gardenGate(kit, width) {
   const group = new THREE.Group();
   const postHeight = PICKET.height + POST.extra * 2.5;
   for (const side of [-1, 1]) {
-    group.add(at(kit.box(POST.size * 1.3, postHeight, POST.size * 1.3, FENCE_COLOR, 0.03), side * width / 2, postHeight / 2, 0));
+    group.add(at(roundedPart(kit, POST.size * 1.3, postHeight, POST.size * 1.3, FENCE_COLOR, 0.03), side * width / 2, postHeight / 2, 0));
     group.add(at(kit.sphere(POST.size * 0.8, FENCE_COLOR, 12), side * width / 2, postHeight + POST.size * 0.4, 0));
   }
 
@@ -91,10 +92,10 @@ export function gardenGate(kit, width) {
   const boards = 4;
   for (let i = 0; i < boards; i++) {
     const x = ((i + 0.5) / boards) * doorWidth;
-    door.add(at(kit.box(PICKET.width, PICKET.height * 0.9, PICKET.thickness, FENCE_COLOR, 0.01), x, PICKET.height * 0.45, 0));
+    door.add(at(roundedPart(kit, PICKET.width, PICKET.height * 0.9, PICKET.thickness, FENCE_COLOR, 0.01), x, PICKET.height * 0.45, 0));
   }
   for (const ratio of RAIL_HEIGHTS) {
-    door.add(at(kit.box(doorWidth, RAIL_SIZE, RAIL_SIZE, FENCE_COLOR, 0.01), doorWidth / 2, PICKET.height * 0.9 * ratio, -PICKET.thickness));
+    door.add(at(roundedPart(kit, doorWidth, RAIL_SIZE, RAIL_SIZE, FENCE_COLOR, 0.01), doorWidth / 2, PICKET.height * 0.9 * ratio, -PICKET.thickness));
   }
   door.position.x = -width / 2 + POST.size * 0.65;
   door.rotation.y = -1.1;
@@ -111,17 +112,17 @@ export function gardenGate(kit, width) {
 export function mailbox(kit) {
   const group = new THREE.Group();
   const poleHeight = 0.62;
-  group.add(at(kit.box(0.07, poleHeight, 0.07, WOOD, 0.015), 0, poleHeight / 2, 0));
+  group.add(at(roundedPart(kit, 0.07, poleHeight, 0.07, WOOD, 0.015), 0, poleHeight / 2, 0));
 
   const box = new THREE.Group();
-  box.add(at(kit.box(0.22, 0.16, 0.34, '#e85d5d', 0.03), 0, 0, 0));
+  box.add(at(roundedPart(kit, 0.22, 0.16, 0.34, '#e85d5d', 0.03), 0, 0, 0));
   const roof = kit.cyl(0.11, 0.11, 0.34, '#e85d5d', 16);
   roof.rotation.x = Math.PI / 2;
   box.add(at(roof, 0, 0.08, 0));
-  box.add(at(kit.box(0.14, 0.08, 0.01, '#6b4f3a', 0.005), 0, 0.03, 0.172));
+  box.add(at(roundedPart(kit, 0.14, 0.08, 0.01, '#6b4f3a', 0.005), 0, 0.03, 0.172));
   // 小旗：竖起来的，说明里面有信
-  box.add(at(kit.box(0.015, 0.2, 0.015, '#6b4f3a', 0.004), 0.12, 0.12, -0.05));
-  box.add(at(kit.box(0.01, 0.07, 0.09, '#ffd84a', 0.004), 0.125, 0.19, -0.01));
+  box.add(at(roundedPart(kit, 0.015, 0.2, 0.015, '#6b4f3a', 0.004), 0.12, 0.12, -0.05));
+  box.add(at(roundedPart(kit, 0.01, 0.07, 0.09, '#ffd84a', 0.004), 0.125, 0.19, -0.01));
   group.add(at(box, 0, poleHeight + 0.08, 0));
   return group;
 }
@@ -174,10 +175,10 @@ export function porchStep(kit, width, height) {
   const group = new THREE.Group();
   const depth = 0.42;
   for (const side of [-1, 1]) {
-    group.add(at(kit.box(depth * 0.8, height - 0.05, 0.12, '#a0663a', 0.02), 0, (height - 0.05) / 2, side * (width / 2 - 0.12)));
+    group.add(at(roundedPart(kit, depth * 0.8, height - 0.05, 0.12, '#a0663a', 0.02), 0, (height - 0.05) / 2, side * (width / 2 - 0.12)));
   }
   for (const offset of [-0.1, 0.1]) {
-    group.add(at(kit.box(depth / 2 - 0.01, 0.05, width, '#d9a066', 0.015), offset, height - 0.025, 0));
+    group.add(at(roundedPart(kit, depth / 2 - 0.01, 0.05, width, '#d9a066', 0.015), offset, height - 0.025, 0));
   }
   return group;
 }

@@ -2,6 +2,7 @@
 // 人走近了它会抬头看过来，"喵"一声；人走开一会儿它又趴下睡了。只是好玩，不进存档
 import * as THREE from 'three';
 import { at } from '../../kit.js';
+import { roundedPart } from './materials.js';
 import { sfx } from '../../audio.js';
 import { makeBubble, bubbleTexture } from '../../fx.js';
 import { CAT } from './layout.js';
@@ -81,7 +82,7 @@ export function buildCat(kit) {
     return ear;
   });
   const eyes = [-1, 1].map((side) => {
-    const eye = kit.box(HEAD_RADIUS * 0.32, HEAD_RADIUS * 0.12, 0.02, EYE, 0.005);
+    const eye = roundedPart(kit, HEAD_RADIUS * 0.32, HEAD_RADIUS * 0.12, 0.02, EYE, 0.005);
     head.add(at(eye, side * HEAD_RADIUS * 0.42, HEAD_RADIUS * 0.72, HEAD_RADIUS * 1.5));
     return eye;
   });

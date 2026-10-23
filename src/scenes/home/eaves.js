@@ -1,6 +1,7 @@
 // 两面墙顶上的房檐：从屋里看得到屋顶的边，两段在后左墙角拼成屋脊
 import * as THREE from 'three';
 import { at } from '../../kit.js';
+import { roundedPart } from './materials.js';
 import { HOUSE } from './layout.js';
 
 // 房檐板压在墙顶木线上方一点，往屋外往下斜出去，也往屋里往上伸进来一截（像屋顶被切开，从屋里看得到屋顶的边）
@@ -86,7 +87,7 @@ function addShingles(kit, slab, edgesAt) {
   for (let row = firstRow; row <= lastRow; row++) {
     const y = row * EAVE.shingleRow - lip;
     const { start, end } = edgesAt(y);
-    const shingle = kit.box(end - start, lip * 2, 0.04, EAVE.shingleColor, 0.01);
+    const shingle = roundedPart(kit, end - start, lip * 2, 0.04, EAVE.shingleColor, 0.01);
     slab.add(at(shingle, (start + end) / 2, y, EAVE.thickness + 0.01));
   }
 }
@@ -100,7 +101,7 @@ function addShingles(kit, slab, edgesAt) {
  */
 function addFascia(kit, slab, edges, y) {
   const fasciaHeight = 0.2;
-  const fascia = kit.box(edges.end - edges.start, 0.06, fasciaHeight, EAVE.fasciaColor, 0.02);
+  const fascia = roundedPart(kit, edges.end - edges.start, 0.06, fasciaHeight, EAVE.fasciaColor, 0.02);
   slab.add(at(fascia, (edges.start + edges.end) / 2, y, EAVE.thickness - fasciaHeight / 2));
 }
 
