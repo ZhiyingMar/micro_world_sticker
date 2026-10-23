@@ -16,7 +16,8 @@ npm run build   # static build into dist/
 - `src/world.js` one world's container: colliders, items, villagers, repairs, pathfinding
 - `src/terrain.js` height map from a text map (see the spec in `TODO.md`, section 0)
 - `src/terrain-soft.js` the rounded, organic look for that terrain (natural worlds use it; the city keeps blocks)
-- `src/scenes/` one world per file, or one folder per world once it grows (e.g. `scenes/city/`, `scenes/forest/`)
+- `src/terrain-voxel.js` the small-voxel look for pixel-style worlds (the pixel town), with `src/voxel.js` for voxel models
+- `src/scenes/` one world per file, or one folder per world once it grows (e.g. `scenes/city/`, `scenes/forest/`, `scenes/pixel/`)
 - Test scenes open via URL, e.g. `?test=terrain`
 
 ## Core Principles
@@ -29,7 +30,7 @@ The target is a **cozy, handcrafted, living diorama** (think Animal Crossing, A 
 
 **Looks handcrafted**
 
-- **Hide the grid.** Cliffs and corners are rounded, shorelines and paths curve, water is one continuous surface. Natural worlds use `src/terrain-soft.js`; block terrain is only for places meant to be man-made (the city's sidewalks and retaining walls).
+- **Hide the grid.** Cliffs and corners are rounded, shorelines and paths curve, water is one continuous surface. Natural worlds use `src/terrain-soft.js`; pixel-style worlds use `src/terrain-voxel.js` (small voxels hide the 1×1 cells); big block terrain is only for places meant to be man-made (the city's sidewalks and retaining walls).
 - **Variation, not copies.** Anything that repeats comes in a few kinds (tree species, sizes, colors), each placed with its own rotation and scale. Give volumes a dark, base and light shade so they read as 3D, not as flat blobs.
 - **Composition is designed, not sprinkled.** Dense at the far edges to frame the scene, open clearings in the middle, only low things near the camera so they don't block the view. Small things grow where they naturally would: flowers by doors, along path edges and around tree trunks, not a uniform random scatter.
 - **Landmarks get room to breathe.** Buildings and big features each get their own spot with a clearing around it, linked by paths. Never line them up in a row or pack them into one corner.
