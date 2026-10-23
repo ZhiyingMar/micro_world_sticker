@@ -1,5 +1,5 @@
 import home from './home.js';
-import forest from './forest.js';
+import forest from './forest/index.js';
 import pixel from './pixel.js';
 import city from './city/index.js';
 import london from './london.js';
