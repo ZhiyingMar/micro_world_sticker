@@ -51,6 +51,23 @@ export function rng(seed) {
   };
 }
 
+/**
+ * 按位置算出来的随机数：同一个位置、同一个种子，每次都一样
+ * @description 给石头这种模型的顶点推一推时用。网格里同一个角常有好几个重复的顶点（每个面各存一份），
+ *   用 rng 一个个取的话它们会被推到不同的地方，面和面之间就裂开了；按位置算，重复的顶点推得一样
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @param {number} seed 换一个种子换一种样子
+ * @returns {number} 0 到 1 之间
+ */
+export function noiseAt(x, y, z, seed) {
+  // 先取到小数点后四位，计算误差不会让同一个角算出两个结果
+  const round = (value) => Math.round(value * 1e4) / 1e4;
+  const wave = Math.sin(round(x) * 12.9898 + round(y) * 78.233 + round(z) * 37.719 + seed * 0.618) * 43758.5453;
+  return wave - Math.floor(wave);
+}
+
 export class Kit {
   constructor(style) {
     this.style = style;

@@ -5,7 +5,7 @@
 // 圆角只在崖边很窄的一圈里，人本来就站不到离崖边那么近，所以人脚下的地面和逻辑高度对得上。
 // 夜都的人行道、挡土墙要方方正正，还用 Terrain.build 的方块；童话风的世界用这个
 import * as THREE from 'three';
-import { at, canvasTexture, rng } from './kit.js';
+import { at, canvasTexture, rng, noiseAt } from './kit.js';
 
 // 网格多细：每 1 单位切几段。越细圆角越顺，三角形越多
 const SAMPLES_PER_UNIT = 12;
@@ -680,8 +680,9 @@ function steppingStone(kit, color, seed, x, z) {
   const positions = geometry.getAttribute('position');
   const flatTop = STONE_RADIUS * STONE_FLATTEN * 0.7;
 
+  // 按位置推，同一个角的几个重复顶点推得一样，面和面之间不裂缝
   for (let i = 0; i < positions.count; i++) {
-    const bump = 1 + (random() - 0.5) * 2 * STONE_BUMPS / STONE_RADIUS;
+    const bump = 1 + (noiseAt(positions.getX(i), positions.getY(i), positions.getZ(i), seed) - 0.5) * 2 * STONE_BUMPS / STONE_RADIUS;
     const y = Math.min(positions.getY(i) * STONE_FLATTEN, flatTop);
     positions.setXYZ(i, positions.getX(i) * bump, y, positions.getZ(i) * bump);
   }
