@@ -17,6 +17,9 @@ const FLOOR_EDGE = WOOD;
 const WALL_EDGE = '#f3e6cf';
 // 窗框比墙面往屋里凸出来多少
 const WINDOW_INSET = 0.05;
+// 晒太阳：小人站在窗前离墙多远（z）、待多久
+const BASK_Z = -3.55;
+const BASK_TIME = 5;
 // 左墙上的钟：挂在哪、多大；分针停在哪（弧度），秒针一跳用多久（秒）
 const CLOCK = { x: -4.45, y: 2.9, z: -0.4, radius: 0.38, minuteAngle: 1.2, tickTime: 0.12 };
 
@@ -52,6 +55,8 @@ export function buildRoom(w) {
   const { wallpaper: wpMat, wainscot: wainscotMat } = buildWalls(w);
   const windowModel = buildWindow(k, WINDOW);
   w.add(windowModel.group, WINDOW.x, WINDOW.y, -(HOUSE.wallInner - WINDOW_INSET));
+  // 小人闲逛时会走到窗前，朝着窗外晒太阳
+  w.poi(WINDOW.x, BASK_Z, { emote: '☀', face: Math.PI, dur: BASK_TIME });
   // 窗台上的小盆栽
   const sill = new THREE.Group();
   sill.add(k.cyl(0.11, 0.08, 0.16, '#e07a5f', 14));

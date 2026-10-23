@@ -5,7 +5,6 @@
 //   layout.js     房子多大、镜头怎么看、工作台摆在哪、花园多大
 //   room.js       地板、两面墙（后墙开了窗洞）、墙上的画和时钟；换壁纸地板时换它们的贴图
 //   window.js     窗户的模型：窗框、玻璃、窗台、窗帘
-//   sunbeam.js    窗户斜照进来的光柱、地上的亮斑、光里的灰尘；小人会去亮斑里晒太阳
 //   materials.js  家具共用的材质：和地板一样的木纹、拼布被子、毛线坐垫、编织地毯、藤编
 //   furniture-models.js  家具的模型（只造不摆）：床、灯、书架、厨房、冰箱、茶桌、凳子、盆栽、收音机柜……
 //   furniture.js  把家具摆进屋里，登记碰撞和兴趣点（凳子挡人，小人一步坐上去）
@@ -23,7 +22,6 @@
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildRoom } from './room.js';
-import { placeSunbeam } from './sunbeam.js';
 import { placeCat } from './cat.js';
 import { createPuffs } from './puffs.js';
 import { bringToLife } from './life.js';
@@ -133,7 +131,6 @@ export default {
   ],
   build(world) {
     const room = buildRoom(world);
-    placeSunbeam(world);
     placeEaves(world);
     placeGarden(world);
     const furnitureKit = createFurnitureKit(world);
