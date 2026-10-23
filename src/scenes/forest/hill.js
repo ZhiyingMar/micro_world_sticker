@@ -1,6 +1,7 @@
 // 右后角的小山：山顶一座高塔，塔背后一圈花丛里藏着游戏卡带
 // 上山的路绕着山走：右边草地的台阶上山腰，沿山腰往左，再一级台阶上山顶
-import { fairyTower, flower, TOWER_BASE_RADIUS } from './models.js';
+import { fairyTower, TOWER_BASE_RADIUS } from './models.js';
+import { flowerField } from './plants.js';
 import { TOWER, FLOWER_RING, CARTRIDGE, TOWER_SPOT } from './layout.js';
 
 // 小旗摆得多快、摆多大角度（弧度）
@@ -52,6 +53,7 @@ function tower(world) {
  */
 function flowerRing(world) {
   const { from, to, count, radii } = FLOWER_RING;
+  const blooms = [];
 
   for (let i = 0; i < count; i++) {
     const angle = from + (i / (count - 1)) * (to - from);
@@ -64,8 +66,7 @@ function flowerRing(world) {
       continue;
     }
 
-    const bloom = flower(world.kit, RING_COLORS[i % RING_COLORS.length]);
-    bloom.scale.setScalar(RING_FLOWER_SCALE);
-    world.add(bloom, x, world.heightAt(x, z), z);
+    blooms.push({ x, y: world.heightAt(x, z), z, color: RING_COLORS[i % RING_COLORS.length], scale: RING_FLOWER_SCALE, turn: angle * 3 });
   }
+  world.root.add(flowerField(world.kit, blooms));
 }

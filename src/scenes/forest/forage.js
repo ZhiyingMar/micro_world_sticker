@@ -1,6 +1,7 @@
 // 翻蘑菇：灌木丛、树桩、落叶堆都能按 E 翻，每次进来随机挑几处长出小蘑菇
 // 这里只摆东西、登记能翻的地方；藏哪几处、藏几个由 layout 里的 MUSHROOM_HIDING 定
-import { bush, stump, leafPile } from './models.js';
+import { stump, leafPile } from './models.js';
+import { bush } from './plants.js';
 import { BUSHES, STUMPS, LEAF_PILES } from './layout.js';
 
 // 树桩有多粗：人绕着走

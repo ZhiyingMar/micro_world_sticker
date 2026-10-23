@@ -80,51 +80,6 @@ function capDots(kit, capRadius, capY, seed) {
 }
 
 /**
- * 圆圆的卡通树：一根树干，顶上三团树冠
- * @param {Kit} kit
- * @param {object} options
- * @param {number} options.trunkHeight 树干多高
- * @param {number} options.crownRadius 最大那团树冠的半径
- * @param {string} options.color 树冠的颜色
- * @param {string} options.trunk 树干的颜色
- * @returns {THREE.Group}
- */
-export function roundTree(kit, { trunkHeight = 1.1, crownRadius = 0.75, color = '#7fd06a', trunk = '#a0663a' } = {}) {
-  const group = new THREE.Group();
-  group.add(at(kit.cyl(0.11, 0.15, trunkHeight, trunk, 12), 0, trunkHeight / 2, 0));
-  group.add(at(kit.sphere(crownRadius, color, 20), 0, trunkHeight + crownRadius * 0.7, 0));
-  group.add(at(kit.sphere(crownRadius * 0.65, color, 16), crownRadius * 0.55, trunkHeight + crownRadius * 0.35, 0.1));
-  group.add(at(kit.sphere(crownRadius * 0.6, color, 16), -crownRadius * 0.5, trunkHeight + crownRadius * 0.45, -0.15));
-  return group;
-}
-
-/**
- * 一朵小花：细细的茎，五片花瓣，黄色花心
- * @param {Kit} kit
- * @param {string} color 花瓣的颜色
- * @returns {THREE.Group}
- */
-export function flower(kit, color) {
-  const group = new THREE.Group();
-  group.add(at(kit.cyl(0.012, 0.012, 0.16, '#5fae55', 5), 0, 0.08, 0));
-
-  const petals = 5;
-  for (let i = 0; i < petals; i++) {
-    const angle = (i / petals) * Math.PI * 2;
-    const petal = kit.sphere(0.035, color, 8);
-    petal.scale.y = 0.5;
-    group.add(at(petal, Math.cos(angle) * 0.04, 0.17, Math.sin(angle) * 0.04));
-  }
-  group.add(at(kit.sphere(0.025, '#ffd84a', 8), 0, 0.18, 0));
-
-  // 花太多了，都投影的话地上全是碎影子
-  group.traverse((child) => {
-    child.castShadow = false;
-  });
-  return group;
-}
-
-/**
  * 童话高塔：淡紫色的圆塔，顶上一圈垛口、粉色尖顶和一面小旗；门和两扇亮着的窗朝 +z
  * @param {Kit} kit
  * @returns {{ group: THREE.Group, flag: THREE.Group }} flag 是小旗，绕着旗杆转，用的地方让它飘
@@ -254,24 +209,6 @@ export function sidePebble(kit, radius) {
   const pebble = kit.sphere(radius, '#b3865a', 10);
   pebble.scale.z = 0.4;
   return pebble;
-}
-
-/**
- * 一丛圆圆的灌木：一大团，旁边挤着一小团
- * @param {Kit} kit
- * @param {number} radius 大的那团的半径
- * @returns {THREE.Group}
- */
-export function bush(kit, radius) {
-  const group = new THREE.Group();
-  const main = kit.sphere(radius, '#7fd06a', 14);
-  main.scale.y = 0.7;
-  group.add(at(main, 0, radius * 0.55, 0));
-
-  const side = kit.sphere(radius * 0.65, '#8fd17f', 12);
-  side.scale.y = 0.75;
-  group.add(at(side, radius * 0.7, radius * 0.4, radius * 0.3));
-  return group;
 }
 
 /**

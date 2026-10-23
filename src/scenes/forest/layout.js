@@ -65,20 +65,18 @@ export const CARTRIDGE = [4.5, -6.4];
 export const TOWER_SPOT = { x: 4.5, z: -4.6, face: 0.4 };
 
 // ---------- 树林 ----------
-// 树 [x, z, 样子]：样子是 trunkHeight 树干多高、crownRadius 树冠多大、color 树冠颜色，不写就是普通绿树
+// 显眼的几棵树 [x, z, 样子]：kind 是 round 圆冠树 / pine 松树 / poplar 杨树，size 大小（1 是普通），color 树冠颜色
+// 四周一圈树墙是 woods.js 按规则种的，这里只写有讲究的几棵
 export const TREES = [
-  [-6.4, -6.4, { crownRadius: 0.7, trunkHeight: 1.3, color: '#8fd17f' }], // 蘑菇村后面的角落
-  [-6.4, -0.6, { crownRadius: 0.55, trunkHeight: 0.9, color: '#b5e39a' }],
-  [-5.6, 1.4, { crownRadius: 0.7, trunkHeight: 0.95, color: '#ffb7d5' }], // 小土坡上，有人在树下打盹
-  [-6.4, 6.3, { crownRadius: 0.6, trunkHeight: 1.0 }],
-  [-3.0, 6.5, { crownRadius: 0.5, trunkHeight: 0.8, color: '#9ee08a' }],
-  [0.3, 6.5, { crownRadius: 0.55, trunkHeight: 0.85, color: '#ffb7d5' }],
-  [0.9, -5.6, { crownRadius: 1.0, trunkHeight: 1.4, color: '#7fd06a' }], // 山腰上的老树，从哪儿都看得见
-  [2.5, -6.5, { crownRadius: 0.5, trunkHeight: 0.8, color: '#b5e39a' }],
-  [3.4, -6.6, { crownRadius: 0.45, trunkHeight: 0.75, color: '#ffb7d5' }], // 山顶，挡在花丛后面
-  [3.9, -2.4, { crownRadius: 0.5, trunkHeight: 0.85, color: '#9ee08a' }],
-  [6.4, 0.6, { crownRadius: 0.6, trunkHeight: 0.95, color: '#ffb7d5' }],
-  [6.4, 3.4, { crownRadius: 0.5, trunkHeight: 0.75, color: '#9ee08a' }],
+  [-6.4, -0.6, { kind: 'poplar', size: 1.0 }],
+  [-5.6, 1.4, { kind: 'round', size: 1.0, color: '#ffb7d5' }], // 小土坡上，有人在树下打盹
+  [-3.0, 6.5, { kind: 'round', size: 0.7, color: '#9ee08a' }],
+  [0.3, 6.5, { kind: 'round', size: 0.75, color: '#ffb7d5' }],
+  [0.9, -5.6, { kind: 'round', size: 1.45, color: '#78c96a' }], // 山腰上的老树，从哪儿都看得见
+  [3.4, -6.6, { kind: 'round', size: 0.65, color: '#ffb7d5' }], // 山顶，挡在花丛后面
+  [3.9, -2.4, { kind: 'poplar', size: 0.9 }],
+  [6.4, 0.6, { kind: 'round', size: 0.85, color: '#ffb7d5' }],
+  [6.4, 3.4, { kind: 'pine', size: 0.8 }],
 ];
 // 有人在小土坡的树下打盹
 export const NAP_SPOT = { x: -4.9, z: 1.6, face: -Math.PI / 2 };
@@ -89,6 +87,16 @@ export const LOG = { x: -4.6, z: 4.7, radius: 0.36, length: 1.8 };
 export const HEART_INSET = 0.25;
 // 点木头时镜头从开口那头的哪个方向往里看（相对爱心）
 export const LOG_PEEK_FROM = [2.6, 0.8, 0.4];
+
+// 一片片花丛 [x, z, 半径, 几朵]：屋前、路边、树下的花是按规则长的，这里是另外几片空地上的
+export const FLOWER_PATCHES = [
+  [5.0, 6.0, 0.45, 16], // 栅栏后面，有人站着看
+  [-6.0, 0.6, 0.45, 12], // 小土坡上
+  [1.9, -4.4, 0.4, 9], // 山腰老树旁边
+  [-1.0, 2.6, 0.5, 12], // 出生点和池塘中间的空地
+  [4.6, -0.6, 0.45, 10], // 右边草地，钓鱼的地方后面
+  [-5.7, 3.5, 0.35, 8], // 空心木头后面
+];
 
 // 右边草地最前面一道白栅栏
 export const FENCE = { fromX: 3.5, toX: 6.6, z: 6.55 };

@@ -3,14 +3,15 @@
 //
 // 文件分工：
 //   layout.js    地形文字地图、各处东西的位置
-//   models.js    模型（只造不摆）
+//   models.js    模型（只造不摆）：屋子、塔、木头、栅栏、树桩……
+//   plants.js    植物模型：几种树、灌木、成片的花和草
 //   ground.js    地面：圆润的地形、深浅不一的草地、土路（paths.js 是路在哪）
 //   village.js   左后角的蘑菇屋村
 //   pond.js      池塘和小溪：岸边石头、荷叶，荷叶上的金币
 //   hill.js      右后角的小山：高塔、塔背后的花丛和卡带
-//   woods.js     树、空心木头（爱心在里面）、栅栏
 //   forage.js    灌木丛、树桩、落叶堆：能翻的地方，每次进来随机长小蘑菇
-//   scenery.js   满地小花、侧面小石头、萤火虫（最后撒，避开前面摆好的东西）
+//   woods.js     显眼的几棵树、四周的树墙、空心木头（爱心在里面）、栅栏
+//   scenery.js   一簇簇的花、满地草丛、侧面小石头、萤火虫
 //   people.js    居民和台词
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -104,8 +105,9 @@ export default {
     buildVillage(world);
     buildPond(world, ground);
     buildHill(world);
-    buildWoods(world);
     buildForage(world);
+    // 树墙、花、草要避开前面摆好的东西，最后种
+    buildWoods(world);
     buildScenery(world);
     createPeople(world);
   },
