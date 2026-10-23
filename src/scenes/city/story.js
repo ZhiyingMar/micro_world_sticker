@@ -10,7 +10,7 @@ import { foundIn, repairedIn } from '../../state.js';
 import { car } from './models.js';
 import { createPeople } from './people.js';
 import { MOON, TAXI_BAY, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
-import pixel from '../pixel.js';
+import pixel from '../pixel/index.js';
 
 export function createStory(w, { power, block, traffic }) {
   const progress = loadProgress(w);

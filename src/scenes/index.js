@@ -1,6 +1,6 @@
 import home from './home/index.js';
 import forest from './forest/index.js';
-import pixel from './pixel.js';
+import pixel from './pixel/index.js';
 import city from './city/index.js';
 import london from './london.js';
 import beach from './beach.js';

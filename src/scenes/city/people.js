@@ -1,6 +1,6 @@
 // 夜都的居民和他们的台词。台词跟着城市修好的程度变
 import { DRIVER_SEAT, STOOL, VILLAGERS } from './layout.js';
-import pixel from '../pixel.js';
+import pixel from '../pixel/index.js';
 
 const LOOKS = {
   yemao: { hair: '#2b2b33', shirt: '#3d4a6b', pants: '#2a2d38', shoes: '#1d1d24' },
