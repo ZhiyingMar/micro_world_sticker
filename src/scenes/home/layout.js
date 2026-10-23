@@ -35,6 +35,24 @@ export const WINDOW = { x: 1.5, y: 2.45, width: 1.8, height: 1.4 };
 
 // 圆地毯：中心和外圈半径（脚步声踩在上面是闷的）
 export const RUG = { x: 0.5, z: 0.4, radius: 1.75 };
+// 家具摆在哪：x、z，朝向（弧度，0 是正面朝 +z）。存档里不记家具，这就是小屋的样子
+export const FURNITURE = {
+  bed: { x: -3.4, z: -3.0 },
+  lamp: { x: -4.1, z: -1.05 },
+  shelf: { x: -1.0, z: -4.22 },
+  counter: { x: 2.6, z: -4.15 },
+  fridge: { x: 3.95, z: -4.0 },
+  plant: { x: -4.0, z: 1.4 },
+  // 收音机柜靠左墙，正面朝屋里（+x）
+  cabinet: { x: -4.15, z: 3.15, facing: Math.PI / 2 },
+  basket: { x: 3.9, z: 3.7 },
+  slippers: { x: -2.0, z: -1.2 },
+};
+// 茶桌旁边的两张凳子：在哪、坐垫什么颜色，坐上去的人头上冒什么
+export const STOOLS = [
+  { x: -0.75, z: 0.75, color: '#f6a6b8', emote: '☕' },
+  { x: 1.75, z: 0.65, color: '#8ec5e8', emote: '🍪' },
+];
 // 地上那团毛线球一开始在哪（人踢一下会滚走）
 export const YARN_BALL = { x: 2.35, z: 3.6 };
 // 小猫蜷在毛线篮旁边睡觉，头朝哪边（弧度，0 朝 +z；朝着镜头偏右，看得到它的脸）

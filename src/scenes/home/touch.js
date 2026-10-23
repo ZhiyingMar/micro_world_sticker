@@ -3,6 +3,7 @@
 // 这些反应只是好玩，不改进度、不进存档
 import * as THREE from 'three';
 import { sfx } from '../../audio.js';
+import { yarnBall } from './furniture-models.js';
 import { RUG, YARN_BALL } from './layout.js';
 
 // 毛线球：多大、什么颜色；人碰到它时踢出去多快（每秒），在地板上每秒剩多少速度，撞到墙和家具弹回来剩多少速度
@@ -53,20 +54,12 @@ function footstep(player, lastStep) {
 // ---------- 毛线球 ----------
 
 /**
- * 地上一团毛线球，绕着几圈线
+ * 地上一团毛线球（和毛线篮里的一样）
  * @param {World} world
  * @returns {{ mesh: THREE.Group, velocity: THREE.Vector2, quietFor: number }}
  */
 function placeYarnBall(world) {
-  const kit = world.kit;
-  const mesh = new THREE.Group();
-  mesh.add(kit.sphere(YARN.radius, YARN.color, 14));
-  // 几圈缠着的线，斜着套在球上，滚起来看得出在转
-  for (const tilt of [0.5, -0.7, 1.4]) {
-    const loop = kit.torus(YARN.radius * 0.98, YARN.radius * 0.12, '#f08aa3');
-    loop.rotation.set(tilt, tilt * 0.6, 0);
-    mesh.add(loop);
-  }
+  const mesh = yarnBall(world.kit, YARN.radius, YARN.color);
   world.add(mesh, YARN_BALL.x, world.heightAt(YARN_BALL.x, YARN_BALL.z) + YARN.radius, YARN_BALL.z);
   return { mesh, velocity: new THREE.Vector2(), quietFor: 0 };
 }

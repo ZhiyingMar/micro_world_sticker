@@ -1,9 +1,10 @@
 // 房间本身：地板、后墙（开了窗洞）和左墙、墙裙顶线、窗户、墙上的画和时钟，换壁纸地板时只换它们的贴图
 import * as THREE from 'three';
 import { at, canvasTexture } from '../../kit.js';
+import { roundedPart } from './materials.js';
 import { makeStarField } from '../../fx.js';
 import { currentDecor, decorTexture } from '../../decor.js';
-import { WOOD, WOOD_DARK } from './furniture.js';
+import { WOOD, WOOD_DARK } from './furniture-models.js';
 import { buildWindow } from './window.js';
 import { HOUSE, WINDOW } from './layout.js';
 
@@ -61,8 +62,8 @@ export function buildRoom(w) {
 
   // 墙上的画 & 时钟
   const frame = new THREE.Group();
-  frame.add(k.box(1.1, 0.85, 0.08, '#c48a54', 0.04));
-  const art = k.box(0.9, 0.65, 0.04, '#bde3f2', 0.01);
+  frame.add(roundedPart(k, 1.1, 0.85, 0.08, '#c48a54', 0.04));
+  const art = roundedPart(k, 0.9, 0.65, 0.04, '#bde3f2', 0.01);
   art.position.z = 0.04;
   frame.add(art);
   const hill = k.sphere(0.3, '#8fd17f', 16);
@@ -122,10 +123,10 @@ function placeClock(world) {
   const minuteHand = new THREE.Group();
   minuteHand.position.x = handsOut;
   minuteHand.rotation.x = CLOCK.minuteAngle;
-  minuteHand.add(at(kit.box(0.02, 0.18, 0.03, '#6b4f3a', 0.005), 0, 0.08, 0));
+  minuteHand.add(at(roundedPart(kit, 0.02, 0.18, 0.03, '#6b4f3a', 0.005), 0, 0.08, 0));
   const secondHand = new THREE.Group();
   secondHand.position.x = handsOut + 0.01;
-  secondHand.add(at(kit.box(0.015, 0.26, 0.02, '#e85d5d', 0.005), 0, 0.1, 0));
+  secondHand.add(at(roundedPart(kit, 0.015, 0.26, 0.02, '#e85d5d', 0.005), 0, 0.1, 0));
   clock.add(minuteHand, secondHand, at(kit.sphere(0.03, '#6b4f3a', 10), handsOut + 0.02, 0, 0));
   world.add(clock, CLOCK.x, CLOCK.y, CLOCK.z);
 
@@ -163,12 +164,12 @@ function buildWalls(world) {
 
   // 墙裙 + 顶线（老的尺寸，和墙的内侧面对齐）
   const wainscot = new THREE.MeshStandardMaterial({ roughness: 0.82 });
-  world.add(kit.box(9.6, 1.1, 0.06, wainscot, 0.02), 0, 0.55, -4.48);
-  world.add(kit.box(0.06, 1.1, 9.6, wainscot, 0.02), -4.48, 0.55, 0);
-  world.add(kit.box(9.7, 0.08, 0.1, '#ffffff', 0.03), 0, 1.12, -4.47);
-  world.add(kit.box(0.1, 0.08, 9.7, '#ffffff', 0.03), -4.47, 1.12, 0);
-  world.add(kit.box(9.9, 0.22, 0.42, '#e7c9a0', 0.08), 0, 4.25, -4.65);
-  world.add(kit.box(0.42, 0.22, 9.9, '#e7c9a0', 0.08), -4.65, 4.25, 0);
+  world.add(roundedPart(kit, 9.6, 1.1, 0.06, wainscot, 0.02), 0, 0.55, -4.48);
+  world.add(roundedPart(kit, 0.06, 1.1, 9.6, wainscot, 0.02), -4.48, 0.55, 0);
+  world.add(roundedPart(kit, 9.7, 0.08, 0.1, '#ffffff', 0.03), 0, 1.12, -4.47);
+  world.add(roundedPart(kit, 0.1, 0.08, 9.7, '#ffffff', 0.03), -4.47, 1.12, 0);
+  world.add(roundedPart(kit, 9.9, 0.22, 0.42, '#e7c9a0', 0.08), 0, 4.25, -4.65);
+  world.add(roundedPart(kit, 0.42, 0.22, 9.9, '#e7c9a0', 0.08), -4.65, 4.25, 0);
   return { wallpaper, wainscot };
 }
 
@@ -220,7 +221,7 @@ function buildFloor(world) {
   world.add(floor, 0, -HOUSE.floorThickness / 2, 0);
 
   const foundationSize = size + FOUNDATION.overhang * 2;
-  world.add(kit.box(foundationSize, FOUNDATION.height, foundationSize, WOOD_DARK, FOUNDATION.radius), 0, FOUNDATION.y, 0);
+  world.add(roundedPart(kit, foundationSize, FOUNDATION.height, foundationSize, WOOD_DARK, FOUNDATION.radius), 0, FOUNDATION.y, 0);
   return floorMaterial;
 }
 
