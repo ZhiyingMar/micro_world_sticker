@@ -1,0 +1,127 @@
+// 我的小屋 —— 动森风的温馨房间，起始世界
+// 只有后墙和左墙两面墙，镜头从右前方斜着看进来；外面一圈花园只是看的，人走不出屋子
+//
+// 文件分工：
+//   layout.js     房子多大、镜头怎么看、工作台摆在哪、花园多大
+//   room.js       地板、两面墙、窗户、墙上的画和时钟；换壁纸地板时换它们的贴图
+//   furniture.js  屋里的家具，摆好登记碰撞和兴趣点
+//   workbench.js  工作台：走过去按 E 换壁纸、地板
+//   eaves.js      墙顶的房檐
+//   garden.js     屋外一圈花园：草地、篱笆、小路、花、灌木、树
+//   people.js     居民和台词
+import * as THREE from 'three';
+import { at } from '../../kit.js';
+import { buildRoom } from './room.js';
+import { buildFurniture } from './furniture.js';
+import { placeWorkbench } from './workbench.js';
+import { placeEaves } from './eaves.js';
+import { placeGarden } from './garden.js';
+import { createPeople } from './people.js';
+import {
+  CAMERA_POS,
+  CAMERA_TARGET,
+  CAMERA_TURN,
+  CAMERA_TILT,
+  CAMERA_START_TILT,
+  CAMERA_AZIMUTH,
+  ROOM_SIZE,
+  CAMERA_MIN_DISTANCE,
+  GARDEN_SIZE,
+  BOUNDS,
+  SPAWN,
+} from './layout.js';
+
+export default {
+  id: 'home',
+  name: '我的小屋',
+  emoji: '🏠',
+  style: 'cozy',
+  styleLabel: '动森风 · 起点',
+  magnetStyle: 'cozy',
+  bg: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
+  lights: {
+    hemi: ['#fff4e0', '#c8a27a', 1.7],
+    sun: ['#fff1d6', 2.4, [6, 11, 7]],
+  },
+  // 拉远最多到屋子填满画面（花园只在边上露一点），拉近随意，转动只在斜着看的一小段里
+  camera: {
+    pos: CAMERA_POS,
+    target: CAMERA_TARGET,
+    fitH: 4.4,
+    minAz: CAMERA_AZIMUTH - CAMERA_TURN,
+    maxAz: CAMERA_AZIMUTH + CAMERA_TURN,
+    minPolar: CAMERA_TILT[0],
+    maxPolar: CAMERA_TILT[1],
+    startAz: CAMERA_AZIMUTH,
+    startPolar: CAMERA_START_TILT,
+    fitSize: ROOM_SIZE,
+    min: CAMERA_MIN_DISTANCE,
+  },
+  // 整个方块算上花园；人只能在屋里走（bounds），走不到花园里
+  size: [GARDEN_SIZE, GARDEN_SIZE],
+  bounds: BOUNDS,
+  spawn: SPAWN,
+  // 第一次进来时，这个小人会主动打招呼
+  greet: { name: '小橘', text: '你醒啦！冰箱上的每一块冰箱贴里，都藏着一个小世界哦。先在屋里找找 3 样亮晶晶的东西吧～' },
+  next: 'forest',
+  items: [
+    {
+      id: 'mushroom',
+      name: '红蘑菇',
+      icon: '🍄',
+      hint: '绿意盎然的地方',
+      make(k) {
+        const g = new THREE.Group();
+        g.add(at(k.cyl(0.045, 0.06, 0.12, '#fff3dd', 12), 0, 0.06, 0));
+        const cap = k.dome(0.11, '#e8443a', Math.PI / 2, 20, { emissive: '#e8443a', emissiveIntensity: 0.25 });
+        cap.scale.y = 0.8;
+        g.add(at(cap, 0, 0.1, 0));
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          g.add(at(k.sphere(0.022, '#ffffff', 8), Math.cos(a) * 0.07, 0.16, Math.sin(a) * 0.07));
+        }
+        g.add(at(k.sphere(0.022, '#ffffff', 8), 0, 0.19, 0));
+        g.scale.setScalar(1.3);
+        return g;
+      },
+    },
+    {
+      id: 'book',
+      name: '童话书',
+      icon: '📖',
+      hint: '睡觉的地方，低头看看',
+      make(k) {
+        const g = new THREE.Group();
+        g.add(k.box(0.34, 0.07, 0.26, '#8a5ad6', 0.02, { emissive: '#8a5ad6', emissiveIntensity: 0.2 }));
+        g.add(at(k.box(0.31, 0.05, 0.24, '#fffaf0', 0.01), 0.02, 0, 0));
+        const st = k.star(0.06, '#ffd84a', 0.02, { emissive: '#ffd84a', emissiveIntensity: 0.6 });
+        st.rotation.x = -Math.PI / 2;
+        g.add(at(st, 0, 0.045, 0));
+        g.rotation.y = 0.4;
+        return g;
+      },
+    },
+    {
+      id: 'star',
+      name: '魔法星星',
+      icon: '⭐',
+      hint: '高高的、凉凉的地方',
+      make(k) {
+        return k.star(0.16, '#ffd84a', 0.07, { emissive: '#ffc83a', emissiveIntensity: 0.7 });
+      },
+    },
+  ],
+  build(world) {
+    const room = buildRoom(world);
+    placeEaves(world);
+    placeGarden(world, GARDEN_SIZE);
+    buildFurniture(world);
+    placeWorkbench(world, room);
+
+    world.placeItem('mushroom', -3.86, 0.6, 1.66, { spin: false });
+    world.placeItem('book', -2.55, 0.06, -2.5, { spin: false });
+    world.placeItem('star', 3.95, 2.5, -4.0);
+
+    createPeople(world);
+  },
+};
