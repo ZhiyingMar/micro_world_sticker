@@ -238,6 +238,7 @@ function loadScene(id) {
   world = new World(def, {
     hemi,
     sun,
+    camera,
     toast: (t) => ui.toast(t),
     onChange: () => refreshGoal(),
     onMaterial: () => ui.renderMaterials(world.def),

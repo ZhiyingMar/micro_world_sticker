@@ -26,7 +26,7 @@ export function ghostify(obj) {
 export class World {
   constructor(def, env = {}) {
     this.def = def;
-    this.env = env; // { hemi, sun, toast, onChange }：场景里改灯光（比如闪电）、弹提示、通知界面刷新
+    this.env = env; // { hemi, sun, camera, toast, onChange }：场景里改灯光（比如闪电）、看镜头在哪（像素小镇的云）、弹提示、通知界面刷新
     this.kit = new Kit(def.style);
     this.root = new THREE.Group();
     this.colliders = [];
@@ -216,6 +216,18 @@ export class World {
 
   solidCircle(x, z, r) {
     this.colliders.push({ type: 'circle', x, z, r });
+  }
+
+  /**
+   * 登记一块长方形的障碍（和 x、z 轴对齐）
+   * @description 房子这种带屋檐、门前石阶的模型，包围盒比墙大一圈，用 solid() 会把门口也挡住；直接按墙的范围登记
+   * @param {number} minX
+   * @param {number} maxX
+   * @param {number} minZ
+   * @param {number} maxZ
+   */
+  solidBox(minX, maxX, minZ, maxZ) {
+    this.colliders.push({ type: 'box', minX, maxX, minZ, maxZ });
   }
 
   blocked(x, z, r, self) {
