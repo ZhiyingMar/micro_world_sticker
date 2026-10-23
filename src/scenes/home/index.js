@@ -9,7 +9,10 @@
 //   furniture.js  屋里的家具，摆好登记碰撞和兴趣点
 //   workbench.js  工作台：走过去按 E 换壁纸、地板
 //   eaves.js      墙顶的房檐
-//   garden.js     屋外一圈花园：草地、篱笆、小路、花、灌木、树
+//   garden.js     屋外一圈花园：篱笆院门、小路和台阶、几种树和灌木、窗外的向日葵、成簇的花、草丛、蝴蝶、风
+//   garden-ground.js  花园的地面：圆角的草地方块、深浅草色和土路、侧面的土层和小石头
+//   garden-models.js  花园里的小模型：尖头篱笆、院门、信箱、向日葵、木台阶、踏脚石
+//   garden-path.js    小路在哪：连成曲线，算一点离路多远
 //   cat.js        毛线篮旁边睡觉的小猫：呼吸、甩尾巴，人走近会抬头"喵"一声
 //   puffs.js      软软的一小团雾：热气、撞家具扬起的灰
 //   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
@@ -129,7 +132,7 @@ export default {
     const room = buildRoom(world);
     placeSunbeam(world);
     placeEaves(world);
-    placeGarden(world, GARDEN_SIZE);
+    placeGarden(world);
     const furniture = buildFurniture(world);
     const workbench = placeWorkbench(world, room);
     placeCat(world);
