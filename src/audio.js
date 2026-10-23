@@ -93,6 +93,8 @@ const AMBIENT = {
   forest: { vol: 0.05, lowpass: 1400, birds: true },
   // 小屋：屋里很轻的底噪（闷闷的，像隔着窗户的风），窗外隔一会儿有鸟叫
   home: { vol: 0.025, lowpass: 700, birds: true },
+  // 像素小镇：轻轻的风声，鸟叫是三角波的 8-bit 叫声
+  pixel: { vol: 0.035, lowpass: 1100, birds: true, birdWave: 'triangle' },
 };
 
 // 鸟叫：隔几秒（随机）一只鸟叫几声，音高、几声都随机，声音很小，只是背景
@@ -107,16 +109,22 @@ const BIRD_SLIDE = 1.25;
 const BIRD_HOP = 0.12;
 let birdTimer = null;
 
+// 像素小镇的台阶音：从哪个音开始（赫兹，C5），五声音阶（离开始那个音几个半音）
+const STAIR_BASE_PITCH = 523.25;
+const STAIR_SCALE = [0, 2, 4, 7, 9];
+
 /**
  * 一只鸟叫几声：高高的短音，一高一低，每声往上滑一点
  */
 function chirp() {
   const pitch = BIRD_PITCH[0] + Math.random() * (BIRD_PITCH[1] - BIRD_PITCH[0]);
   const notes = BIRD_NOTES[0] + Math.floor(Math.random() * (BIRD_NOTES[1] - BIRD_NOTES[0] + 1));
+  // 各个世界的鸟叫音色不一样（像素小镇是 8-bit 的），没写就是圆圆的正弦波
+  const wave = AMBIENT[ambientKind]?.birdWave ?? 'sine';
   for (let i = 0; i < notes; i++) {
     const high = i % 2 === 1;
     const frequency = high ? pitch * (1 + BIRD_HOP) : pitch;
-    tone(frequency, i * BIRD_NOTE_GAP, BIRD_NOTE_LENGTH, { type: 'sine', vol: BIRD_VOLUME, slide: BIRD_SLIDE });
+    tone(frequency, i * BIRD_NOTE_GAP, BIRD_NOTE_LENGTH, { type: wave, vol: BIRD_VOLUME, slide: BIRD_SLIDE });
   }
 }
 
@@ -329,6 +337,37 @@ export const sfx = {
   meow() {
     tone(560, 0, 0.2, { type: 'triangle', vol: 0.11, slide: 1.4 });
     tone(780, 0.16, 0.3, { type: 'triangle', vol: 0.09, slide: 0.65 });
+  },
+  /**
+   * 像素小镇的台阶上走一步："叮"一个 8-bit 的音，站得越高音越高
+   * @description 音按五声音阶排，怎么连着走都好听；往上走就是一段往上爬的音阶
+   * @param {number} step 第几级台阶（从 0 层地面往上数，可以是负的）
+   */
+  stairNote(step) {
+    const octave = Math.floor(step / STAIR_SCALE.length);
+    const degree = ((step % STAIR_SCALE.length) + STAIR_SCALE.length) % STAIR_SCALE.length;
+    const frequency = STAIR_BASE_PITCH * 2 ** ((octave * 12 + STAIR_SCALE[degree]) / 12);
+    tone(frequency, 0, 0.12, { type: 'square', vol: 0.035 });
+    tone(frequency * 2, 0, 0.07, { type: 'triangle', vol: 0.03 });
+  },
+  /**
+   * 小鸡叫："咯咯哒"（受惊）或者轻轻"咕"一声（闲着）
+   * @param {boolean} soft 闲着时那一声，很轻
+   */
+  cluck(soft) {
+    if (soft) {
+      tone(620, 0, 0.07, { type: 'square', vol: 0.015, slide: 0.8 });
+      return;
+    }
+    tone(720, 0, 0.06, { type: 'square', vol: 0.04, slide: 0.75 });
+    tone(760, 0.08, 0.06, { type: 'square', vol: 0.04, slide: 0.75 });
+    tone(980, 0.17, 0.12, { type: 'square', vol: 0.045, slide: 0.6 });
+    noiseBurst({ highpass: 1800, lowpass: 5000, duration: 0.15, volume: 0.05 });
+  },
+  // 碰到灌木：沙沙两下
+  rustle() {
+    noiseBurst({ highpass: 1500, lowpass: 5000, duration: 0.14, volume: 0.1 });
+    setTimeout(() => noiseBurst({ highpass: 1800, lowpass: 6000, duration: 0.18, volume: 0.07 }), 90);
   },
   // 蝴蝶被惊飞：轻轻几下“扑棱”
   flutter() {

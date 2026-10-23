@@ -22,7 +22,7 @@
  * @property {ItemDef[]} items 要找的东西
  * @property {(world: import('./world.js').World) => void} build 搭场景
  * @property {Greet | ((world: import('./world.js').World) => Greet)} [greet] 第一次进来谁主动打招呼
- * @property {'rain' | 'city' | 'sea' | 'forest' | 'home'} [ambient] 环境声
+ * @property {'rain' | 'city' | 'sea' | 'forest' | 'home' | 'pixel'} [ambient] 环境声
  * @property {{ map: string[], level?: number }} [terrain] 有高低的地面，见 terrain.js
  * @property {[number, number]} [size] 没有地形时世界多大 [宽, 深]
  * @property {{ minX?: number, maxX?: number, minZ?: number, maxZ?: number }} [bounds] 人能走的范围
