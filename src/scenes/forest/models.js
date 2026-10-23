@@ -268,3 +268,83 @@ export function sidePebble(kit, radius) {
   pebble.scale.z = 0.4;
   return pebble;
 }
+
+/**
+ * 一丛圆圆的灌木：一大团，旁边挤着一小团
+ * @param {Kit} kit
+ * @param {number} radius 大的那团的半径
+ * @returns {THREE.Group}
+ */
+export function bush(kit, radius) {
+  const group = new THREE.Group();
+  const main = kit.sphere(radius, '#7fd06a', 14);
+  main.scale.y = 0.7;
+  group.add(at(main, 0, radius * 0.55, 0));
+
+  const side = kit.sphere(radius * 0.65, '#8fd17f', 12);
+  side.scale.y = 0.75;
+  group.add(at(side, radius * 0.7, radius * 0.4, radius * 0.3));
+  return group;
+}
+
+/**
+ * 树桩：一截矮矮的树干，顶上一圈浅色年轮，底下几条树根
+ * @param {Kit} kit
+ * @returns {THREE.Group} 半径大约 0.3
+ */
+export function stump(kit) {
+  const group = new THREE.Group();
+  const height = 0.3;
+  group.add(at(kit.cyl(0.24, 0.3, height, '#a0663a', 14), 0, height / 2, 0));
+  group.add(at(kit.cyl(0.235, 0.235, 0.02, '#e3b787', 14), 0, height + 0.01, 0));
+
+  const roots = 3;
+  for (let i = 0; i < roots; i++) {
+    const angle = (i / roots) * Math.PI * 2 + 0.4;
+    const root = kit.box(0.1, 0.08, 0.22, '#8a5a3a', 0.03);
+    root.rotation.y = angle;
+    group.add(at(root, Math.sin(angle) * 0.28, 0.04, Math.cos(angle) * 0.28));
+  }
+  return group;
+}
+
+/**
+ * 一堆落叶：几片压扁的橙黄色叶子堆成小山
+ * @param {Kit} kit
+ * @param {number} seed 叶子怎么堆，同一个数每次都一样
+ * @returns {THREE.Group} 半径大约 0.35
+ */
+export function leafPile(kit, seed) {
+  const random = rng(seed);
+  const colors = ['#e8a94f', '#d98a3a', '#f2c55c'];
+  const group = new THREE.Group();
+
+  const leaves = 8;
+  for (let i = 0; i < leaves; i++) {
+    const angle = random() * Math.PI * 2;
+    const distance = random() * 0.22;
+    const leaf = kit.sphere(0.12 + random() * 0.06, colors[i % colors.length], 10);
+    leaf.scale.y = 0.35;
+    // 越靠中间堆得越高
+    const height = 0.04 + (0.22 - distance) * 0.5;
+    group.add(at(leaf, Math.cos(angle) * distance, height, Math.sin(angle) * distance));
+  }
+  return group;
+}
+
+/**
+ * 能捡的小蘑菇（森林的材料）：白色的菌柄，橙色的小圆帽
+ * @description 帽子用亮橙色，长在棕色树桩脚下、绿草丛里都一眼看得出来
+ * @param {Kit} kit
+ * @returns {THREE.Group} 立在地上，大约 0.18 高
+ */
+export function mushroomPickup(kit) {
+  const group = new THREE.Group();
+  const stemHeight = 0.11;
+  group.add(at(kit.cyl(0.032, 0.04, stemHeight, '#fff3dd', 10), 0, stemHeight / 2, 0));
+
+  const cap = kit.dome(0.09, '#f07f45', Math.PI / 2, 14);
+  cap.scale.y = CAP_FLATTEN;
+  group.add(at(cap, 0, stemHeight - 0.01, 0));
+  return group;
+}

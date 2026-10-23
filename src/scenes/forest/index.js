@@ -8,6 +8,7 @@
 //   pond.js      池塘和小溪：岸边石头、荷叶，荷叶上的金币
 //   hill.js      右后角的小山：高塔、塔背后的花丛和卡带
 //   woods.js     树、空心木头（爱心在里面）、栅栏
+//   forage.js    灌木丛、树桩、落叶堆：能翻的地方，每次进来随机长小蘑菇
 //   scenery.js   小路石板、满地小花、侧面小石头、萤火虫（最后撒，避开前面摆好的东西）
 //   people.js    居民和台词
 import * as THREE from 'three';
@@ -16,9 +17,11 @@ import { buildVillage } from './village.js';
 import { buildPond } from './pond.js';
 import { buildHill } from './hill.js';
 import { buildWoods } from './woods.js';
+import { buildForage } from './forage.js';
 import { buildScenery } from './scenery.js';
 import { createPeople } from './people.js';
-import { MAP, LEVEL, SPAWN, FIT_HEIGHT } from './layout.js';
+import { mushroomPickup } from './models.js';
+import { MAP, LEVEL, SPAWN, FIT_HEIGHT, MUSHROOM_HIDING } from './layout.js';
 
 export default {
   id: 'forest',
@@ -38,6 +41,10 @@ export default {
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '波波', text: '哇，新面孔！欢迎来到童话森林～听说这里藏着几样“像素的东西”。' },
   next: 'pixel',
+  // 森林的材料：灌木丛、树桩、落叶堆里翻出来的小蘑菇，以后回家合成用
+  materials: [{ id: 'mushroom', name: '小蘑菇', icon: '🍄', make: mushroomPickup }],
+  // 每次进来藏在哪：灌木丛、树桩、落叶堆，都要翻找
+  scatter: MUSHROOM_HIDING,
   items: [
     {
       id: 'coin',
@@ -96,6 +103,7 @@ export default {
     buildPond(world);
     buildHill(world);
     buildWoods(world);
+    buildForage(world);
     buildScenery(world);
     createPeople(world);
   },
