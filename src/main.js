@@ -13,32 +13,37 @@ import { updateOccluders } from './occlusion.js';
 /** @typedef {import('./types.js').GameDef} GameDef */
 
 const canvas = document.getElementById('c');
-// stencil：人被挡住时画剪影要用
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, stencil: true });
-renderer.setClearColor(0x000000, 0);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+// 创建渲染器 stencil：人被挡住时画剪影要用
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,//开启抗锯齿
+  alpha: true,//允许渲染器的画布背景透明
+  stencil: true //启用模板缓冲区
+});
+renderer.setClearColor(0x000000, 0);//每次绘制前用来“擦除”画布的颜色
+renderer.shadowMap.enabled = true;//开启阴影映射
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;//阴影的边缘产生半透明的渐变过渡，避免出现硬邦邦、锯齿明显的“块状”边缘
+renderer.outputColorSpace = THREE.SRGBColorSpace;//色彩空间校正
 
 const scene = new THREE.Scene();
 // 2.5D：视野窄、镜头拉远，透视变形小，像在看一个小立体模型
 const FOV = 20;
-// 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变
+// 镜头距离都是按原来 32° 视野调的，换了视野按这个比例拉远，画面里东西的大小不变--既保留立体感，又让城市更像摆在桌面上的微缩场景
 const ZOOM = Math.tan(THREE.MathUtils.degToRad(16)) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.5, 250);
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.zoomToCursor = true;
-controls.maxDistance = 26 * ZOOM;
-controls.rotateSpeed = 0.7;
+controls.enableDamping = true;      // 开启惯性阻尼
+controls.dampingFactor = 0.08;      // 阻尼强度
+controls.zoomToCursor = true;       // 缩放朝向鼠标位置
+controls.maxDistance = 26 * ZOOM;   // 相机离目标点的最远距离
+controls.rotateSpeed = 0.7;         // 旋转灵敏度
 
 // 灯光
 const hemi = new THREE.HemisphereLight('#ffffff', '#888888', 1.5);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight('#ffffff', 2.5);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(2048, 2048);//阴影贴图分辨率
 Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 });
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
