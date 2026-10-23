@@ -5,7 +5,7 @@ import { rng } from '../../kit.js';
 import { hollowLog, picketFence } from './models.js';
 import { tree, bush } from './plants.js';
 import { distanceToPath, PATH_HALF_WIDTH } from './paths.js';
-import { TREES, NAP_SPOT, LOG, HEART_INSET, LOG_PEEK_FROM, FENCE, FLOWER_SPOT, SPAWN, VILLAGERS } from './layout.js';
+import { TREES, NAP_SPOT, LOG, HEART_INSET, LOG_PEEK_FROM, FENCE, FLOWER_SPOT, SPAWN, VILLAGERS, HOUSES, HOUSE_CLEARING } from './layout.js';
 
 // 树干有多粗：人绕着树干走，树冠不挡
 const TRUNK_RADIUS = 0.2;
@@ -209,7 +209,8 @@ function insideEdge(world, [x, z]) {
 
 /**
  * 这里能不能种树墙的一棵树（或者一丛灌木）
- * @description 要是平地、不贴着崖边、周围没东西、不压着小路，也不挡着人会去的地方
+ * @description 要是平地、不贴着崖边、周围没东西、不压着小路，也不挡着人会去的地方；
+ *   蘑菇屋周围留一块空地，树不挤着屋子长
  * @param {World} world
  * @param {number} x
  * @param {number} z
@@ -225,6 +226,10 @@ function roomForTree(world, x, z) {
     return false;
   }
   if (distanceToPath(x, z) < PATH_HALF_WIDTH + CLEAR_OF_PATH) {
+    return false;
+  }
+  const inHouseClearing = HOUSES.some((house) => Math.hypot(x - house.x, z - house.z) < house.capRadius + HOUSE_CLEARING);
+  if (inHouseClearing) {
     return false;
   }
   return !keepClearSpots(world).some(([spotX, spotZ]) => Math.hypot(x - spotX, z - spotZ) < CLEAR_OF_SPOTS);

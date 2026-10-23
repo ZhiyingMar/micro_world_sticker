@@ -1,4 +1,4 @@
-// 蘑菇屋村：左后角三座蘑菇屋，门口是小人闲逛时爱去的地方
+// 蘑菇屋：三座散在林子里（左后的红蘑菇屋、小土坡上的黄蘑菇屋、右边草地上的蓝蘑菇屋），门口是小人闲逛时爱去的地方
 import { mushroomHouse } from './models.js';
 import { HOUSES } from './layout.js';
 
@@ -10,7 +10,7 @@ const DOORSTEP = 0.35;
 const DOORSTEP_STAY = 6;
 
 /**
- * 搭蘑菇屋村
+ * 摆三座蘑菇屋
  * @param {World} world 童话森林
  * @returns {{ houses: { x: number, z: number, radius: number, size: number, cap: THREE.Group }[] }} 每座屋子在哪、墙多粗、多大、菌盖（碰一下会弹）
  */

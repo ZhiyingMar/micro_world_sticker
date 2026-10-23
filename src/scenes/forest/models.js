@@ -1,7 +1,7 @@
 // 童话森林用到的模型：只负责造出来。摆在哪、挡不挡路、藏不藏东西，由用它的地方决定
 // 原点都在底面中心，正面（门、开口）朝 +z，另有说明的除外
 import * as THREE from 'three';
-import { at, rng } from '../../kit.js';
+import { at, rng, noiseAt } from '../../kit.js';
 
 // 菌盖压扁一点，像一顶圆帽子
 const CAP_FLATTEN = 0.75;
@@ -272,4 +272,27 @@ export function mushroomPickup(kit) {
   cap.scale.y = CAP_FLATTEN;
   group.add(at(cap, 0, stemHeight - 0.01, 0));
   return group;
+}
+
+/**
+ * 一块大石头：有点凹凸、有棱角的圆石头
+ * @param {Kit} kit
+ * @param {object} options
+ * @param {number} options.radius 多大
+ * @param {number} options.flatten 压扁多少（1 不压，越小越扁）
+ * @param {string} options.color 颜色
+ * @param {number} options.seed 凹凸的样子，每块不一样
+ * @returns {THREE.Mesh} 原点在石头中心
+ */
+export function boulder(kit, { radius, flatten, color, seed }) {
+  const geometry = new THREE.IcosahedronGeometry(radius, 1);
+  const positions = geometry.getAttribute('position');
+
+  // 每个顶点往外或往里推一点，石头就不是正圆的了（按位置推，面和面之间不裂缝）
+  for (let i = 0; i < positions.count; i++) {
+    const bump = 1 + (noiseAt(positions.getX(i), positions.getY(i), positions.getZ(i), seed) - 0.5) * 0.22;
+    positions.setXYZ(i, positions.getX(i) * bump, positions.getY(i) * bump * flatten, positions.getZ(i) * bump);
+  }
+  geometry.computeVertexNormals();
+  return kit.mesh(geometry, color, { flatShading: true });
 }
