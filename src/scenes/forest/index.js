@@ -12,6 +12,7 @@
 //   forage.js    灌木丛、树桩、落叶堆：能翻的地方，每次进来随机长小蘑菇
 //   woods.js     显眼的几棵树、四周的树墙、空心木头（爱心在里面）、栅栏
 //   scenery.js   一簇簇的花、满地草丛、侧面小石头、萤火虫
+//   life.js      风吹树冠、蝴蝶、池塘里跳起来的鱼
 //   people.js    居民和台词
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -23,6 +24,7 @@ import { buildWoods } from './woods.js';
 import { buildForage } from './forage.js';
 import { buildScenery } from './scenery.js';
 import { createPeople } from './people.js';
+import { bringToLife } from './life.js';
 import { mushroomPickup } from './models.js';
 import { MAP, LEVEL, SPAWN, FIT_HEIGHT, MUSHROOM_HIDING } from './layout.js';
 
@@ -33,6 +35,8 @@ export default {
   style: 'toon',
   styleLabel: '童话风',
   magnetStyle: 'toon',
+  // 溪水声和隔一会儿的鸟叫
+  ambient: 'forest',
   bg: 'linear-gradient(180deg, #bfe9ff 0%, #e6f6ff 50%, #ffe3f1 100%)',
   lights: {
     hemi: ['#e8f7ff', '#b5e39a', 1.9],
@@ -107,8 +111,9 @@ export default {
     buildHill(world);
     buildForage(world);
     // 树墙、花、草要避开前面摆好的东西，最后种
-    buildWoods(world);
+    const woods = buildWoods(world);
     buildScenery(world);
     createPeople(world);
+    bringToLife(world, { crowns: woods.crowns, waterSurface: ground.waterSurface });
   },
 };

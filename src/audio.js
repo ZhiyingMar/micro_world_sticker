@@ -52,15 +52,63 @@ function noise(c) {
 // ---------- 环境声（雨声等），跟着场景切换 ----------
 let ambientKind = null;
 let ambientNodes = null;
-// 各种环境声：音量和音色（低通频率）
+// 各种环境声：音量和音色（低通频率）；birds 是隔一会儿有鸟叫
 const AMBIENT = {
   rain: { vol: 0.32, lowpass: 2600 },
   city: { vol: 0.08, lowpass: 500 },
   sea: { vol: 0.3, lowpass: 900, swell: true },
+  forest: { vol: 0.05, lowpass: 1400, birds: true },
 };
+
+// 鸟叫：隔几秒（随机）一只鸟叫几声，音高、几声都随机，声音很小，只是背景
+const BIRD_GAP = [2.5, 7];
+const BIRD_PITCH = [2200, 3600];
+const BIRD_NOTES = [2, 4];
+const BIRD_NOTE_GAP = 0.13;
+const BIRD_NOTE_LENGTH = 0.09;
+const BIRD_VOLUME = 0.035;
+// 一声里往上滑多少、一高一低两声差多少
+const BIRD_SLIDE = 1.25;
+const BIRD_HOP = 0.12;
+let birdTimer = null;
+
+/**
+ * 一只鸟叫几声：高高的短音，一高一低，每声往上滑一点
+ */
+function chirp() {
+  const pitch = BIRD_PITCH[0] + Math.random() * (BIRD_PITCH[1] - BIRD_PITCH[0]);
+  const notes = BIRD_NOTES[0] + Math.floor(Math.random() * (BIRD_NOTES[1] - BIRD_NOTES[0] + 1));
+  for (let i = 0; i < notes; i++) {
+    const high = i % 2 === 1;
+    const frequency = high ? pitch * (1 + BIRD_HOP) : pitch;
+    tone(frequency, i * BIRD_NOTE_GAP, BIRD_NOTE_LENGTH, { type: 'sine', vol: BIRD_VOLUME, slide: BIRD_SLIDE });
+  }
+}
+
+/**
+ * 开始隔一会儿叫一次，直到 stopBirds()
+ * @description 静音时 tone() 自己不出声，这里不用管
+ */
+function startBirds() {
+  stopBirds();
+  const wait = (BIRD_GAP[0] + Math.random() * (BIRD_GAP[1] - BIRD_GAP[0])) * 1000;
+  birdTimer = setTimeout(() => {
+    chirp();
+    startBirds();
+  }, wait);
+}
+
+/**
+ * 不再叫了（换场景、关掉环境声的时候）
+ */
+function stopBirds() {
+  clearTimeout(birdTimer);
+  birdTimer = null;
+}
 const ambientVol = () => (state.muted || !AMBIENT[ambientKind] ? 0 : AMBIENT[ambientKind].vol);
 
 function stopAmbient() {
+  stopBirds();
   if (!ambientNodes) return;
   const { src, gain } = ambientNodes;
   const t = ctx.currentTime;
@@ -105,6 +153,9 @@ function startAmbient() {
   }
   src.start();
   ambientNodes = { src, gain, lfo };
+  if (cfg.birds) {
+    startBirds();
+  }
 }
 
 export const sfx = {
