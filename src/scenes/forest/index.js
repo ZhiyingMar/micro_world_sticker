@@ -37,10 +37,12 @@ export default {
   magnetStyle: 'toon',
   // 溪水声和隔一会儿的鸟叫
   ambient: 'forest',
-  bg: 'linear-gradient(180deg, #bfe9ff 0%, #e6f6ff 50%, #ffe3f1 100%)',
+  // 午后：天是淡蓝的，往下暖起来
+  bg: 'linear-gradient(180deg, #a9dcff 0%, #e4f4ff 45%, #fff0da 100%)',
+  // 午后偏暖的太阳从左前方斜照过来：朝镜头的一面亮，影子往右后方拖长；天光偏冷一点，暗面不发灰
   lights: {
-    hemi: ['#e8f7ff', '#b5e39a', 1.9],
-    sun: ['#fffbe8', 2.6, [6, 12, 5]],
+    hemi: ['#dcecff', '#b0d98f', 1.5],
+    sun: ['#ffe2b3', 2.9, [-7, 9, 6]],
   },
   camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: FIT_HEIGHT, min: 2.5 },
   terrain: { map: MAP, level: LEVEL },
