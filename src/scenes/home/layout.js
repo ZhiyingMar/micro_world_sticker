@@ -33,6 +33,13 @@ export const HOUSE = {
 // 后墙上的窗户：窗洞中心在哪（x、离地多高），窗洞多宽多高。墙上真的开了洞，看得到屋后的花园
 export const WINDOW = { x: 1.5, y: 2.45, width: 1.8, height: 1.4 };
 
+// 圆地毯：中心和外圈半径（脚步声踩在上面是闷的）
+export const RUG = { x: 0.5, z: 0.4, radius: 1.75 };
+// 地上那团毛线球一开始在哪（人踢一下会滚走）
+export const YARN_BALL = { x: 2.35, z: 3.6 };
+// 小猫蜷在毛线篮旁边睡觉，头朝哪边（弧度，0 朝 +z；朝着镜头偏右，看得到它的脸）
+export const CAT = { x: 3.1, z: 3.05, facing: 1.0 };
+
 // 人能走的范围：只在屋里那块地板上，走不到花园里
 export const BOUNDS = { minX: -4.45, maxX: 4.7, minZ: -4.45, maxZ: 4.7 };
 export const SPAWN = [1.6, 2.8];

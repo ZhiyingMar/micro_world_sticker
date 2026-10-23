@@ -306,6 +306,49 @@ export const sfx = {
     tone(180 * pitch, 0, 0.32, { type: 'sine', vol: 0.28, slide: 2.4 });
     tone(360 * pitch, 0.04, 0.22, { type: 'triangle', vol: 0.1, slide: 1.8 });
   },
+  /**
+   * 撞到家具：木头“咚”的一下
+   * @param {number} pitch 音高倍数，大件低、小件高
+   */
+  knock(pitch = 1) {
+    tone(200 * pitch, 0, 0.09, { type: 'triangle', vol: 0.2, slide: 0.65 });
+    noiseBurst({ highpass: 250, lowpass: 1400, duration: 0.05, volume: 0.1 });
+  },
+  /**
+   * 撞到冰箱、灯杆这种金属的：闷闷一下，再“叮”一声
+   * @param {number} pitch 音高倍数
+   */
+  clank(pitch = 1) {
+    tone(150 * pitch, 0, 0.12, { type: 'triangle', vol: 0.16, slide: 0.8 });
+    tone(1250 * pitch, 0.01, 0.35, { type: 'sine', vol: 0.05, slide: 0.98 });
+  },
+  // 碰到软的东西（床、毛线）：“噗”一下
+  puff() {
+    tone(160, 0, 0.14, { type: 'sine', vol: 0.18, slide: 0.6 });
+    noiseBurst({ highpass: 120, lowpass: 700, duration: 0.12, volume: 0.12 });
+  },
+  // 碰到盆栽的叶子：“沙沙”
+  rustle() {
+    noiseBurst({ highpass: 1800, lowpass: 6500, duration: 0.28, volume: 0.13 });
+  },
+  /**
+   * 屋里走一步：木地板上轻轻“嗒”，地毯上闷闷的
+   * @param {boolean} onRug 踩在地毯上
+   * @param {boolean} left 左脚还是右脚，两只脚高低不一样，听起来是在走路
+   */
+  footstep(onRug, left) {
+    if (onRug) {
+      noiseBurst({ highpass: 90, lowpass: 450, duration: 0.07, volume: 0.07 });
+      return;
+    }
+    tone(left ? 170 : 150, 0, 0.045, { type: 'triangle', vol: 0.07, slide: 0.75 });
+    noiseBurst({ highpass: 400, lowpass: 2200, duration: 0.03, volume: 0.04 });
+  },
+  // 小猫被吵醒：“喵～”先往上再往下
+  meow() {
+    tone(560, 0, 0.2, { type: 'triangle', vol: 0.11, slide: 1.4 });
+    tone(780, 0.16, 0.3, { type: 'triangle', vol: 0.09, slide: 0.65 });
+  },
   // 蝴蝶被惊飞：轻轻几下“扑棱”
   flutter() {
     for (let i = 0; i < 4; i++) {

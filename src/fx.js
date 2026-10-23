@@ -141,6 +141,15 @@ function getGlowTex() {
   return glowTex;
 }
 
+/**
+ * 一张中间亮、往外淡的白色圆点贴图，所有世界共用一张
+ * @description 灰尘、热气、光点这种小东西用它当样子；是共用的，不要登记进 world.texture（离开世界时会被释放）
+ * @returns {THREE.CanvasTexture}
+ */
+export function softDotTexture() {
+  return getGlowTex();
+}
+
 export function glow(color, size = 1, opacity = 0.8) {
   const s = new THREE.Sprite(
     new THREE.SpriteMaterial({

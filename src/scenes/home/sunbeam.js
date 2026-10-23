@@ -2,6 +2,7 @@
 // 只是看的，不是真的灯（不投影、不照亮东西），叠加上去让屋里有"午后"的感觉；小人会走到亮斑里晒太阳
 import * as THREE from 'three';
 import { canvasTexture, rng } from '../../kit.js';
+import { softDotTexture } from '../../fx.js';
 import { HOUSE, WINDOW } from './layout.js';
 
 // 光往哪边照：往下、往屋里（+z），稍微偏右；每往下 1，往屋里走多少
@@ -32,7 +33,6 @@ const DUST_DRIFT_SPEED = 0.25;
 const DUST_OPACITY = 0.65;
 const DUST_TWINKLE = 0.25;
 const DUST_TWINKLE_SPEED = 1.3;
-const DOT_TEXTURE_PX = 32;
 const DUST_COLOR = '#fff6d8';
 const DUST_SEED = 17;
 // 晒太阳：小人站在亮斑里多久、头朝窗户
@@ -211,7 +211,7 @@ function makeDust(world, corners) {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   const material = new THREE.PointsMaterial({
     color: DUST_COLOR,
-    map: world.texture(dotTexture()),
+    map: softDotTexture(),
     size: DUST_SIZE,
     transparent: true,
     depthWrite: false,
@@ -236,19 +236,4 @@ function makeDust(world, corners) {
   };
   update(0);
   return { points, update };
-}
-
-/**
- * 一颗灰尘的样子：中间亮、往外淡的小圆点
- * @returns {THREE.CanvasTexture}
- */
-function dotTexture() {
-  return canvasTexture(DOT_TEXTURE_PX, DOT_TEXTURE_PX, (context, width, height) => {
-    const gradient = context.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width / 2);
-    gradient.addColorStop(0, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.4, 'rgba(255,255,255,0.5)');
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-  });
 }

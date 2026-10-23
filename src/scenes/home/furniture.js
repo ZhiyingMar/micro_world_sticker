@@ -1,17 +1,28 @@
 // 屋里的家具：床、落地灯、书架、厨房台面、冰箱、地毯和小圆桌、凳子、大盆栽、收音机柜、毛线篮、拖鞋
-// 摆好就登记碰撞和小人会去的兴趣点（打盹、看书、喝茶……）
+// 摆好就登记碰撞和小人会去的兴趣点（打盹、看书、喝茶……），撞上去会晃的几件交给 touch.js
 import * as THREE from 'three';
 import { at } from '../../kit.js';
+import { RUG } from './layout.js';
 
 export const WOOD = '#d9a066';
 export const WOOD_DARK = '#b07a45';
 
 /**
+ * @typedef {object} Bumpable 撞上去会晃一下、响一声的家具
+ * @property {THREE.Object3D} object 整件家具（原点在地上，晃的时候按它压扁）
+ * @property {'wood' | 'metal' | 'soft' | 'leaf'} sound 撞上去是什么声音
+ * @property {number} squash 晃多大：大件晃得小，小件晃得大
+ */
+
+/**
  * 摆上屋里的家具，登记碰撞和兴趣点
  * @param {World} w 小屋这个世界
+ * @returns {{ bumpables: Bumpable[], spout: THREE.Object3D, radio: THREE.Object3D }} 撞了会晃的家具；茶壶嘴（冒热气）；收音机（飘音符）
  */
 export function buildFurniture(w) {
   const k = w.kit;
+  /** @type {Bumpable[]} */
+  const bumpables = [];
 
   // 床（下面是空的，可以藏东西）
   const bed = new THREE.Group();
@@ -25,6 +36,7 @@ export function buildFurniture(w) {
   for (let i = 0; i < 3; i++) bed.add(at(k.sphere(0.07, '#f4a259', 10), -0.6 + i * 0.6, 1.2, -1.42));
   w.add(bed, -3.4, 0, -3.0);
   w.solid(bed, -0.05);
+  bumpables.push({ object: bed, sound: 'soft', squash: 0.06 });
   w.poi(-2.05, -2.9, { emote: '💤', face: -Math.PI / 2, dur: 7 });
 
   // 落地灯
@@ -39,6 +51,7 @@ export function buildFurniture(w) {
   lamp.add(bulb);
   w.add(lamp, -4.1, 0, -1.05);
   w.solidCircle(-4.1, -1.05, 0.25);
+  bumpables.push({ object: lamp, sound: 'metal', squash: 0.08 });
 
   // 书架
   const shelf = new THREE.Group();
@@ -62,6 +75,7 @@ export function buildFurniture(w) {
   }
   w.add(shelf, -1.0, 0, -4.22);
   w.solid(shelf);
+  bumpables.push({ object: shelf, sound: 'wood', squash: 0.04 });
   w.poi(-1.0, -3.5, { emote: '📖', face: Math.PI, dur: 6 });
 
   // 厨房台面
@@ -78,6 +92,7 @@ export function buildFurniture(w) {
   for (let i = 0; i < 3; i++) counter.add(at(k.sphere(0.06, ['#f6a6b8', '#ffd84a', '#ffffff'][i], 10), -0.35 + (i - 1) * 0.07, 1.26 + (i % 2) * 0.05, 0.05));
   w.add(counter, 2.6, 0, -4.15);
   w.solid(counter);
+  bumpables.push({ object: counter, sound: 'wood', squash: 0.05 });
 
   // 冰箱（点它可以打开冰箱贴收藏）
   const fridge = new THREE.Group();
@@ -97,16 +112,17 @@ export function buildFurniture(w) {
   fridge.userData.label = '冰箱 · 点击打开';
   w.add(fridge, 3.95, 0, -4.0);
   w.solid(fridge);
+  bumpables.push({ object: fridge, sound: 'metal', squash: 0.04 });
   w.fridge = fridge;
   w.poi(3.95, -3.2, { emote: '🍰', face: Math.PI, dur: 5 });
 
   // 圆地毯 + 小圆桌 + 凳子
-  const rug = k.cyl(1.75, 1.75, 0.03, '#f7c6a3', 40);
-  w.add(rug, 0.5, 0.015, 0.4);
+  const rug = k.cyl(RUG.radius, RUG.radius, 0.03, '#f7c6a3', 40);
+  w.add(rug, RUG.x, 0.015, RUG.z);
   rug.castShadow = false;
   const rug2 = k.cyl(1.35, 1.35, 0.035, '#fbe1c6', 40);
   rug2.castShadow = false;
-  w.add(rug2, 0.5, 0.02, 0.4);
+  w.add(rug2, RUG.x, 0.02, RUG.z);
 
   const table = new THREE.Group();
   table.add(at(k.cyl(0.78, 0.78, 0.09, WOOD, 32), 0, 0.68, 0));
@@ -127,6 +143,7 @@ export function buildFurniture(w) {
   for (let i = 0; i < 3; i++) table.add(at(k.cyl(0.045, 0.045, 0.025, '#d9a066', 10), 0.3 + i * 0.05, 0.765, -0.25 + (i % 2) * 0.06));
   w.add(table, 0.5, 0, 0.4);
   w.solidCircle(0.5, 0.4, 0.8);
+  bumpables.push({ object: table, sound: 'wood', squash: 0.06 });
 
   const stool = (x, z, color) => {
     const s = new THREE.Group();
@@ -136,9 +153,11 @@ export function buildFurniture(w) {
     }
     s.add(at(k.cyl(0.25, 0.25, 0.08, color, 20), 0, 0.38, 0));
     w.add(s, x, 0, z);
+    return s;
   };
-  stool(-0.75, 0.75, '#f6a6b8');
-  stool(1.75, 0.65, '#8ec5e8');
+  for (const seat of [stool(-0.75, 0.75, '#f6a6b8'), stool(1.75, 0.65, '#8ec5e8')]) {
+    bumpables.push({ object: seat, sound: 'wood', squash: 0.14 });
+  }
   w.poi(-0.75, 0.75, { emote: '☕', face: Math.atan2(1.25, -0.35), dur: 8, sit: true, seatY: 0.42 });
   w.poi(1.75, 0.65, { emote: '🍪', face: Math.atan2(-1.25, -0.25), dur: 8, sit: true, seatY: 0.42 });
 
@@ -157,6 +176,7 @@ export function buildFurniture(w) {
   }
   w.add(plant, -4.0, 0, 1.4);
   w.solidCircle(-4.0, 1.4, 0.45);
+  bumpables.push({ object: plant, sound: 'leaf', squash: 0.08 });
   w.poi(-3.3, 1.4, { emote: '🌱', face: -Math.PI / 2, dur: 5 });
 
   // 收音机柜
@@ -175,6 +195,7 @@ export function buildFurniture(w) {
   cab.add(at(radio, 0, 0.86, 0));
   w.add(cab, -4.15, 0, 3.15);
   w.solid(cab);
+  bumpables.push({ object: cab, sound: 'wood', squash: 0.07 });
   w.poi(-3.45, 3.15, { emote: '♪', face: -Math.PI / 2, dur: 7 });
 
   // 毛线篮 + 散落的小东西
@@ -183,11 +204,13 @@ export function buildFurniture(w) {
   for (const [x, z, c] of [[-0.1, 0.05, '#f6a6b8'], [0.1, -0.05, '#8ec5e8'], [0, 0.12, '#ffd84a']]) basket.add(at(k.sphere(0.13, c, 12), x, 0.32, z));
   w.add(basket, 3.9, 0, 3.7);
   w.solidCircle(3.9, 3.7, 0.33);
-  w.add(k.sphere(0.1, '#f6a6b8', 12), 2.9, 0.1, 2.9);
+  bumpables.push({ object: basket, sound: 'soft', squash: 0.12 });
 
   // 拖鞋
   for (const s of [-1, 1]) {
     const sl = k.box(0.16, 0.06, 0.32, '#f4a259', 0.03);
     w.add(sl, -2.0 + s * 0.12, 0.03, -1.2, s * 0.15);
   }
+
+  return { bumpables, spout, radio };
 }

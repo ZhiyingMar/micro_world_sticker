@@ -10,11 +10,19 @@
 //   workbench.js  工作台：走过去按 E 换壁纸、地板
 //   eaves.js      墙顶的房檐
 //   garden.js     屋外一圈花园：草地、篱笆、小路、花、灌木、树
+//   cat.js        毛线篮旁边睡觉的小猫：呼吸、甩尾巴，人走近会抬头"喵"一声
+//   puffs.js      软软的一小团雾：热气、撞家具扬起的灰
+//   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
+//   touch.js      碰一下会有反应：撞家具会晃会响、踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildRoom } from './room.js';
 import { placeSunbeam } from './sunbeam.js';
+import { placeCat } from './cat.js';
+import { createPuffs } from './puffs.js';
+import { bringToLife } from './life.js';
+import { createTouch } from './touch.js';
 import { buildFurniture } from './furniture.js';
 import { placeWorkbench } from './workbench.js';
 import { placeEaves } from './eaves.js';
@@ -122,13 +130,18 @@ export default {
     placeSunbeam(world);
     placeEaves(world);
     placeGarden(world, GARDEN_SIZE);
-    buildFurniture(world);
-    placeWorkbench(world, room);
+    const furniture = buildFurniture(world);
+    const workbench = placeWorkbench(world, room);
+    placeCat(world);
 
     world.placeItem('mushroom', -3.86, 0.6, 1.66, { spin: false });
     world.placeItem('book', -2.55, 0.06, -2.5, { spin: false });
     world.placeItem('star', 3.95, 2.5, -4.0);
 
     createPeople(world);
+    const puffs = createPuffs(world);
+    bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
+    const bumpables = [...furniture.bumpables, { object: workbench, sound: 'wood', squash: 0.06 }];
+    createTouch(world, { bumpables, puffs });
   },
 };

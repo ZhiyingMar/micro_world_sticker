@@ -16,6 +16,8 @@ const FLOOR_EDGE = WOOD;
 const WALL_EDGE = '#f3e6cf';
 // 窗框比墙面往屋里凸出来多少
 const WINDOW_INSET = 0.05;
+// 左墙上的钟：挂在哪、多大；分针停在哪（弧度），秒针一跳用多久（秒）
+const CLOCK = { x: -4.45, y: 2.9, z: -0.4, radius: 0.38, minuteAngle: 1.2, tickTime: 0.12 };
 
 // 墙根、墙角一圈淡淡的阴影：家具和墙像是坐在地上，屋子不像几块板拼起来的
 const CORNER_SHADE = {
@@ -73,21 +75,7 @@ export function buildRoom(w) {
   frame.add(sun);
   w.add(frame, -3.3, 2.75, -4.47);
 
-  const clock = new THREE.Group();
-  const face = k.cyl(0.38, 0.38, 0.08, '#fffaf0', 24);
-  face.rotation.z = Math.PI / 2;
-  const rim = k.torus(0.38, 0.05, '#f4a259');
-  rim.rotation.y = Math.PI / 2;
-  const hand1 = k.box(0.02, 0.24, 0.03, '#6b4f3a', 0.005);
-  hand1.position.set(0.05, 0.1, 0);
-  const hand2 = k.box(0.02, 0.18, 0.03, '#6b4f3a', 0.005);
-  hand2.position.set(0.05, 0.06, 0.05);
-  hand2.rotation.x = 1.2;
-  clock.add(face, rim, hand1, hand2);
-  w.add(clock, -4.45, 2.9, -0.4);
-  w.onUpdate((dt) => {
-    hand1.rotation.x -= dt * 0.4;
-  });
+  placeClock(w);
 
   placeCornerShade(w);
   const stars = placeBackdropStars(w);
@@ -114,6 +102,41 @@ export function buildRoom(w) {
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
   return { applyDecor, curtains: windowModel.curtains };
+}
+
+/**
+ * 左墙上的圆钟：秒针一秒一跳，"嗒"地往前走一格
+ * @param {World} world 小屋这个世界
+ */
+function placeClock(world) {
+  const kit = world.kit;
+  const clock = new THREE.Group();
+  const face = kit.cyl(CLOCK.radius, CLOCK.radius, 0.08, '#fffaf0', 24);
+  face.rotation.z = Math.PI / 2;
+  const rim = kit.torus(CLOCK.radius, 0.05, '#f4a259');
+  rim.rotation.y = Math.PI / 2;
+  clock.add(face, rim);
+
+  // 指针挂在表盘中心的转轴上，转的时候绕中心转；钟挂在左墙上，表盘朝 +x，所以绕 x 轴转
+  const handsOut = 0.05;
+  const minuteHand = new THREE.Group();
+  minuteHand.position.x = handsOut;
+  minuteHand.rotation.x = CLOCK.minuteAngle;
+  minuteHand.add(at(kit.box(0.02, 0.18, 0.03, '#6b4f3a', 0.005), 0, 0.08, 0));
+  const secondHand = new THREE.Group();
+  secondHand.position.x = handsOut + 0.01;
+  secondHand.add(at(kit.box(0.015, 0.26, 0.02, '#e85d5d', 0.005), 0, 0.1, 0));
+  clock.add(minuteHand, secondHand, at(kit.sphere(0.03, '#6b4f3a', 10), handsOut + 0.02, 0, 0));
+  world.add(clock, CLOCK.x, CLOCK.y, CLOCK.z);
+
+  const step = (Math.PI * 2) / 60;
+  world.onUpdate((dt, time) => {
+    const second = Math.floor(time);
+    const tick = Math.min(1, (time - second) / CLOCK.tickTime);
+    // 每一跳先快后慢地落到下一格
+    const settled = 1 - (1 - tick) ** 3;
+    secondHand.rotation.x = -(second - 1 + settled) * step;
+  });
 }
 
 /**

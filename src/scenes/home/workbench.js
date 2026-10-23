@@ -70,6 +70,7 @@ function buildWorkbench(kit) {
  * @description 在各个世界捡来的材料，回家在这里做成壁纸、地板
  * @param {World} w 小屋这个世界
  * @param {{ applyDecor(kind: string, entry: object): void }} room buildRoom 返回的换装修接口
+ * @returns {THREE.Group} 工作台（撞上去会晃一下）
  */
 export function placeWorkbench(w, room) {
   const bench = buildWorkbench(w.kit);
@@ -102,4 +103,5 @@ export function placeWorkbench(w, room) {
     label: '用工作台换壁纸、地板',
     fn: () => w.env.openWorkbench(pick),
   });
+  return bench;
 }
