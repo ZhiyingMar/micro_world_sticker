@@ -14,9 +14,9 @@
 //   garden-models.js  花园里的小模型：尖头篱笆、院门、信箱、向日葵、木台阶、踏脚石
 //   garden-path.js    小路在哪：连成曲线，算一点离路多远
 //   cat.js        毛线篮旁边睡觉的小猫：呼吸、甩尾巴，人走近会抬头"喵"一声
-//   puffs.js      软软的一小团雾：热气、撞家具扬起的灰
+//   puffs.js      软软的一小团雾：茶壶的热气
 //   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
-//   touch.js      碰一下会有反应：撞家具会晃会响、踢毛线球会滚、木地板和地毯上不一样的脚步声
+//   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -134,7 +134,7 @@ export default {
     placeEaves(world);
     placeGarden(world);
     const furniture = buildFurniture(world);
-    const workbench = placeWorkbench(world, room);
+    placeWorkbench(world, room);
     placeCat(world);
 
     world.placeItem('mushroom', -3.86, 0.6, 1.66, { spin: false });
@@ -144,7 +144,6 @@ export default {
     createPeople(world);
     const puffs = createPuffs(world);
     bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
-    const bumpables = [...furniture.bumpables, { object: workbench, sound: 'wood', squash: 0.06 }];
-    createTouch(world, { bumpables, puffs });
+    createTouch(world);
   },
 };
