@@ -45,6 +45,8 @@ npm run dev
 
 推送到 `main` 分支后，GitHub Actions（`.github/workflows/deploy.yml`）会自动打包并发布到 GitHub Pages。
 
+`dev` 分支是测试版，连的是 Cloudflare Pages：推上去它自己 `npm run build`，发布 `dist/`（Node 版本读 `.node-version`）。功能分支先合到 `dev` 上线试，没问题再合到 `main`。两个网址的存档各存各的，在测试版上乱试不会动正式版的存档。
+
 ## 代码结构
 
 ```
