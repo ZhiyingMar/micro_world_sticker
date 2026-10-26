@@ -340,7 +340,7 @@ function loadScene(id) {
 /**
  * 一进世界时的取景：算全貌、限制能拉多远，把镜头放到人身边
  * @description 这些都按窗口大小算，窗口还是 0 尺寸时由 resize 等到窗口有了大小再调
- * @param {object} def 世界的定义，用它的 camera 设置
+ * @param {SceneDef} def 世界的定义，用它的 camera 设置
  */
 function frameWorld(def) {
   const c = def.camera;
