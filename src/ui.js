@@ -46,6 +46,9 @@ function missingFor(cost) {
   return missing;
 }
 
+// 背景上盖的那层颜色在正中间有多透（#rrggbbaa 的 aa，十六进制）：中间透着一点壁纸配的底色
+const SKY_TINT_CENTER_ALPHA = '99';
+
 // 设置面板里声音那一排：存的值、按钮上的字
 const SOUND_CHOICES = [
   { value: 'on', label: '🔊 开' },
@@ -105,8 +108,9 @@ export const ui = {
    * 换上一个世界：标题卡、背景、目标栏、材料
    * @param {object} def 世界的定义
    * @param {string} backdrop 方块外面的背景 CSS；世界自己换过背景（小屋壁纸）时和 def.bg 不一样
+   * @param {{ color: string, strength: number } | null} skyTint 背景上盖的那层颜色；没有就是 null
    */
-  setScene(def, backdrop = def.bg) {
+  setScene(def, backdrop = def.bg, skyTint = null) {
     $('#scene-emoji').textContent = def.emoji;
     $('#scene-name').textContent = def.name;
     $('#scene-style').textContent = def.styleLabel;
@@ -114,6 +118,7 @@ export const ui = {
     [...cl].filter((c) => c.startsWith('style-')).forEach((c) => cl.remove(c));
     cl.add(`style-${def.style}`);
     this.setBackdrop(backdrop);
+    this.setSkyTint(skyTint);
     this._shown = new Set(); // 换了世界：已经完成的直接不显示
     this.renderGoal(def);
     this.renderMaterials(def);
@@ -125,6 +130,21 @@ export const ui = {
    */
   setBackdrop(css) {
     document.getElementById('app').style.setProperty('--scene-bg', css);
+  },
+
+  /**
+   * 在方块外面的背景上盖一层颜色（清晨、傍晚、夜里）
+   * @description 中间淡、四周浓，方块后面像还透着一点光，不是一块平平的色板
+   * @param {{ color: string, strength: number } | null} tint 盖什么颜色（#rrggbb）、多浓（0~1）；null 是不盖
+   */
+  setSkyTint(tint) {
+    const layer = $('#sky-tint');
+    if (!tint) {
+      layer.style.opacity = '0';
+      return;
+    }
+    layer.style.background = `radial-gradient(circle at 50% 30%, ${tint.color}${SKY_TINT_CENTER_ALPHA} 0%, ${tint.color} 80%)`;
+    layer.style.opacity = String(tint.strength);
   },
 
   /**

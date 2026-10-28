@@ -46,7 +46,8 @@ const STAR_SEED = 11;
  * 搭小屋的地板、墙和墙上的摆设
  * @description 壁纸、地板、墙裙用的是小屋自己的材质，工作台上换装修时只换它们的贴图和颜色，不用重新搭
  * @param {World} w 小屋这个世界
- * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[] }} 换装修用的小接口；两片窗帘（会被风吹得轻轻晃）
+ * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[], showNightSky(level: number): void }}
+ *   换装修用的小接口；两片窗帘（会被风吹得轻轻晃）；夜有多深时外面的星星跟着亮（0 白天 ~ 1 深夜）
  */
 export function buildRoom(w) {
   const k = w.kit;
@@ -101,13 +102,13 @@ export function buildRoom(w) {
     if (kind === 'wallpaper') {
       wainscotMat.color.set(entry.wainscot);
       w.setBackdrop(entry.backdrop);
-      stars.group.visible = !!entry.backdropStars;
+      stars.fromWallpaper(Boolean(entry.backdropStars));
     }
   };
 
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
-  return { applyDecor, curtains: windowModel.curtains };
+  return { applyDecor, curtains: windowModel.curtains, showNightSky: stars.atNight };
 }
 
 /**
@@ -303,10 +304,11 @@ function shadeTexture() {
 }
 
 /**
- * 小屋外面那片星星，先藏着，换上星空壁纸时才露出来
+ * 小屋外面那片星星：换上星空壁纸时一直亮着，别的壁纸天黑了才慢慢出来
  * @description 星星撒在镜头背后那半边的远处，转镜头时远近星星错开移动，小屋才像真的飘在夜空里
  * @param {World} w 小屋这个世界
- * @returns {{ group: THREE.Group, update(t: number): void }} makeStarField 的结果
+ * @returns {{ fromWallpaper(on: boolean): void, atNight(level: number): void }}
+ *   壁纸要不要星星；夜有多深（0 白天 ~ 1 深夜），星星跟着亮
  */
 function placeBackdropStars(w) {
   const { pos, target } = w.def.camera;
@@ -320,12 +322,25 @@ function placeBackdropStars(w) {
     seed: STAR_SEED,
   });
 
+  let wallpaperStars = false;
+  let nightLevel = 0;
   stars.group.visible = false;
   w.add(stars.group);
   w.onUpdate((dt, t) => {
+    // 星空壁纸的星星一直全亮；别的壁纸跟着夜色，白天整片藏起来，不白画
+    const brightness = wallpaperStars ? 1 : nightLevel;
+    stars.group.visible = brightness > 0;
     if (stars.group.visible) {
-      stars.update(t);
+      stars.update(t, brightness);
     }
   });
-  return stars;
+
+  return {
+    fromWallpaper: (on) => {
+      wallpaperStars = on;
+    },
+    atNight: (level) => {
+      nightLevel = level;
+    },
+  };
 }

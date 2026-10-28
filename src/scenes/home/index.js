@@ -19,6 +19,7 @@
 //   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
 //   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
+//   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildRoom } from './room.js';
@@ -32,6 +33,7 @@ import { placeWorkbench } from './workbench.js';
 import { placeEaves } from './eaves.js';
 import { placeGarden } from './garden.js';
 import { createPeople } from './people.js';
+import { bringDayAndNight } from './daylight.js';
 import {
   CAMERA_POS,
   CAMERA_TARGET,
@@ -56,7 +58,8 @@ export default {
   // 屋里很安静，窗外有鸟叫
   ambient: 'home',
   bg: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
-  // 午后的暖光从左前方斜照进来：家具朝镜头的一面亮，影子往右后方拖；天光偏冷一点，暗面不发灰
+  // 下午两点的光：午后的暖光从左前方斜照进来，家具朝镜头的一面亮，影子往右后方拖；天光偏冷一点，暗面不发灰
+  // 进来以后 daylight.js 按钟点换成别的时刻的光，这里只是搭建前先打上的那一套
   lights: {
     hemi: ['#eaf0ff', '#d6b088', 1.6],
     sun: ['#ffe2b3', 2.7, [-4, 11, 8]],
@@ -146,5 +149,6 @@ export default {
     const puffs = createPuffs(world);
     bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
     createTouch(world);
+    bringDayAndNight(world, { room });
   },
 };

@@ -264,6 +264,15 @@ function loadScene(id) {
   if (player) player = null;
   talking = null;
   ui.closeDialog();
+  // 先按世界的定义打好灯，再搭世界：世界搭建时可以自己改灯（小屋按钟点换成清晨、傍晚、夜里的光）
+  const [sky, gnd, hi] = def.lights.hemi;
+  hemi.color.set(sky);
+  hemi.groundColor.set(gnd);
+  hemi.intensity = hi;
+  const [sc, si, sp] = def.lights.sun;
+  sun.color.set(sc);
+  sun.intensity = si;
+  sun.position.set(...sp);
   world = new World(def, {
     hemi,
     sun,
@@ -273,6 +282,7 @@ function loadScene(id) {
     onMaterial: () => ui.renderMaterials(world.def),
     startGame: (id) => startGame(id),
     onBackdrop: (css) => ui.setBackdrop(css),
+    onSkyTint: (tint) => ui.setSkyTint(tint),
     // 拍宣传片时不弹面板：导演直接选分镜里写好的那款
     openWorkbench: (onPick) => {
       if (director) {
@@ -289,15 +299,6 @@ function loadScene(id) {
   Object.assign(sun.shadow.camera, { left: -sr, right: sr, top: sr, bottom: -sr });
   sun.shadow.camera.updateProjectionMatrix();
 
-  const [sky, gnd, hi] = def.lights.hemi;
-  hemi.color.set(sky);
-  hemi.groundColor.set(gnd);
-  hemi.intensity = hi;
-  const [sc, si, sp] = def.lights.sun;
-  sun.color.set(sc);
-  sun.intensity = si;
-  sun.position.set(...sp);
-
   world.whenRestored(() => {
     refreshGoal();
     setTimeout(() => {
@@ -306,7 +307,7 @@ function loadScene(id) {
     }, 1600);
   });
   // 先把界面画出来，取景时要量收集栏等占了多少地方
-  ui.setScene(def, world.backdrop);
+  ui.setScene(def, world.backdrop, world.skyTint);
   syncHomeButton();
   refreshGoal();
   sfx.ambient(def.ambient || null);

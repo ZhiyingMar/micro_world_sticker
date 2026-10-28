@@ -264,7 +264,7 @@ const TWINKLE_SPEED = [1.1, 2.3];
  * @param {number} options.near 球壳内半径（世界单位），要比方块大，星星才不会插进方块里
  * @param {number} options.far 球壳外半径（世界单位）
  * @param {number} options.seed 随机种子，同一个种子每次撒得一样
- * @returns {{ group: THREE.Group, update(t: number): void }} 星星，和每帧调用的闪烁
+ * @returns {{ group: THREE.Group, update(t: number, brightness?: number): void }} 星星，和每帧调用的闪烁（brightness 0~1，天快亮时星星一起淡掉）
  */
 export function makeStarField({ away, spread, near, far, seed = 1 }) {
   const random = rng(seed);
@@ -299,10 +299,10 @@ export function makeStarField({ away, spread, near, far, seed = 1 }) {
     }
   }
 
-  const update = (t) => {
+  const update = (t, brightness = 1) => {
     for (const twinkler of twinklers) {
       const wave = (Math.sin(t * twinkler.speed + twinkler.phase) + 1) / 2;
-      twinkler.material.opacity = twinkler.peak * (1 - TWINKLE_DEPTH * wave);
+      twinkler.material.opacity = twinkler.peak * (1 - TWINKLE_DEPTH * wave) * brightness;
     }
   };
   return { group, update };

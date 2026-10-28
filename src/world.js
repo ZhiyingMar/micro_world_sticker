@@ -49,6 +49,8 @@ export class World {
     this.fx = new Sparkles(this.root);
     // 方块外面那一大片背景（CSS），场景可以在搭建时或之后换掉，见 setBackdrop()
     this.backdrop = def.bg;
+    // 背景上盖的一层颜色（小屋的清晨、傍晚、夜里）：{ color, strength }，没有就是 null，见 setSkyTint()
+    this.skyTint = null;
     // 这个世界的东西已经找齐了（老存档也算）：破败世界直接当作已经修好
     this.complete = def.items.length > 0 && def.items.every((i) => foundIn(def.id).includes(i.id));
     if (def.repairs && this.complete) {
@@ -599,6 +601,16 @@ export class World {
   setBackdrop(css) {
     this.backdrop = css;
     this.env.onBackdrop?.(css);
+  }
+
+  /**
+   * 在方块外面的背景上盖一层颜色
+   * @description 换壁纸时背景换成壁纸配的底色；钟点变了，底色不动，只在上面盖一层清晨的粉、傍晚的橙、夜里的深蓝
+   * @param {{ color: string, strength: number } | null} tint 盖什么颜色（#rrggbb）、多浓（0~1）；null 是不盖
+   */
+  setSkyTint(tint) {
+    this.skyTint = tint;
+    this.env.onSkyTint?.(tint);
   }
 
   onUpdate(fn) {
