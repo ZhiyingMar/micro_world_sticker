@@ -47,7 +47,6 @@ html, body {
   touch-action: none;
   cursor: grab;
 }
-#c.pixelated { image-rendering: pixelated; }
 #c:active { cursor: grabbing; }
 
 button { font-family: inherit; }

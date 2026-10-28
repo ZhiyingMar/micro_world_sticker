@@ -116,12 +116,10 @@ function applySize() {
     return;
   }
 
-  const pixel = world && world.def.style === 'pixel';
   // 平板屏幕分辨率很高，触控设备上限制一下渲染倍率，保证流畅
-  const pr = pixel ? Math.min(0.6, 600 / innerWidth) : Math.min(devicePixelRatio, touchMode ? 1.5 : 2);
+  const pr = Math.min(devicePixelRatio, touchMode ? 1.5 : 2);
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight);
-  canvas.classList.toggle('pixelated', pixel);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
@@ -134,7 +132,6 @@ function applyFixedSize([width, height]) {
   renderer.setPixelRatio(1);
   // 第三个参数 false：只改画布的像素尺寸，不改它在页面上的大小（页面上怎么摆由宣传片模式自己管）
   renderer.setSize(width, height, false);
-  canvas.classList.remove('pixelated');
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 }
