@@ -1,5 +1,6 @@
 // 左前的菜园：红屋顶台地的崖下，白栅栏围起来，右边一个口子当院门；
 // 里面三行菜畦（胡萝卜、卷心菜、南瓜），中间一个稻草人；栅栏右前角外面一棵矮矮的苹果树，萨克斯躺在树荫里
+// 菜畦能翻像素块（forage.js 登记）
 import * as THREE from 'three';
 import { rng } from '../../kit.js';
 import { picketFence, scarecrow, crop } from './models.js';
@@ -34,15 +35,16 @@ const TREE_SEED = 73;
 /**
  * 搭菜园
  * @param {World} world 像素小镇
- * @returns {{ crowns: THREE.Group[], swaying: THREE.Object3D[] }} 树冠；风吹会晃的别的东西（稻草人）
+ * @returns {{ crowns: THREE.Group[], swaying: THREE.Object3D[], beds: THREE.Mesh[] }} 树冠；风吹会晃的别的东西（稻草人）；
+ *   每行菜畦的土（和 CROP_ROWS 一一对应，能翻像素块）
  */
 export function buildGarden(world) {
   fence(world);
-  cropBeds(world);
+  const beds = cropBeds(world);
   const scarecrowBody = placeScarecrow(world);
   const crown = shortTree(world);
   world.poi(GARDENER_SPOT.x, GARDENER_SPOT.z, { emote: '🥕', face: GARDENER_SPOT.face, dur: GARDENER_STAY });
-  return { crowns: [crown], swaying: [scarecrowBody] };
+  return { crowns: [crown], swaying: [scarecrowBody], beds };
 }
 
 /**
@@ -85,6 +87,7 @@ function fenceRun(world, from, to) {
 /**
  * 三行菜畦：翻过的深色土上一棵棵菜，稻草人站的地方空着
  * @param {World} world
+ * @returns {THREE.Mesh[]} 每行的土，顺序和 CROP_ROWS 一样
  */
 function cropBeds(world) {
   const random = rng(CROP_SEED);
@@ -92,10 +95,12 @@ function cropBeds(world) {
   const toX = GARDEN.maxX - BED_INSET;
   const centerX = (fromX + toX) / 2;
 
+  const soils = [];
   for (const row of CROP_ROWS) {
     const soil = world.kit.box(toX - fromX, SOIL_HEIGHT, SOIL_WIDTH, SOIL_COLOR);
     soil.castShadow = false;
     world.add(soil, centerX, world.heightAt(centerX, row.z) + SOIL_HEIGHT / 2, row.z);
+    soils.push(soil);
 
     for (let x = fromX + CROP_SPACING / 2; x < toX; x += CROP_SPACING) {
       const nearScarecrow = Math.hypot(x - SCARECROW[0], row.z - SCARECROW[1]) < SCARECROW_ROOM;
@@ -106,6 +111,7 @@ function cropBeds(world) {
       world.add(plant, x, world.heightAt(x, row.z) + SOIL_HEIGHT, row.z);
     }
   }
+  return soils;
 }
 
 /**

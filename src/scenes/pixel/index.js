@@ -5,12 +5,13 @@
 //   layout.js    地形文字地图、各处东西的位置
 //   paths.js     土路和广场在哪，一点离路多远
 //   ground.js    地面：小体素画的草地、土路、石板广场（src/terrain-voxel.js 画）
-//   models.js    模型（只造不摆）：房子、风车、喷泉、路灯、长椅、木箱、栅栏、稻草人、菜、小鸡……
+//   models.js    模型（只造不摆）：房子、风车、干草堆、喷泉、路灯、长椅、木箱、栅栏、稻草人、菜、小鸡、像素块……
 //   plants.js    体素树、灌木、方块小花和草丛（只造不摆）
-//   town.js      房子、风车、喷泉广场、路灯、长椅；小月亮在喷泉里，小出租车在蓝屋子后头
+//   town.js      房子、风车和门口的干草堆、喷泉广场、路灯、长椅；小月亮在喷泉里，小出租车在蓝屋子后头
 //   garden.js    左前的菜园：白栅栏、菜畦、稻草人，栅栏外的矮苹果树和萨克斯
 //   pond.js      右前的池塘：荷叶、芦苇、石头，台地上流下来的瀑布
 //   woods.js     显眼的几棵树、四周的树墙、会沙沙响的灌木
+//   forage.js    能按 E 翻的地方：灌木丛、后院的木箱堆和木桶、菜畦、干草堆，每次进来随机藏几个像素块
 //   scenery.js   一簇簇的花、满地草丛
 //   water.js     会动的水：喷泉喷水、瀑布流、鱼跳、荷叶晃（波纹和水珠用 src/splashes.js 的方块样子）
 //   life.js      风吹树冠和稻草人、风车转、烟囱冒烟、云飘过、蝴蝶
@@ -25,6 +26,7 @@ import { buildTown } from './town.js';
 import { buildGarden } from './garden.js';
 import { buildPond } from './pond.js';
 import { buildWoods } from './woods.js';
+import { buildForage } from './forage.js';
 import { buildScenery } from './scenery.js';
 import { createWaterLife } from './water.js';
 import { bringToLife } from './life.js';
@@ -33,7 +35,8 @@ import { createBits } from './bits.js';
 import { createTouch } from './touch.js';
 import { createPeople } from './people.js';
 import { createSplashes } from '../../splashes.js';
-import { MAP, LEVEL, SPAWN, FIT_HEIGHT, SUN } from './layout.js';
+import { pixelBlock } from './models.js';
+import { MAP, LEVEL, SPAWN, FIT_HEIGHT, SUN, BLOCK_HIDING } from './layout.js';
 
 export default {
   id: 'pixel',
@@ -57,6 +60,10 @@ export default {
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '方方', text: '欢迎来到像素小镇！这里一切都是方的，包括我的脑袋。' },
   next: 'city',
+  // 像素小镇的材料：一个个亮色的像素块，以后回家合成用
+  materials: [{ id: 'block', name: '像素块', icon: '🟪', make: pixelBlock }],
+  // 每次进来藏在哪：灌木丛、后院的木箱堆和木桶、菜畦、干草堆，都要翻找
+  scatter: BLOCK_HIDING,
   items: [
     {
       id: 'moon',
@@ -122,6 +129,7 @@ export default {
     const woods = buildWoods(world);
     const scenery = buildScenery(world);
     createPeople(world);
+    buildForage(world, { bushes: woods.hidingBushes, backyard: town.backyard, beds: garden.beds, haystack: town.haystack });
 
     const splashes = createSplashes(world, ground.waterSurface, { square: true });
     const bits = createBits(world);

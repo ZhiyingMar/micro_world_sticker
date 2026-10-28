@@ -1,8 +1,8 @@
-// 小镇的房子和广场：风车、红屋顶和蓝屋顶两座房子、喷泉、路灯、长椅、屋后的木箱，还有信箱和路牌
-// 小月亮浮在喷泉的水池里，小出租车停在蓝屋子后头的木箱上
+// 小镇的房子和广场：风车（门口一个干草堆）、红屋顶和蓝屋顶两座房子、喷泉、路灯、长椅、屋后的木箱，还有信箱和路牌
+// 小月亮浮在喷泉的水池里，小出租车停在蓝屋子后头的木箱上；干草堆、木箱堆、木桶能翻像素块（forage.js 登记）
 import * as THREE from 'three';
-import { house, windmill, fountain, lamp, bench, crateStack, barrel, mailbox, signpost, BENCH_SEAT_HEIGHT, SMALL_CRATE_OFFSET } from './models.js';
-import { RED_HOUSE, BLUE_HOUSE, WINDMILL, FOUNTAIN, MOON_OFFSET, LAMPS, BENCHES, CRATES, BARREL, MAILBOX, SIGNPOST } from './layout.js';
+import { house, windmill, haystack, fountain, lamp, bench, crateStack, barrel, mailbox, signpost, BENCH_SEAT_HEIGHT, SMALL_CRATE_OFFSET } from './models.js';
+import { RED_HOUSE, BLUE_HOUSE, WINDMILL, HAYSTACK, FOUNTAIN, MOON_OFFSET, LAMPS, BENCHES, CRATES, BARREL, MAILBOX, SIGNPOST } from './layout.js';
 
 // 房子的碰撞比墙大一点点（石头地基露在外面）
 const HOUSE_PAD = 0.06;
@@ -10,6 +10,9 @@ const HOUSE_PAD = 0.06;
 const SHED_COLLIDER = { offset: 0.36, halfWidth: 0.31, halfDepth: 0.55, shiftZ: -0.12 };
 // 风车底座一半多大
 const WINDMILL_HALF = 0.65;
+// 干草堆的样子；转个角度，草捆朝镜头那边
+const HAYSTACK_SEED = 29;
+const HAYSTACK_TURN = 0.35;
 // 门口的兴趣点离墙多远；在门口、喷泉边待多久（秒）
 const DOOR_SPOT_GAP = 0.6;
 const DOOR_STAY = 6;
@@ -35,15 +38,17 @@ const SMALL_CRATE_RADIUS = 0.17;
  * 搭小镇：房子、风车、广场
  * @param {World} world 像素小镇
  * @param {{ waterPatch: Function }} ground 地面（喷泉的水和地上的水一样）
- * @returns {{ blades: THREE.Group, chimneys: THREE.Vector3[], fountain: { x: number, z: number, groundY: number, lowerWater: number, upperWater: number, spout: number, radius: number } }}
+ * @returns {{ blades: THREE.Group, chimneys: THREE.Vector3[], fountain: { x: number, z: number, groundY: number, lowerWater: number, upperWater: number, spout: number, radius: number }, haystack: THREE.Group, backyard: { crates: THREE.Group, barrel: THREE.Group } }}
+ *   haystack、backyard 是能翻像素块的地方，forage.js 拿去登记
  */
 export function buildTown(world, ground) {
   const chimneys = [buildHouse(world, RED_HOUSE, '🏠'), buildHouse(world, BLUE_HOUSE, '🔑')];
   const blades = buildWindmill(world);
+  const haystackModel = buildHaystack(world);
   const fountainInfo = buildFountain(world, ground);
   buildStreetProps(world);
-  buildCrates(world);
-  return { blades, chimneys, fountain: fountainInfo };
+  const backyard = buildCrates(world);
+  return { blades, chimneys, fountain: fountainInfo, haystack: haystackModel, backyard };
 }
 
 /**
@@ -87,6 +92,19 @@ function buildWindmill(world) {
   world.solidBox(WINDMILL.x - WINDMILL_HALF, WINDMILL.x + WINDMILL_HALF, WINDMILL.z - WINDMILL_HALF, WINDMILL.z + WINDMILL_HALF);
   world.poi(WINDMILL.x, WINDMILL.z + WINDMILL_HALF + DOOR_SPOT_GAP, { emote: '🌾', face: Math.PI, dur: DOOR_STAY });
   return blades;
+}
+
+/**
+ * 风车门口的干草堆，登记成障碍
+ * @param {World} world
+ * @returns {THREE.Group} 干草堆
+ */
+function buildHaystack(world) {
+  const [x, z] = HAYSTACK;
+  const { group, footprint } = haystack(world.kit, HAYSTACK_SEED);
+  world.add(group, x, world.heightAt(x, z), z, HAYSTACK_TURN);
+  world.solidCircle(x, z, footprint);
+  return group;
 }
 
 /**
@@ -155,6 +173,7 @@ function placeBench(world, { x, z, facing, emote }) {
 /**
  * 蓝屋子后头的木箱堆，小出租车停在最上面；旁边一个木桶
  * @param {World} world
+ * @returns {{ crates: THREE.Group, barrel: THREE.Group }} 木箱堆和木桶
  */
 function buildCrates(world) {
   const { group, topY, footprint } = crateStack(world.kit);
@@ -164,6 +183,7 @@ function buildCrates(world) {
   world.solidCircle(CRATES.x + SMALL_CRATE_OFFSET[0], CRATES.z + SMALL_CRATE_OFFSET[1], SMALL_CRATE_RADIUS);
   world.placeItem('taxi', CRATES.x + 0.03, groundY + topY, CRATES.z - 0.02, { ry: 0.6 });
 
-  world.add(barrel(world.kit), BARREL[0], world.heightAt(...BARREL), BARREL[1]);
+  const barrelModel = world.add(barrel(world.kit), BARREL[0], world.heightAt(...BARREL), BARREL[1]);
   world.solidCircle(BARREL[0], BARREL[1], BARREL_RADIUS);
+  return { crates: group, barrel: barrelModel };
 }

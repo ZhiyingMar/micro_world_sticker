@@ -38,6 +38,8 @@ export const RED_HOUSE = { x: -4.7, z: -0.65, facing: 0, width: 2.3, depth: 1.9,
 export const BLUE_HOUSE = { x: 4.3, z: -3.75, facing: 0, width: 2.7, depth: 1.9, height: 1.3, wall: '#e8f1ff', roof: '#4a7bd6', trim: '#6e5a48', shutters: '#ffd84a', shed: true };
 // 风车立在小山包中间，风叶朝着镜头这边
 export const WINDMILL = { x: -5.0, z: -4.6, facing: 0 };
+// 风车门口左边一个干草堆：小路从右边上来到门口，左边是死角，堆在这儿不挡路，也让开门口站人的地方
+export const HAYSTACK = [-6.15, -3.85];
 
 // ---------- 广场 ----------
 // 喷泉在广场中间，正对着往后的大台阶；广场铺石板的那一圈多大
@@ -70,11 +72,11 @@ export const BARREL = [5.65, -5.55];
 // ---------- 菜园（左前，红屋顶台地的崖下） ----------
 // 白栅栏围起来的一块，右边留一个口子当院门
 export const GARDEN = { minX: -6.6, maxX: -3.7, minZ: 2.65, maxZ: 4.6, gateZ: [3.35, 3.95] };
-// 菜畦：几行，每行种什么
+// 菜畦：几行，每行种什么；digX 是这一行能翻的那一格（两棵菜中间，三行错开，别挤在院门口）
 export const CROP_ROWS = [
-  { z: 3.0, crop: 'carrot' },
-  { z: 3.55, crop: 'cabbage' },
-  { z: 4.1, crop: 'pumpkin' },
+  { z: 3.0, crop: 'carrot', digX: -4.5 },
+  { z: 3.55, crop: 'cabbage', digX: -5.22 },
+  { z: 4.1, crop: 'pumpkin', digX: -5.94 },
 ];
 // 稻草人站在菜园中间偏左
 export const SCARECROW = [-5.9, 3.55];
@@ -170,6 +172,14 @@ export const BUSHES = [
   [6.6, 2.2, 0.26], // 池塘右边
   [-2.6, -5.6, 0.28], // 风车小山脚
   [3.3, 1.55, 0.24], // 右边台地崖脚，瀑布左边
+];
+
+// ---------- 像素块 ----------
+// 像素块都要按 E 翻：灌木丛（上面 BUSHES 那几丛）、蓝屋子后院的木箱堆和木桶、菜畦、风车门口的干草堆
+// 每次进来后院、菜园、风车这几处藏 2 个，灌木丛里藏 3 个：两边都得去翻翻，不会全挤在灌木里
+export const BLOCK_HIDING = [
+  { material: 'block', count: 2, from: ['crate', 'bed', 'hay'] },
+  { material: 'block', count: 3, from: ['bush'] },
 ];
 
 // ---------- 小鸡 ----------

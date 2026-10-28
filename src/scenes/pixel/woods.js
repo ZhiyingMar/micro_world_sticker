@@ -1,5 +1,5 @@
 // 树和灌木：几棵有讲究的树，后边、左边、右后一圈树墙把小镇框起来，最前面只种矮灌木；
-// 台地边上、崖脚下、池塘边几丛灌木打断一条条直直的崖边，人碰到会沙沙响（touch.js）
+// 台地边上、崖脚下、池塘边几丛灌木打断一条条直直的崖边，人碰到会沙沙响（touch.js），还能翻像素块（forage.js）
 // 树墙要避开已经摆好的东西（房子、风车、物品、小路），所以要在它们后面种
 import { rng } from '../../kit.js';
 import { voxelTree, voxelBush } from './plants.js';
@@ -39,15 +39,16 @@ const BUSH_SEED = 41;
 /**
  * 种树、种灌木
  * @param {World} world 像素小镇
- * @returns {{ crowns: THREE.Group[], bushes: { x: number, z: number, radius: number, group: THREE.Group }[] }} 树冠（风吹的时候摇）；灌木（碰一下会沙沙响）
+ * @returns {{ crowns: THREE.Group[], bushes: { x: number, z: number, radius: number, group: THREE.Group }[], hidingBushes: { x: number, z: number, radius: number, group: THREE.Group }[] }}
+ *   树冠（风吹的时候摇）；所有灌木（碰一下会沙沙响）；BUSHES 那几丛（能翻像素块，最前面一排矮灌木不算）
  */
 export function buildWoods(world) {
   const crowns = TREES.map(([x, z, look], index) => plantTree(world, x, z, { ...look, seed: index + 1 }));
-  const bushes = BUSHES.map(([x, z, radius], index) => plantBush(world, x, z, radius, BUSH_SEED + index));
+  const hidingBushes = BUSHES.map(([x, z, radius], index) => plantBush(world, x, z, radius, BUSH_SEED + index));
 
   crowns.push(...treeWall(world));
-  bushes.push(...frontBushes(world));
-  return { crowns, bushes };
+  const bushes = [...hidingBushes, ...frontBushes(world)];
+  return { crowns, bushes, hidingBushes };
 }
 
 /**

@@ -1,4 +1,4 @@
-// 像素小镇的模型（只造不摆）：房子、风车、喷泉、路灯、长椅、木箱、栅栏、稻草人、菜、小鸡……
+// 像素小镇的模型（只造不摆）：房子、风车、干草堆、喷泉、路灯、长椅、木箱、栅栏、稻草人、菜、小鸡、像素块……
 // 每个函数拿 kit 和几个选项，返回一个 THREE.Group，原点在底面中心、正面朝 +z；摆在哪、登记碰撞在调用的地方做
 // 大件用几块方块搭（颜色分暗、本色、亮几档，像素画靠颜色分出体积），小石头、云这种疙疙瘩瘩的用体素（src/voxel.js）
 import * as THREE from 'three';
@@ -444,6 +444,64 @@ export function barrel(kit) {
   return group;
 }
 
+// ---------- 干草堆 ----------
+// 草堆用多大的体素；圆鼓鼓的一堆：半宽、半高（格子数）；草的颜色
+const HAY_VOXEL = 0.06;
+const HAY_MOUND_RADIUS = [5, 4.6, 4.6];
+// 草堆中心抬多高（占半高的比例）：不到 1，底下一圈埋进地里，像是压实的
+const HAY_MOUND_LIFT = 0.8;
+const HAY_COLOR = '#e3b448';
+// 草堆表面多疙瘩、多少草换成邻近的深浅
+const HAY_BUMPINESS = 0.22;
+const HAY_SPECKLE = 0.18;
+// 旁边一个捆好的方草捆：多大，在草堆哪边（右前，朝镜头），转多少；捆它的两道麻绳多宽
+const HAY_BALE = [0.32, 0.18, 0.2];
+const HAY_BALE_SPOT = [0.36, 0.22];
+const HAY_BALE_TURN = -0.5;
+const TWINE_WIDTH = 0.025;
+const TWINE_COLOR = '#8b5a2b';
+// 地上散落的几根草：一根多大；在草堆哪儿 [dx, dz, 转角]
+const LOOSE_STRAW = [0.12, 0.02, 0.03];
+const LOOSE_STRAWS = [
+  [-0.3, 0.28, 0.4],
+  [0.05, 0.4, -0.9],
+  [-0.42, -0.05, 1.3],
+];
+
+/**
+ * 风车门口的干草堆：一堆圆鼓鼓的草，旁边一个捆好的方草捆，地上散着几根草
+ * @param {Kit} kit
+ * @param {number} seed 草堆表面的起伏
+ * @returns {{ group: THREE.Group, footprint: number }} 原点在底面中心；footprint 是草堆占地多大（一半）
+ */
+export function haystack(kit, seed) {
+  const group = new THREE.Group();
+  const shades = shadesOf(HAY_COLOR, 0.09);
+  const [, base, light] = shades;
+
+  const mound = new VoxelShape(HAY_VOXEL);
+  const [radiusX, radiusY, radiusZ] = HAY_MOUND_RADIUS;
+  mound.fillBlob({ center: [0, radiusY * HAY_MOUND_LIFT, 0], radius: HAY_MOUND_RADIUS, shades, bumpiness: HAY_BUMPINESS, seed, speckle: HAY_SPECKLE });
+  group.add(mound.mesh(kit));
+
+  // 麻绳比草捆大一丝，包在外面看得见
+  const [baleWidth, baleHeight, baleDepth] = HAY_BALE;
+  const twineOverlap = 0.01;
+  const bale = new THREE.Group();
+  bale.add(at(kit.box(baleWidth, baleHeight, baleDepth, base), 0, baleHeight / 2, 0));
+  for (const side of [-1, 1]) {
+    const twine = kit.box(TWINE_WIDTH, baleHeight + twineOverlap, baleDepth + twineOverlap, TWINE_COLOR);
+    bale.add(at(twine, (side * baleWidth) / 4, baleHeight / 2, 0));
+  }
+  group.add(at(bale, HAY_BALE_SPOT[0], 0, HAY_BALE_SPOT[1], HAY_BALE_TURN));
+
+  const [strawLength, strawHeight, strawWidth] = LOOSE_STRAW;
+  for (const [x, z, turn] of LOOSE_STRAWS) {
+    group.add(at(kit.box(strawLength, strawHeight, strawWidth, light), x, strawHeight / 2, z, turn));
+  }
+  return { group, footprint: Math.max(radiusX, radiusZ) * HAY_VOXEL };
+}
+
 // 白栅栏：尖头木条隔多远一根，多高
 const PICKET_SPACING = 0.22;
 const PICKET_HEIGHT = 0.42;
@@ -714,4 +772,67 @@ export function fish(kit) {
   group.add(at(kit.box(0.02, 0.08, 0.06, '#ffb36b'), 0, 0, -0.1));
   group.add(at(kit.box(0.09, 0.02, 0.02, '#2b211c'), 0, 0.02, 0.05));
   return group;
+}
+
+// ---------- 材料 ----------
+// 像素块：边长几个小方块，一个小方块多大
+const BLOCK_CELLS = 5;
+const BLOCK_VOXEL = 0.04;
+// 每块随机挑一种亮色：粉、青、紫，和草地、菜、花、草堆的颜色都错开
+const BLOCK_COLORS = ['#ff5fa2', '#3fc8ff', '#a070ff'];
+// 亮边、暗点和本色差多少亮度
+const BLOCK_SHADE_STEP = 0.12;
+// 角上那颗高光是什么颜色
+const BLOCK_SPARKLE = '#ffffff';
+// 自己微微发光多亮：藏在灌木、菜畦里也一眼看得出是能捡的，不是装饰
+const BLOCK_GLOW = 0.35;
+
+/**
+ * 一个像素块（像素小镇的材料）：亮色的小方块，每个面一圈亮边、正中一格暗点，朝光的角上一颗白色高光
+ * @description 像 8-bit 游戏里的宝石方块，和小镇里的花、菜、木箱一眼分得开；每块颜色随机，翻出来不是一模一样的
+ * @param {Kit} kit
+ * @returns {THREE.Group} 原点在底面中心
+ */
+export function pixelBlock(kit) {
+  const color = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+  const shades = shadesOf(color, BLOCK_SHADE_STEP);
+  // 格子以原点为中心：x、z 从 -edge 到 edge，y 从 0 往上
+  const edge = (BLOCK_CELLS - 1) / 2;
+
+  const shape = new VoxelShape(BLOCK_VOXEL);
+  shape.fillBox([-edge, 0, -edge], [edge, BLOCK_CELLS - 1, edge], (x, y, z) => blockCellColor([x, y - edge, z], edge, shades));
+
+  const group = new THREE.Group();
+  group.add(shape.mesh(kit, { emissive: color, emissiveIntensity: BLOCK_GLOW }));
+  return group;
+}
+
+/**
+ * 像素块上一个小方块是什么颜色
+ * @description 小方块的颜色同时用在它露出来的几个面上：棱上的（两个以上坐标在边上）就是每个面的亮边，
+ *   只有一个坐标在边上、另外两个在正中的就是每个面正中的暗点
+ * @param {number[]} cell 以方块中心为原点的格子坐标 [x, y, z]
+ * @param {number} edge 边上的格子离中心几格
+ * @param {string[]} shades [暗, 本色, 亮]
+ * @returns {string}
+ */
+function blockCellColor(cell, edge, shades) {
+  const [dark, base, light] = shades;
+  const [x, y, z] = cell;
+
+  // 左上前的角朝着太阳，点一颗高光
+  const sparkle = x === -edge && y === edge && z === edge;
+  if (sparkle) {
+    return BLOCK_SPARKLE;
+  }
+
+  const onEdge = cell.filter((value) => Math.abs(value) === edge).length;
+  const centered = cell.filter((value) => value === 0).length;
+  if (onEdge >= 2) {
+    return light;
+  }
+  if (onEdge === 1 && centered === 2) {
+    return dark;
+  }
+  return base;
 }
