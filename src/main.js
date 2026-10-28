@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';//鼠标或触摸屏
 import { World } from './world.js';
-import { SCENES, HOME } from './scenes/index.js';
+import { SCENES, HOME, WORLDS } from './scenes/index.js';
 import { state, save, foundIn, resetSave } from './state.js';
 import { ui } from './ui.js';
 import { sfx } from './audio.js';
@@ -1331,6 +1331,7 @@ if (TRAILER_MODE) {
  * 平时的启动：回到上次所在的世界，第一次玩先看开场说明
  */
 function startPlaying() {
+  grantMagnetsOfFinishedWorlds();
   loadScene(testId || (startDef && !startDef.comingSoon && !startDef.ending ? state.current : 'home'));
   loop();
   if (!state.seenIntro) {
@@ -1342,6 +1343,33 @@ function startPlaying() {
     });
   } else {
     maybeRotateHint();
+  }
+}
+
+/**
+ * 老存档补冰箱贴：东西已经找齐的世界，它现在合成的那块冰箱贴要在冰箱上
+ * @description 世界的顺序会改（伦敦、海边先暂停，夜都直接合成全家福）。以前集齐夜都的人拿到的是伦敦，
+ *   不补的话冰箱上永远差一块全家福；"刚拿到"还指着暂停的世界时，也换成补上的这块
+ */
+function grantMagnetsOfFinishedWorlds() {
+  let granted = null;
+  for (const id of WORLDS) {
+    const def = SCENES[id];
+    // 只读不建：foundIn() 会给没去过的世界建一个空记录
+    const found = state.found[id] || [];
+    const finished = def.items.length > 0 && def.items.every((item) => found.includes(item.id));
+    if (!finished || state.magnets.includes(def.next)) {
+      continue;
+    }
+    state.magnets.push(def.next);
+    granted = def.next;
+  }
+
+  // "刚拿到的"还指着暂停的世界时换成补上的这块，没补就清掉
+  const newOnePaused = Boolean(state.newMagnet && SCENES[state.newMagnet]?.comingSoon);
+  if (granted || newOnePaused) {
+    state.newMagnet = granted;
+    save();
   }
 }
 
