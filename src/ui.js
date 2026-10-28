@@ -2,6 +2,7 @@ import { state, foundIn, repairedIn, materialCount, canAfford } from './state.js
 import { DECOR_KINDS, currentDecor, ownsDecor, decorSwatch } from './decor.js';
 import { SCENES, MAGNETS, COLLECTIBLE_MAGNETS, WORLDS, HOME } from './scenes/index.js';
 import { sfx } from './audio.js';
+import { timeMode, currentHour, formatHour } from './daytime.js';
 
 const $ = (s) => document.querySelector(s);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -49,6 +50,11 @@ function missingFor(cost) {
 const SOUND_CHOICES = [
   { value: 'on', label: '🔊 开' },
   { value: 'off', label: '🔇 关' },
+];
+// 小屋的时间那一排：存的值、按钮上的字，选中时下面那行说明
+const TIME_CHOICES = [
+  { value: 'real', label: '🕰 跟着现在', note: '和你这里的钟一样：晚上打开游戏，小屋里也是晚上' },
+  { value: 'fast', label: '⏩ 快进', note: '现实 1 分钟，小屋里过 1 小时，一整天 24 分钟' },
 ];
 
 /**
@@ -454,6 +460,7 @@ export const ui = {
    * 打开设置面板
    * @param {object} handlers 选了某一项时调用，面板随后按存档重画
    * @param {(muted: boolean) => void} handlers.onSound 选了开 / 关声音
+   * @param {(mode: 'real' | 'fast') => void} handlers.onTime 选了小屋的时间怎么走
    */
   openSettings(handlers) {
     sfx.pop();
@@ -468,6 +475,14 @@ export const ui = {
       handlers.onSound(choice.dataset.value === 'off');
       this._renderSettings();
     };
+    $('#settings-time').onclick = (event) => {
+      const choice = event.target.closest('[data-value]');
+      if (!choice) {
+        return;
+      }
+      handlers.onTime(choice.dataset.value);
+      this._renderSettings();
+    };
   },
 
   /**
@@ -476,6 +491,11 @@ export const ui = {
   _renderSettings() {
     const sound = state.muted ? 'off' : 'on';
     $('#settings-sound').innerHTML = choicesHTML(SOUND_CHOICES, sound);
+
+    const mode = timeMode();
+    $('#settings-time').innerHTML = choicesHTML(TIME_CHOICES, mode);
+    const note = TIME_CHOICES.find((choice) => choice.value === mode).note;
+    $('#settings-time-note').textContent = `${note}。现在小屋里是 ${formatHour(currentHour())}`;
   },
 
   closeSettings() {

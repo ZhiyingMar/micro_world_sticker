@@ -2,6 +2,7 @@
 // 页面上只露出要录的那块画布和一个小面板；点“开始录制”（浏览器要先有一次点击才肯出声）后开拍，
 // 演完自动停，开发服务器上直接存进项目的 recordings/ 文件夹，否则给一个下载链接
 import { useMemorySave } from '../state.js';
+import { pinHour } from '../daytime.js';
 import { sfx } from '../audio.js';
 import { createRecorder } from './recorder.js';
 import { createDirector } from './director.js';
@@ -14,6 +15,8 @@ const FPS = 30;
 const SAVE_ENDPOINT = '/__trailer/save';
 // 最后一个镜头演完以后多录一会儿（秒），黑场不会被截掉一截
 const TAIL_SECONDS = 0.3;
+// 小屋钉在下午两点：分镜是照午后的暖光拍的，不随录的时候是几点变
+const TRAILER_HOUR = 14;
 
 /**
  * 进入宣传片模式
@@ -21,6 +24,7 @@ const TAIL_SECONDS = 0.3;
  */
 export function runTrailer(game) {
   useMemorySave(TRAILER_SAVE);
+  pinHour(TRAILER_HOUR);
   document.body.classList.add('trailer');
   game.setRenderSize(VIDEO_SIZE);
 

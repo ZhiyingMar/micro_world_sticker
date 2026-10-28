@@ -10,6 +10,8 @@ function fresh() {
     muted: false,
     // 小屋装修：{ wallpaper, floor } 是现在用的那款 id，owned 是工作台上做过的；没有就是一开始那套
     decor: { owned: [] },
+    // 小屋里的时间怎么走：real 跟着这台设备的钟；fast 快进，还记着从几点（startHour）、什么时候（startedAt）开始快进
+    time: { mode: 'real' },
   };
 }
 

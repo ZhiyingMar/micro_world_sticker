@@ -8,6 +8,7 @@ import { ui } from './ui.js';
 import { sfx } from './audio.js';
 import { blobShadowTexture } from './fx.js';
 import { updateOccluders } from './occlusion.js';
+import { setTimeMode } from './daytime.js';
 
 /** @typedef {import('./types.js').SceneDef} SceneDef */
 /** @typedef {import('./types.js').GameDef} GameDef */
@@ -1133,7 +1134,7 @@ if (reqFull && (document.fullscreenEnabled || document.webkitFullscreenEnabled))
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
-// ---------------- 设置：声音 ----------------
+// ---------------- 设置：声音、小屋的时间 ----------------
 /**
  * 打开或关掉声音，记进存档
  * @param {boolean} muted true 是关掉
@@ -1150,8 +1151,18 @@ function setMuted(muted) {
   sfx.click();
 }
 
+/**
+ * 选了小屋的时间怎么走
+ * @description 小屋里的画面每帧读钟点，换了走法会自己追过去，这里只记下来
+ * @param {'real' | 'fast'} mode 跟着现在 / 快进
+ */
+function chooseTimeMode(mode) {
+  sfx.click();
+  setTimeMode(mode);
+}
+
 document.getElementById('btn-settings').addEventListener('click', () => {
-  ui.openSettings({ onSound: setMuted });
+  ui.openSettings({ onSound: setMuted, onTime: chooseTimeMode });
 });
 document.getElementById('settings-close').addEventListener('click', () => {
   sfx.click();
