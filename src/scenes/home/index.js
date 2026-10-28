@@ -10,7 +10,7 @@
 //   furniture.js  把家具摆进屋里，登记碰撞和兴趣点（凳子挡人，小人一步坐上去）
 //   workbench.js  工作台：走过去按 E 换壁纸、地板
 //   eaves.js      墙顶的房檐
-//   garden.js     屋外一圈花园：篱笆院门、小路和台阶、几种树和灌木、窗外的向日葵、成簇的花、草丛、蝴蝶、风
+//   garden.js     屋外一圈花园：篱笆院门、小路和台阶、几种树和灌木、窗外的向日葵、成簇的花、草丛、蝴蝶和萤火虫、风
 //   garden-ground.js  花园的地面：圆角的草地方块、深浅草色和土路、侧面的土层和小石头
 //   garden-models.js  花园里的小模型：尖头篱笆、院门、信箱、向日葵、木台阶、踏脚石
 //   garden-path.js    小路在哪：连成曲线，算一点离路多远
@@ -19,7 +19,8 @@
 //   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
 //   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
-//   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星，拨墙上的钟，开关落地灯
+//   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星，拨墙上的钟，开关落地灯；
+//                 夜里花园的蝴蝶换成萤火虫，鸟叫换成蟋蟀
 //   lamp.js       落地灯的开关：天黑了"咔哒"一声亮起来
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -137,7 +138,7 @@ export default {
   build(world) {
     const room = buildRoom(world);
     placeEaves(world);
-    placeGarden(world);
+    const garden = placeGarden(world);
     const furnitureKit = createFurnitureKit(world);
     const furniture = buildFurniture(world, furnitureKit);
     placeWorkbench(world, room, furnitureKit);
@@ -152,6 +153,6 @@ export default {
     bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
     createTouch(world);
     const lamp = wireLamp(world, furniture.lamp);
-    bringDayAndNight(world, { room, lamp });
+    bringDayAndNight(world, { room, lamp, garden });
   },
 };

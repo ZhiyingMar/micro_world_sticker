@@ -4,6 +4,7 @@
 // 傍晚落到左墙那边，左墙的影子一点点拉长盖过地板，屋里慢慢暗下来；夜里换成又冷又弱的月光
 import * as THREE from 'three';
 import { createDisplayClock } from '../../daytime.js';
+import { sfx } from '../../audio.js';
 
 // 一天里几个关键时刻的样子，按钟点排；最后一个绕过半夜接回第一个
 //   sky / ground / skyLight：天光（半球光）上面、下面的颜色，多亮
@@ -11,7 +12,7 @@ import { createDisplayClock } from '../../daytime.js';
 //   bearing：太阳从哪边照过来（度）：0 东（屋子右边 +x），90 南（屋前、镜头这边 +z），180 西（左墙那边 -x）
 //   elevation：太阳离地平线多高（度）。最低压在 14° 左右：再低影子拉得太长，阴影边上会出毛刺
 //   tint / tintStrength：方块外面背景上盖的那层颜色，多浓（0 是不盖，露出壁纸配的底色）
-//   night：夜有多深（0 白天 ~ 1 深夜），星星跟着它
+//   night：夜有多深（0 白天 ~ 1 深夜），星星、萤火虫、蝴蝶、蟋蟀跟着它
 const KEYFRAMES = [
   // 深夜：天光是深蓝、压暗一些，落地灯那一圈暖光才显得出来；月光从右前方高处淡淡地照下来
   { hour: 0, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
@@ -33,6 +34,8 @@ const KEYFRAMES = [
   { hour: 20.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
 ];
 const HOURS_PER_DAY = 24;
+// 夜有多深时环境声里的鸟叫换成蟋蟀（大约 19 点到 5 点半）
+const CRICKETS_FROM_NIGHT = 0.5;
 // 落地灯：傍晚几点自己亮（屋里被左墙的影子盖住、开始暗下来的时候），早上几点关（太阳照进屋以后）
 const LAMP_ON_HOUR = 17.75;
 const LAMP_OFF_HOUR = 6.5;
@@ -57,8 +60,9 @@ const FRAMES = KEYFRAMES.map((frame) => ({
  * @param {object} parts 跟着钟点变的东西
  * @param {{ showNightSky(level: number): void, showTime(hour: number): void }} parts.room 房间：天黑了外面的星星出来，墙上的钟
  * @param {{ switchTo(on: boolean, instantly?: boolean): void }} parts.lamp 落地灯的开关
+ * @param {{ showNight(level: number): void }} parts.garden 花园：天黑了蝴蝶躲起来、萤火虫出来
  */
-export function bringDayAndNight(world, { room, lamp }) {
+export function bringDayAndNight(world, { room, lamp, garden }) {
   const { hemi, sun } = world.env;
   const clock = createDisplayClock();
   const day = blankFrame();
@@ -71,6 +75,8 @@ export function bringDayAndNight(world, { room, lamp }) {
 
     applyLights(day, hemi, sun);
     room.showNightSky(day.night);
+    garden.showNight(day.night);
+    sfx.nightSounds(day.night >= CRICKETS_FROM_NIGHT);
     room.showTime(hour);
     lamp.switchTo(isLampTime(hour), instantly);
 

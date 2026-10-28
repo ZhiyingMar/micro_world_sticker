@@ -4,6 +4,7 @@
 import { rng } from '../../kit.js';
 import { tree, bush, flowerField, grassField, swayInWind } from '../../plants.js';
 import { createButterflies } from '../../butterflies.js';
+import { createFireflies } from '../../fireflies.js';
 import { buildGardenGround } from './garden-ground.js';
 import { picketFence, gardenGate, mailbox, sunflower, porchStep, steppingStone } from './garden-models.js';
 import { pathPoints, pathDirection, distanceToPath, PATH_HALF_WIDTH } from './garden-path.js';
@@ -61,12 +62,15 @@ const GRASS_SEED = 13;
 // 蝴蝶绕着哪几片花飞（FLOWER_BEDS 里的第几片）：都在镜头这一侧，看得到
 const BUTTERFLY_BEDS = [0, 2, 4, 9];
 const BUTTERFLY_SEED = 41;
+// 萤火虫在每片花、每团灌木上都飘几只（夜里镜头这一侧和屋后都看得到）
+const FIREFLY_SEED = 23;
 // 树的样子每棵不一样
 const TREE_SEED = 3;
 
 /**
  * 围着房子铺一圈花园
  * @param {World} world 小屋这个世界
+ * @returns {{ showNight(level: number): void }} 夜有多深（0 白天 ~ 1 深夜）：白天蝴蝶在飞，天黑了蝴蝶躲起来、萤火虫出来
  */
 export function placeGarden(world) {
   buildGardenGround(world);
@@ -85,7 +89,15 @@ export function placeGarden(world) {
   // 树冠和向日葵一起被风吹着晃
   swayInWind(world, [...crowns, ...sunflowers]);
   const beds = BUTTERFLY_BEDS.map((index) => ({ x: FLOWER_BEDS[index][0], z: FLOWER_BEDS[index][1], y: GARDEN.groundY }));
-  createButterflies(world, beds, BUTTERFLY_SEED);
+  const butterflies = createButterflies(world, beds, BUTTERFLY_SEED);
+  const fireflySpots = [...FLOWER_BEDS, ...GARDEN_BUSHES].map(([x, z]) => ({ x, z, y: GARDEN.groundY }));
+  const fireflies = createFireflies(world, fireflySpots, FIREFLY_SEED);
+
+  const showNight = (level) => {
+    butterflies.setPresence(1 - level);
+    fireflies.setPresence(level);
+  };
+  return { showNight };
 }
 
 // ---------- 篱笆、小路 ----------

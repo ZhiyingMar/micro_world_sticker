@@ -85,14 +85,14 @@ function noiseBurst({ highpass, lowpass, duration, volume }) {
 // ---------- 环境声（雨声等），跟着场景切换 ----------
 let ambientKind = null;
 let ambientNodes = null;
-// 各种环境声：音量和音色（低通频率）；birds 是隔一会儿有鸟叫
+// 各种环境声：音量和音色（低通频率）；birds 是隔一会儿有鸟叫，crickets 是夜里（nightSounds 打开时）蟋蟀代替鸟叫
 const AMBIENT = {
   rain: { vol: 0.32, lowpass: 2600 },
   city: { vol: 0.08, lowpass: 500 },
   sea: { vol: 0.3, lowpass: 900, swell: true },
   forest: { vol: 0.05, lowpass: 1400, birds: true },
-  // 小屋：屋里很轻的底噪（闷闷的，像隔着窗户的风），窗外隔一会儿有鸟叫
-  home: { vol: 0.025, lowpass: 700, birds: true },
+  // 小屋：屋里很轻的底噪（闷闷的，像隔着窗户的风），窗外隔一会儿有鸟叫，夜里换成蟋蟀
+  home: { vol: 0.025, lowpass: 700, birds: true, crickets: true },
   // 像素小镇：轻轻的风声，鸟叫是三角波的 8-bit 叫声
   pixel: { vol: 0.035, lowpass: 1100, birds: true, birdWave: 'triangle' },
 };
@@ -108,6 +108,17 @@ const BIRD_VOLUME = 0.035;
 const BIRD_SLIDE = 1.25;
 const BIRD_HOP = 0.12;
 let birdTimer = null;
+
+// 蟋蟀：隔一会儿（随机）一只叫一串"唧唧唧"——几下很短的高音连在一起；每串音高不一样，像好几只此起彼伏
+const CRICKET_GAP = [0.5, 2];
+const CRICKET_PITCH = [3800, 4800];
+const CRICKET_PULSES = [3, 6];
+const CRICKET_PULSE_GAP = 0.045;
+const CRICKET_PULSE_LENGTH = 0.025;
+const CRICKET_VOLUME = 0.014;
+let cricketTimer = null;
+// 现在是不是夜里：有 crickets 的环境声夜里用蟋蟀代替鸟叫
+let nightTime = false;
 
 // 像素小镇的台阶音：从哪个音开始（赫兹，C5），五声音阶（离开始那个音几个半音）
 const STAIR_BASE_PITCH = 523.25;
@@ -148,10 +159,58 @@ function stopBirds() {
   clearTimeout(birdTimer);
   birdTimer = null;
 }
+/**
+ * 一只蟋蟀叫一串：几下很短的高音
+ */
+function cricketTrill() {
+  const pitch = CRICKET_PITCH[0] + Math.random() * (CRICKET_PITCH[1] - CRICKET_PITCH[0]);
+  const pulses = CRICKET_PULSES[0] + Math.floor(Math.random() * (CRICKET_PULSES[1] - CRICKET_PULSES[0] + 1));
+  for (let i = 0; i < pulses; i++) {
+    tone(pitch, i * CRICKET_PULSE_GAP, CRICKET_PULSE_LENGTH, { vol: CRICKET_VOLUME });
+  }
+}
+
+/**
+ * 开始隔一会儿叫一串，直到 stopCrickets()
+ * @description 静音时 tone() 自己不出声，这里不用管
+ */
+function startCrickets() {
+  stopCrickets();
+  const wait = (CRICKET_GAP[0] + Math.random() * (CRICKET_GAP[1] - CRICKET_GAP[0])) * 1000;
+  cricketTimer = setTimeout(() => {
+    cricketTrill();
+    startCrickets();
+  }, wait);
+}
+
+/**
+ * 蟋蟀不叫了
+ */
+function stopCrickets() {
+  clearTimeout(cricketTimer);
+  cricketTimer = null;
+}
+
+/**
+ * 按环境声的设置和现在是不是夜里，让窗外的小动物叫起来：白天鸟叫，夜里（有 crickets 的话）蟋蟀
+ * @param {object} config AMBIENT 里这种环境声的设置
+ */
+function startCritters(config) {
+  stopBirds();
+  stopCrickets();
+  const cricketsNow = nightTime && config.crickets;
+  if (cricketsNow) {
+    startCrickets();
+  } else if (config.birds) {
+    startBirds();
+  }
+}
+
 const ambientVol = () => (state.muted || !AMBIENT[ambientKind] ? 0 : AMBIENT[ambientKind].vol);
 
 function stopAmbient() {
   stopBirds();
+  stopCrickets();
   if (!ambientNodes) return;
   const { src, gain } = ambientNodes;
   const t = ctx.currentTime;
@@ -196,9 +255,7 @@ function startAmbient() {
   }
   src.start();
   ambientNodes = { src, gain, lfo };
-  if (cfg.birds) {
-    startBirds();
-  }
+  startCritters(cfg);
 }
 
 export const sfx = {
@@ -226,6 +283,20 @@ export const sfx = {
     if (!ctx) return; // 等第一次点击后再开始
     stopAmbient();
     startAmbient();
+  },
+  /**
+   * 天黑了 / 天亮了：有蟋蟀的环境声（小屋）夜里把鸟叫换成蟋蟀
+   * @description 只有小屋按钟点调它；别的世界的环境声没有 crickets，这个开关对它们没影响
+   * @param {boolean} night 是不是夜里
+   */
+  nightSounds(night) {
+    if (night === nightTime) {
+      return;
+    }
+    nightTime = night;
+    if (ambientNodes) {
+      startCritters(AMBIENT[ambientKind] || AMBIENT.city);
+    }
   },
   refreshAmbient() {
     if (!ctx || !ambientNodes) return;

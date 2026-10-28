@@ -28,6 +28,7 @@ const FLEE_FLAP_BOOST = 1.8;
  * @param {World} world 放在哪个世界
  * @param {{ x: number, z: number, y: number }[]} gardens 每只绕着飞的花丛中心，y 是那里的地面高度
  * @param {number} seed 随机种子：每只飞多大圈、多快，每次进来都一样
+ * @returns {{ setPresence(level: number): void }} 出来多少（1 都在飞 ~ 0 都躲起来了，天黑时用）
  */
 export function createButterflies(world, gardens, seed) {
   const random = rng(seed);
@@ -50,12 +51,26 @@ export function createButterflies(world, gardens, seed) {
     };
   });
 
+  // 天黑了蝴蝶一点点缩小、躲起来；全躲起来以后不画也不算
+  let presence = 1;
   world.onUpdate((dt, time) => {
+    if (presence <= 0) {
+      return;
+    }
     for (const fly of flock) {
       maybeScare(fly, world.player, time);
       flutter(fly, time);
     }
   });
+
+  const setPresence = (level) => {
+    presence = level;
+    for (const fly of flock) {
+      fly.group.visible = level > 0;
+      fly.group.scale.setScalar(BUTTERFLY_SCALE * level);
+    }
+  };
+  return { setPresence };
 }
 
 /**
