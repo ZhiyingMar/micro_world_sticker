@@ -45,6 +45,27 @@ function missingFor(cost) {
   return missing;
 }
 
+// 设置面板里声音那一排：存的值、按钮上的字
+const SOUND_CHOICES = [
+  { value: 'on', label: '🔊 开' },
+  { value: 'off', label: '🔇 关' },
+];
+
+/**
+ * 设置面板里的一排二选一按钮
+ * @param {{ value: string, label: string }[]} choices 几个选项
+ * @param {string} selected 现在选的是哪个 value
+ * @returns {string}
+ */
+function choicesHTML(choices, selected) {
+  return choices
+    .map((choice) => {
+      const on = choice.value === selected ? 'on' : '';
+      return `<button class="settings-choice ${on}" data-value="${choice.value}">${choice.label}</button>`;
+    })
+    .join('');
+}
+
 /**
  * 工作台面板上的一张卡片：小样图、名字、状态（使用中 / 做过了 / 配方）
  * @param {object} entry 装修目录里的一款
@@ -427,14 +448,49 @@ export const ui = {
     $('#workbench').hidden = true;
   },
 
-  // 冰箱、工作台这类盖住整个画面的面板，开着的时候不能走动、点场景
+  // ---------- 设置 ----------
+
+  /**
+   * 打开设置面板
+   * @param {object} handlers 选了某一项时调用，面板随后按存档重画
+   * @param {(muted: boolean) => void} handlers.onSound 选了开 / 关声音
+   */
+  openSettings(handlers) {
+    sfx.pop();
+    this._renderSettings();
+    $('#settings').hidden = false;
+
+    $('#settings-sound').onclick = (event) => {
+      const choice = event.target.closest('[data-value]');
+      if (!choice) {
+        return;
+      }
+      handlers.onSound(choice.dataset.value === 'off');
+      this._renderSettings();
+    };
+  },
+
+  /**
+   * 按现在的存档把设置面板重画一遍
+   */
+  _renderSettings() {
+    const sound = state.muted ? 'off' : 'on';
+    $('#settings-sound').innerHTML = choicesHTML(SOUND_CHOICES, sound);
+  },
+
+  closeSettings() {
+    $('#settings').hidden = true;
+  },
+
+  // 冰箱、工作台、设置这类盖住整个画面的面板，开着的时候不能走动、点场景
   get panelOpen() {
-    return this.fridgeOpen || !$('#workbench').hidden;
+    return this.fridgeOpen || !$('#workbench').hidden || !$('#settings').hidden;
   },
 
   closePanels() {
     this.closeFridge();
     this.closeWorkbench();
+    this.closeSettings();
   },
 
   // ---------- 合成冰箱贴 ----------

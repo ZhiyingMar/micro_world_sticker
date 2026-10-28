@@ -29,7 +29,7 @@
         <button id="btn-fridge" class="pill" title="打开冰箱，查看冰箱贴">🧊 冰箱</button>
         <button id="btn-reset" class="pill" title="回到全貌">🔭 全貌</button>
         <button id="btn-full" class="pill icon" title="全屏" hidden>⛶</button>
-        <button id="btn-sound" class="pill icon" title="声音开关">🔊</button>
+        <button id="btn-settings" class="pill icon" title="设置：声音、小屋的时间">⚙️</button>
       </div>
 
 
@@ -111,6 +111,18 @@
         <div id="bench-tip"></div>
       </div>
       <button id="bench-close" class="pill">收起工作台</button>
+    </div>
+
+    <!-- 设置：右上角的东西多了，声音开关收进这里 -->
+    <div id="settings" class="overlay" hidden>
+      <div class="settings-card">
+        <div class="settings-title">⚙️ 设置</div>
+        <div class="settings-row">
+          <div class="settings-label">声音</div>
+          <div class="settings-choices" id="settings-sound"></div>
+        </div>
+      </div>
+      <button id="settings-close" class="pill">好了</button>
     </div>
 
     <div id="combine" class="overlay" hidden>

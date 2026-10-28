@@ -1133,15 +1133,34 @@ if (reqFull && (document.fullscreenEnabled || document.webkitFullscreenEnabled))
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
-const soundBtn = document.getElementById('btn-sound');
-const syncSound = () => (soundBtn.textContent = state.muted ? '🔇' : '🔊');
-syncSound();
-soundBtn.addEventListener('click', () => {
-  state.muted = !state.muted;
+// ---------------- 设置：声音 ----------------
+/**
+ * 打开或关掉声音，记进存档
+ * @param {boolean} muted true 是关掉
+ */
+function setMuted(muted) {
+  if (muted === state.muted) {
+    return;
+  }
+
+  state.muted = muted;
   save();
-  syncSound();
   sfx.refreshAmbient();
+  // 关掉时这一声自己不响，打开时响一下，听得出声音回来了
   sfx.click();
+}
+
+document.getElementById('btn-settings').addEventListener('click', () => {
+  ui.openSettings({ onSound: setMuted });
+});
+document.getElementById('settings-close').addEventListener('click', () => {
+  sfx.click();
+  ui.closeSettings();
+});
+document.getElementById('settings').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) {
+    ui.closeSettings();
+  }
 });
 
 // ---------------- 键盘 ----------------
