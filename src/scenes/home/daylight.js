@@ -1,4 +1,4 @@
-// 小屋的一天：按钟点换光、背景色、星星
+// 小屋的一天：按钟点换光、背景色、星星，墙上的钟跟着走，天黑了落地灯自己亮
 // 光照着下面一张"关键时刻表"走，两个时刻之间平滑过渡，不会一档一档地跳
 // 太阳的路线：早上从屋子右边（东，没有墙）斜照进来铺满地板；下午转到左前方，就是原来那种午后光；
 // 傍晚落到左墙那边，左墙的影子一点点拉长盖过地板，屋里慢慢暗下来；夜里换成又冷又弱的月光
@@ -13,9 +13,9 @@ import { createDisplayClock } from '../../daytime.js';
 //   tint / tintStrength：方块外面背景上盖的那层颜色，多浓（0 是不盖，露出壁纸配的底色）
 //   night：夜有多深（0 白天 ~ 1 深夜），星星跟着它
 const KEYFRAMES = [
-  // 深夜：天光是深蓝，月光从右前方高处淡淡地照下来
-  { hour: 0, sky: '#4a5aa8', ground: '#2c2846', skyLight: 1.0, sun: '#a8bcff', sunLight: 0.55, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
-  { hour: 4.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 1.0, sun: '#a8bcff', sunLight: 0.55, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
+  // 深夜：天光是深蓝、压暗一些，落地灯那一圈暖光才显得出来；月光从右前方高处淡淡地照下来
+  { hour: 0, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
+  { hour: 4.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
   // 天快亮：月亮落下去、太阳还没出来，平行光几乎没有，趁这时换方向
   { hour: 5.5, sky: '#8a86c0', ground: '#4a3c56', skyLight: 1.05, sun: '#ff9f8a', sunLight: 0.15, bearing: 15, elevation: 14, tint: '#3c3a7a', tintStrength: 0.6, night: 0.6 },
   // 日出：粉橙色的光从右边低低地铺进屋里
@@ -30,9 +30,12 @@ const KEYFRAMES = [
   { hour: 19, sky: '#8274b4', ground: '#4a3a5a', skyLight: 1.05, sun: '#c27aa8', sunLight: 0.45, bearing: 165, elevation: 14, tint: '#4a3c86', tintStrength: 0.68, night: 0.6 },
   // 太阳落下去、月亮还没上来：平行光几乎没有，趁这时换方向
   { hour: 19.75, sky: '#5a62ac', ground: '#342e50', skyLight: 1.0, sun: '#a8bcff', sunLight: 0.08, bearing: 120, elevation: 30, tint: '#1c2050', tintStrength: 0.8, night: 0.9 },
-  { hour: 20.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 1.0, sun: '#a8bcff', sunLight: 0.55, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
+  { hour: 20.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
 ];
 const HOURS_PER_DAY = 24;
+// 落地灯：傍晚几点自己亮（屋里被左墙的影子盖住、开始暗下来的时候），早上几点关（太阳照进屋以后）
+const LAMP_ON_HOUR = 17.75;
+const LAMP_OFF_HOUR = 6.5;
 // 太阳离方块中心多远：要在阴影相机的范围里，和原来那盏午后的灯一样远
 const SUN_DISTANCE = 14.2;
 // 背景那层颜色是网页上的 CSS，改一次要重画整个背景：最多隔这么久（秒）改一次，变化小于这么多也不改
@@ -52,20 +55,24 @@ const FRAMES = KEYFRAMES.map((frame) => ({
  * 让小屋跟着钟点过一天
  * @param {World} world 小屋这个世界（灯在 world.env 里）
  * @param {object} parts 跟着钟点变的东西
- * @param {{ showNightSky(level: number): void }} parts.room 房间：天黑了外面的星星出来
+ * @param {{ showNightSky(level: number): void, showTime(hour: number): void }} parts.room 房间：天黑了外面的星星出来，墙上的钟
+ * @param {{ switchTo(on: boolean, instantly?: boolean): void }} parts.lamp 落地灯的开关
  */
-export function bringDayAndNight(world, { room }) {
+export function bringDayAndNight(world, { room, lamp }) {
   const { hemi, sun } = world.env;
   const clock = createDisplayClock();
   const day = blankFrame();
   const tint = { shownColor: null, shownStrength: -1, wait: 0 };
 
-  const apply = (dt) => {
+  // 刚进屋时一下摆到位：灯不"咔哒"、不慢慢亮
+  const apply = (dt, instantly = false) => {
     const hour = clock.update(dt);
     sampleDay(hour, day);
 
     applyLights(day, hemi, sun);
     room.showNightSky(day.night);
+    room.showTime(hour);
+    lamp.switchTo(isLampTime(hour), instantly);
 
     tint.wait -= dt;
     if (tint.wait <= 0) {
@@ -75,8 +82,17 @@ export function bringDayAndNight(world, { room }) {
   };
 
   // 搭好就先按现在的钟点摆一次，第一帧就是对的光
-  apply(0);
+  apply(0, true);
   world.onUpdate((dt) => apply(dt));
+}
+
+/**
+ * 这个钟点落地灯该不该亮着
+ * @param {number} hour 0~24 之间的小时
+ * @returns {boolean}
+ */
+function isLampTime(hour) {
+  return hour >= LAMP_ON_HOUR || hour < LAMP_OFF_HOUR;
 }
 
 /**

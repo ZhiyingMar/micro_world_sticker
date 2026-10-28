@@ -67,10 +67,17 @@ export function bed(furniture) {
 
 // ---------- 灯 ----------
 
+// 落地灯里的灯泡：灯光什么颜色、照多远、往外暗得多快；灯泡、灯罩亮着时自己发什么光
+const LAMP_LIGHT = { color: '#ffcf8a', distance: 5, decay: 1.6, height: 1.5 };
+const LAMP_BULB_GLOW = '#ffe9b0';
+const LAMP_SHADE_GLOW = '#ffd27a';
+
 /**
- * 落地灯：木头圆底座、细铜杆，顶上一个有褶子的布灯罩，里面亮着一盏暖光
+ * 落地灯：木头圆底座、细铜杆，顶上一个有褶子的布灯罩，里面一盏暖光
+ * @description 灯泡和灯罩用自己的材质（不和别的同色东西共用），开灯关灯只改它们；造出来是关着的，谁摆它谁来开
  * @param {FurnitureKit} furniture
- * @returns {THREE.Group}
+ * @returns {{ group: THREE.Group, light: THREE.PointLight, bulbMaterial: THREE.MeshStandardMaterial, shadeMaterial: THREE.MeshStandardMaterial }}
+ *   灯；灯泡的光；灯泡、灯罩的材质（亮着时调它们的 emissiveIntensity）
  */
 export function floorLamp(furniture) {
   const { kit } = furniture;
@@ -82,24 +89,27 @@ export function floorLamp(furniture) {
   knot.rotation.x = Math.PI / 2;
   group.add(at(knot, 0, 0.8, 0));
 
-  group.add(at(pleatedShade(kit), 0, 1.62, 0));
-  group.add(at(kit.sphere(0.07, '#fff6d8', 12, { emissive: '#ffe9b0', emissiveIntensity: 1 }), 0, 1.55, 0));
+  const shadeMaterial = new THREE.MeshStandardMaterial({ color: '#fff1c9', roughness: 0.82, emissive: LAMP_SHADE_GLOW, emissiveIntensity: 0, side: THREE.DoubleSide });
+  group.add(at(pleatedShade(kit, shadeMaterial), 0, 1.62, 0));
+  const bulbMaterial = new THREE.MeshStandardMaterial({ color: '#fff6d8', roughness: 0.82, emissive: LAMP_BULB_GLOW, emissiveIntensity: 0 });
+  group.add(at(kit.sphere(0.07, bulbMaterial, 12), 0, 1.55, 0));
   // 拉绳和小珠子
   group.add(at(kit.cyl(0.004, 0.004, 0.2, '#c9a46a', 4), 0.1, 1.34, 0));
   group.add(at(kit.sphere(0.018, BRASS, 8), 0.1, 1.23, 0));
 
-  const bulb = new THREE.PointLight('#ffcf8a', 3, 5, 1.6);
-  bulb.position.y = 1.5;
-  group.add(bulb);
-  return group;
+  const light = new THREE.PointLight(LAMP_LIGHT.color, 0, LAMP_LIGHT.distance, LAMP_LIGHT.decay);
+  light.position.y = LAMP_LIGHT.height;
+  group.add(light);
+  return { group, light, bulbMaterial, shadeMaterial };
 }
 
 /**
  * 有褶子的灯罩：上窄下宽的一圈布，一凹一凸，上下两道滚边
  * @param {Kit} kit
+ * @param {THREE.Material} clothMaterial 灯罩布的材质（开灯时会发光）
  * @returns {THREE.Group}
  */
-function pleatedShade(kit) {
+function pleatedShade(kit, clothMaterial) {
   const pleats = 14;
   const geometry = new THREE.CylinderGeometry(0.19, 0.33, 0.4, pleats * 2, 1, true);
   const position = geometry.getAttribute('position');
@@ -113,7 +123,7 @@ function pleatedShade(kit) {
   geometry.computeVertexNormals();
 
   const shade = new THREE.Group();
-  shade.add(kit.mesh(geometry, '#fff1c9', { emissive: '#ffd27a', emissiveIntensity: 0.55, side: THREE.DoubleSide }));
+  shade.add(kit.mesh(geometry, clothMaterial));
   for (const [radius, y] of [[0.19, 0.2], [0.33, -0.2]]) {
     const trim = kit.torus(radius, 0.018, '#f4a259');
     trim.rotation.x = Math.PI / 2;

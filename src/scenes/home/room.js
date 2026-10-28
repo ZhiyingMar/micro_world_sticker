@@ -20,8 +20,10 @@ const WINDOW_INSET = 0.05;
 // 晒太阳：小人站在窗前离墙多远（z）、待多久
 const BASK_Z = -3.55;
 const BASK_TIME = 5;
-// 左墙上的钟：挂在哪、多大；分针停在哪（弧度），秒针一跳用多久（秒）
-const CLOCK = { x: -4.45, y: 2.9, z: -0.4, radius: 0.38, minuteAngle: 1.2, tickTime: 0.12 };
+// 左墙上的钟：挂在哪、多大；秒针一跳用多久（秒）
+const CLOCK = { x: -4.45, y: 2.9, z: -0.4, radius: 0.38, tickTime: 0.12 };
+// 三根指针和中间的钉子离墙多远（表盘朝 +x）：一根叠在一根前面，叠在一起时不会互相穿过去
+const CLOCK_LAYERS = { hour: 0.045, minute: 0.06, second: 0.072, pin: 0.08 };
 
 // 墙根、墙角一圈淡淡的阴影：家具和墙像是坐在地上，屋子不像几块板拼起来的
 const CORNER_SHADE = {
@@ -46,8 +48,9 @@ const STAR_SEED = 11;
  * 搭小屋的地板、墙和墙上的摆设
  * @description 壁纸、地板、墙裙用的是小屋自己的材质，工作台上换装修时只换它们的贴图和颜色，不用重新搭
  * @param {World} w 小屋这个世界
- * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[], showNightSky(level: number): void }}
- *   换装修用的小接口；两片窗帘（会被风吹得轻轻晃）；夜有多深时外面的星星跟着亮（0 白天 ~ 1 深夜）
+ * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[], showNightSky(level: number): void, showTime(hour: number): void }}
+ *   换装修用的小接口；两片窗帘（会被风吹得轻轻晃）；夜有多深时外面的星星跟着亮（0 白天 ~ 1 深夜）；
+ *   钟的时针分针指到几点（0~24 的小时）
  */
 export function buildRoom(w) {
   const k = w.kit;
@@ -82,7 +85,7 @@ export function buildRoom(w) {
   frame.add(sun);
   w.add(frame, -3.3, 2.75, -4.47);
 
-  placeClock(w);
+  const clock = placeClock(w);
 
   placeCornerShade(w);
   const stars = placeBackdropStars(w);
@@ -108,12 +111,14 @@ export function buildRoom(w) {
 
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
-  return { applyDecor, curtains: windowModel.curtains, showNightSky: stars.atNight };
+  return { applyDecor, curtains: windowModel.curtains, showNightSky: stars.atNight, showTime: clock.showTime };
 }
 
 /**
- * 左墙上的圆钟：秒针一秒一跳，"嗒"地往前走一格
+ * 左墙上的圆钟：时针分针指着小屋里的钟点，秒针一秒一跳，"嗒"地往前走一格
+ * @description 快进的时候看得到分针一圈圈转起来，一眼就知道时间在快进
  * @param {World} world 小屋这个世界
+ * @returns {{ showTime(hour: number): void }} 把时针分针拨到几点（0~24 的小时）
  */
 function placeClock(world) {
   const kit = world.kit;
@@ -125,15 +130,16 @@ function placeClock(world) {
   clock.add(face, rim);
 
   // 指针挂在表盘中心的转轴上，转的时候绕中心转；钟挂在左墙上，表盘朝 +x，所以绕 x 轴转
-  const handsOut = 0.05;
+  const hourHand = new THREE.Group();
+  hourHand.position.x = CLOCK_LAYERS.hour;
+  hourHand.add(at(roundedPart(kit, 0.03, 0.13, 0.02, '#6b4f3a', 0.006), 0, 0.055, 0));
   const minuteHand = new THREE.Group();
-  minuteHand.position.x = handsOut;
-  minuteHand.rotation.x = CLOCK.minuteAngle;
-  minuteHand.add(at(roundedPart(kit, 0.02, 0.18, 0.03, '#6b4f3a', 0.005), 0, 0.08, 0));
+  minuteHand.position.x = CLOCK_LAYERS.minute;
+  minuteHand.add(at(roundedPart(kit, 0.02, 0.18, 0.02, '#6b4f3a', 0.005), 0, 0.08, 0));
   const secondHand = new THREE.Group();
-  secondHand.position.x = handsOut + 0.01;
-  secondHand.add(at(roundedPart(kit, 0.015, 0.26, 0.02, '#e85d5d', 0.005), 0, 0.1, 0));
-  clock.add(minuteHand, secondHand, at(kit.sphere(0.03, '#6b4f3a', 10), handsOut + 0.02, 0, 0));
+  secondHand.position.x = CLOCK_LAYERS.second;
+  secondHand.add(at(roundedPart(kit, 0.015, 0.26, 0.015, '#e85d5d', 0.005), 0, 0.1, 0));
+  clock.add(hourHand, minuteHand, secondHand, at(kit.sphere(0.03, '#6b4f3a', 10), CLOCK_LAYERS.pin, 0, 0));
   world.add(clock, CLOCK.x, CLOCK.y, CLOCK.z);
 
   const step = (Math.PI * 2) / 60;
@@ -144,6 +150,14 @@ function placeClock(world) {
     const settled = 1 - (1 - tick) ** 3;
     secondHand.rotation.x = -(second - 1 + settled) * step;
   });
+
+  // 从表盘正面看，绕 x 转负的角度是顺时针
+  const showTime = (hour) => {
+    const fullTurn = Math.PI * 2;
+    minuteHand.rotation.x = -(hour % 1) * fullTurn;
+    hourHand.rotation.x = -((hour % 12) / 12) * fullTurn;
+  };
+  return { showTime };
 }
 
 /**

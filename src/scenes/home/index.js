@@ -19,7 +19,8 @@
 //   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
 //   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
-//   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星
+//   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星，拨墙上的钟，开关落地灯
+//   lamp.js       落地灯的开关：天黑了"咔哒"一声亮起来
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildRoom } from './room.js';
@@ -34,6 +35,7 @@ import { placeEaves } from './eaves.js';
 import { placeGarden } from './garden.js';
 import { createPeople } from './people.js';
 import { bringDayAndNight } from './daylight.js';
+import { wireLamp } from './lamp.js';
 import {
   CAMERA_POS,
   CAMERA_TARGET,
@@ -149,6 +151,7 @@ export default {
     const puffs = createPuffs(world);
     bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
     createTouch(world);
-    bringDayAndNight(world, { room });
+    const lamp = wireLamp(world, furniture.lamp);
+    bringDayAndNight(world, { room, lamp });
   },
 };

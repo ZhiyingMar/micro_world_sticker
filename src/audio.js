@@ -364,6 +364,14 @@ export const sfx = {
     tone(980, 0.17, 0.12, { type: 'square', vol: 0.045, slide: 0.6 });
     noiseBurst({ highpass: 1800, lowpass: 5000, duration: 0.15, volume: 0.05 });
   },
+  /**
+   * 落地灯的拉绳开关："咔哒"一下
+   * @param {boolean} on 开灯（脆一点）还是关灯（闷一点）
+   */
+  lampClick(on) {
+    tone(on ? 1800 : 1300, 0, 0.03, { type: 'square', vol: 0.035 });
+    noiseBurst({ highpass: 2000, lowpass: 6000, duration: 0.03, volume: 0.06 });
+  },
   // 碰到灌木：沙沙两下
   rustle() {
     noiseBurst({ highpass: 1500, lowpass: 5000, duration: 0.14, volume: 0.1 });
