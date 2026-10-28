@@ -204,9 +204,10 @@ export class VoxelShape {
   /**
    * 做成网格：只画旁边空着的那些面
    * @param {Kit} kit 当前世界的造型工具（用它的材质，跟着世界风格）
+   * @param {object} [materialOptions] 额外的材质选项，比如能捡的东西自己微微发光（emissive）
    * @returns {THREE.Mesh}
    */
-  mesh(kit) {
+  mesh(kit, materialOptions = {}) {
     const builder = new QuadBuilder();
     const half = this.size / 2;
 
@@ -221,7 +222,7 @@ export class VoxelShape {
         builder.quad(faceCenter, face.normal, face.u, face.v, half, half, color);
       }
     }
-    return kit.mesh(builder.geometry(), '#ffffff', { vertexColors: true });
+    return kit.mesh(builder.geometry(), '#ffffff', { vertexColors: true, ...materialOptions });
   }
 }
 
