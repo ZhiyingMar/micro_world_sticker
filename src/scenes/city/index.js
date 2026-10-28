@@ -70,7 +70,8 @@ export default {
     w.restored
       ? { key: 'city:restored', name: '老乔', text: '又见面啦！今晚这首爵士，送给把灯点亮的你。' }
       : { key: 'city:broken', name: '夜猫', text: '啊，有人来了！停电了，整座城一下子全黑了……你能帮帮我们吗？' },
-  next: 'london',
+  // 雨天伦敦、海边假日先暂停（敬请期待），夜都集齐就直接合成全家福；那两个世界做好以后改回 'london'
+  next: 'finale',
   // 破败世界：到的时候停电了，要先把上一个世界带来的东西放回原处
   brokenGoal: '停电了！四处找找，哪里少了从 <b>「像素小镇」</b> 带来的东西',
   repairs: [

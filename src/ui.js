@@ -1,6 +1,6 @@
 import { state, foundIn, repairedIn, materialCount, canAfford } from './state.js';
 import { DECOR_KINDS, currentDecor, ownsDecor, decorSwatch } from './decor.js';
-import { SCENES, MAGNETS, WORLDS, HOME } from './scenes/index.js';
+import { SCENES, MAGNETS, COLLECTIBLE_MAGNETS, WORLDS, HOME } from './scenes/index.js';
 import { sfx } from './audio.js';
 
 const $ = (s) => document.querySelector(s);
@@ -296,21 +296,38 @@ export const ui = {
     </button>`;
   },
 
+  /**
+   * 还在做的世界：冰箱上占个位，露出名字，写着"敬请期待"
+   * @description 点它只会弹一句"还在建造中"，进不去；让人知道后面还有世界，又不会以为是自己没找到
+   * @param {import('./types.js').SceneDef} def 那个世界
+   * @param {number} rot 冰箱贴歪多少度
+   * @returns {string}
+   */
+  comingSoonHTML(def, rot) {
+    return `<button class="magnet locked coming-soon m-${def.id}" data-id="${def.id}" style="--rot:${rot}deg">
+      <div class="m-emoji">${def.emoji}</div>
+      <div class="m-name">${def.name}</div>
+      <div class="m-sub">敬请期待</div>
+    </button>`;
+  },
+
   openFridge(onPick) {
     sfx.pop();
     const rots = [-4, 3, -2, 5, -3, 4, -2];
     $('#magnets').innerHTML = MAGNETS.map((id, i) => {
       const def = SCENES[id];
+      if (def.comingSoon) {
+        return this.comingSoonHTML(def, rots[i]);
+      }
       if (!state.magnets.includes(id)) return this.magnetHTML(def, { locked: true, rot: rots[i] });
       const isNew = state.newMagnet === id;
       const badge = isNew ? 'NEW!' : state.current === id ? '📍 你在这里' : '';
       let sub = '';
       if (def.ending) sub = '集齐纪念 · 点我看看';
-      else if (def.comingSoon) sub = '施工中…';
       else sub = `收集 ${foundIn(id).filter((f) => def.items.some((i) => i.id === f)).length} / ${def.items.length}`;
       return this.magnetHTML(def, { badge, isNew, rot: rots[i], sub });
     }).join('');
-    $('#fridge-count').textContent = `冰箱贴 ${state.magnets.filter((id) => MAGNETS.includes(id)).length} / ${MAGNETS.length}`;
+    $('#fridge-count').textContent = `冰箱贴 ${state.magnets.filter((id) => COLLECTIBLE_MAGNETS.includes(id)).length} / ${COLLECTIBLE_MAGNETS.length}`;
     $('#fridge').hidden = false;
     $('#magnets').onclick = (e) => {
       const btn = e.target.closest('.magnet[data-id]');
@@ -530,8 +547,8 @@ export const ui = {
     $('#ending-photo').innerHTML = WORLDS.map((id, i) => `<span style="animation-delay:${i * 0.2}s">${SCENES[id].emoji}</span>`).join('');
     const items = WORLDS.reduce((n, id) => n + SCENES[id].items.length, 0);
     $('#ending-stats').innerHTML = `走过 <b>${WORLDS.filter((id) => id !== HOME).length}</b> 个小世界，找到 <b>${items}</b> 样小东西`;
-    $('#ending-names').textContent =
-      '合照里还有：小橘、阿绵、波波、莉莉、蘑菇仔、方方、豆豆、阿像、夜猫、阿霓、小飞、亚瑟、玛丽、卫兵、阿浪、小贝、老船长……和你。';
+    // 雨天伦敦、海边假日还没开放，合照里只有一路上见过的小人；后面的世界敬请期待
+    $('#ending-names').textContent = '合照里还有：小橘、阿绵、波波、莉莉、蘑菇仔、方方、豆豆、阿像、夜猫、阿霓、小飞……和你。更多小世界，敬请期待！';
     // 彩纸
     const conf = $('#confetti');
     conf.innerHTML = '';

@@ -365,6 +365,8 @@ export default {
   spawn: [0.2, -0.8],
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '亚瑟', text: '日安！欢迎来到伦敦——这里的雨，从来不会停。' },
+  // 先暂停：还没照森林的样子重做，冰箱上显示"敬请期待"、进不去；夜都直接合成全家福
+  comingSoon: true,
   next: 'beach',
   items: [
     {

@@ -557,6 +557,8 @@ body.touch #prompt { display: none; }
 }
 .magnet.locked:hover { transform: rotate(var(--rot, 0deg)); }
 .magnet.locked .m-emoji { filter: none; opacity: 0.5; font-size: 36px; }
+/* 还在做的世界：和没发现的一样是虚线框，但点得动（点了弹"敬请期待"） */
+.magnet.locked.coming-soon { cursor: pointer; }
 
 /* Combine */
 .combine-stage { position: relative; width: 300px; height: 300px; }

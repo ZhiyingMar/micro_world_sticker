@@ -407,6 +407,8 @@ export default {
   spawn: [-1.0, 0.5],
   // 第一次进来时，这个小人会主动打招呼
   greet: { name: '小贝', text: '你来啦！我的小水桶不见了……你能帮我找找吗？' },
+  // 先暂停：还没照森林的样子重做，冰箱上显示"敬请期待"、进不去；夜都直接合成全家福
+  comingSoon: true,
   next: 'finale',
   items: [
     {

@@ -24,5 +24,7 @@ export const ORDER = ['home', 'forest', 'pixel', 'city', 'london', 'beach', 'fin
 // 小屋是家：冰箱就在小屋里，冰箱上贴的是“别的世界”，小屋自己不是冰箱贴
 export const HOME = 'home';
 export const MAGNETS = ORDER.filter((id) => id !== HOME);
-// 真正可以进去玩的世界
-export const WORLDS = ORDER.filter((id) => !SCENES[id].ending);
+// 现在拿得到的冰箱贴：还在做的世界（comingSoon）只在冰箱上占个位、写着"敬请期待"，不算进"集齐"
+export const COLLECTIBLE_MAGNETS = MAGNETS.filter((id) => !SCENES[id].comingSoon);
+// 真正可以进去玩的世界（不算全家福，也不算还在做的）
+export const WORLDS = ORDER.filter((id) => !SCENES[id].ending && !SCENES[id].comingSoon);
