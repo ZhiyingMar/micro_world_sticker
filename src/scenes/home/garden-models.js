@@ -72,8 +72,8 @@ function fencePost(kit, height, x) {
 }
 
 /**
- * 院门：两根高一点的门柱，一扇往外推开的小木门
- * @description 原点在门洞中心，门洞沿 x，往外是 +z
+ * 院门：两根高一点的门柱，中间的门洞空着，小路从这儿走进来
+ * @description 不装门：篱笆贴着方块边，门往外一推就伸出方块了。原点在门洞中心，门洞沿 x，往外是 +z
  * @param {Kit} kit
  * @param {number} width 门洞多宽
  * @returns {THREE.Group}
@@ -85,21 +85,6 @@ export function gardenGate(kit, width) {
     group.add(at(roundedPart(kit, POST.size * 1.3, postHeight, POST.size * 1.3, FENCE_COLOR, 0.03), side * width / 2, postHeight / 2, 0));
     group.add(at(kit.sphere(POST.size * 0.8, FENCE_COLOR, 12), side * width / 2, postHeight + POST.size * 0.4, 0));
   }
-
-  // 门：几根木板钉在两根横条上，铰链在左边门柱，往外推开一大半
-  const door = new THREE.Group();
-  const doorWidth = width - POST.size * 1.3;
-  const boards = 4;
-  for (let i = 0; i < boards; i++) {
-    const x = ((i + 0.5) / boards) * doorWidth;
-    door.add(at(roundedPart(kit, PICKET.width, PICKET.height * 0.9, PICKET.thickness, FENCE_COLOR, 0.01), x, PICKET.height * 0.45, 0));
-  }
-  for (const ratio of RAIL_HEIGHTS) {
-    door.add(at(roundedPart(kit, doorWidth, RAIL_SIZE, RAIL_SIZE, FENCE_COLOR, 0.01), doorWidth / 2, PICKET.height * 0.9 * ratio, -PICKET.thickness));
-  }
-  door.position.x = -width / 2 + POST.size * 0.65;
-  door.rotation.y = -1.1;
-  group.add(door);
   return group;
 }
 
