@@ -58,6 +58,7 @@ const BRIDGE_POST_HEIGHT = 0.5;
 
 // 能走的水格子（桥、踏脚石）：它们旁边的岸不能磨圆，不然人从岸上走过去会踩空
 const WALKABLE_WATER = new Set(['=', '|', 'o']);
+const BRIDGE_SYMBOLS = new Set(['=', '|']);
 const DIRS = { '>': [1, 0], '<': [-1, 0], v: [0, 1], '^': [0, -1] };
 // 给每个顶点算颜色时反复用的，不用每个顶点新建一个
 const scratchTop = new THREE.Color();
@@ -75,7 +76,8 @@ const foamColor = new THREE.Color(FOAM_COLOR);
  * @param {string} look.ripple 水面波纹的颜色
  * @param {string} look.stone 踏脚石的颜色
  * @param {string} look.plank 桥的木头颜色
- * @returns {{ waterSurface: number, heightAt: (x: number, z: number) => number }} 水面多高；画出来的地面多高（摆在岸边圆角上的东西用）
+ * @returns {{ waterSurface: number, heightAt: (x: number, z: number) => number, crossings: { stones: CellFeature[], bridges: CellFeature[] } }}
+ *   水面多高；画出来的地面多高（摆在岸边圆角上的东西用）；踏脚石和桥（场景要让它们沉下去、塌下去时用）
  */
 export function buildSoftTerrain(world, look) {
   const terrain = world.terrain;
@@ -86,12 +88,19 @@ export function buildSoftTerrain(world, look) {
   group.add(groundMesh(world.kit, terrain, heights, look, waterSurface));
   group.add(skirtMesh(world.kit, terrain, heights, look, waterSurface));
   group.add(waterMesh(world, terrain, heights, look, waterSurface));
+
+  const crossings = { stones: [], bridges: [] };
   for (const feature of cellFeatures(world.kit, terrain, look)) {
-    group.add(feature);
+    group.add(feature.object);
+    if (feature.symbol === 'o') {
+      crossings.stones.push(feature);
+    } else if (BRIDGE_SYMBOLS.has(feature.symbol)) {
+      crossings.bridges.push(feature);
+    }
   }
 
   world.root.add(group);
-  return { waterSurface, heightAt: (x, z) => heights.sample(x, z) };
+  return { waterSurface, heightAt: (x, z) => heights.sample(x, z), crossings };
 }
 
 // ---------- 高度 ----------
@@ -588,20 +597,34 @@ function drawRipple(context, centerX, centerY, length, width, height) {
 // ---------- 台阶、踏脚石、桥 ----------
 
 /**
+ * 单独画出来的一格：台阶、一块踏脚石、一座桥
+ * @typedef {object} CellFeature
+ * @property {THREE.Object3D} object 画出来的东西
+ * @property {string} symbol 地图上这一格的符号
+ * @property {number} column 第几列
+ * @property {number} row 第几行
+ * @property {number} x 这一格中心
+ * @property {number} z 这一格中心
+ */
+
+/**
  * 地图上那些单独画的格子：台阶、踏脚石、桥
  * @param {Kit} kit
  * @param {Terrain} terrain
  * @param {object} look
- * @returns {THREE.Object3D[]}
+ * @returns {CellFeature[]}
  */
 function cellFeatures(kit, terrain, look) {
   const features = [];
   for (let row = 0; row < terrain.d; row++) {
     for (let column = 0; column < terrain.w; column++) {
-      const feature = cellFeature(kit, terrain, look, column, row);
-      if (feature) {
-        features.push(feature);
+      const object = cellFeature(kit, terrain, look, column, row);
+      if (!object) {
+        continue;
       }
+      const x = terrain.x0 + column + 0.5;
+      const z = terrain.z0 + row + 0.5;
+      features.push({ object, symbol: terrain.ch(column, row), column, row, x, z });
     }
   }
   return features;

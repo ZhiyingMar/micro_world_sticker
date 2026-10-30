@@ -575,6 +575,15 @@ export const sfx = {
     noiseBurst({ highpass: 1500, lowpass: 5000, duration: 0.14, volume: 0.1 });
     setTimeout(() => noiseBurst({ highpass: 1800, lowpass: 6000, duration: 0.18, volume: 0.07 }), 90);
   },
+  // 翻开童话书：两下轻轻的“唰”
+  pageTurn() {
+    noiseBurst({ highpass: 2500, lowpass: 7000, duration: 0.16, volume: 0.09 });
+    setTimeout(() => noiseBurst({ highpass: 2000, lowpass: 6000, duration: 0.2, volume: 0.07 }), 170);
+  },
+  // 魔法醒过来：一串亮亮的高音往上飘，像星星一闪一闪
+  twinkle() {
+    [1319, 1568, 1760, 2093, 2637].forEach((f, i) => tone(f, i * 0.09, 0.45, { type: 'sine', vol: 0.08 }));
+  },
   // 蝴蝶被惊飞：轻轻几下“扑棱”
   flutter() {
     for (let i = 0; i < 4; i++) {

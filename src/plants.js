@@ -13,6 +13,8 @@ const STEM_HEIGHT = 0.16;
 const PETALS = 5;
 const PETAL_RADIUS = 0.035;
 const PETAL_SPREAD = 0.04;
+// 花长得再小也留这么一点：缩到 0 的矩阵会让 three.js 算不出包围球
+const MIN_GROWTH = 0.001;
 // 风：树冠摇多快、摇多大角度（弧度）；风一阵大一阵小，多久一个来回
 const WIND_SPEED = 1.3;
 const WIND_ANGLE = 0.035;
@@ -243,6 +245,20 @@ export function flowerField(kit, blooms) {
 }
 
 /**
+ * 让一片花里的每朵花长到不同的大小
+ * @description 花一朵接一朵开出来时每帧调一次；整朵花（茎、花瓣、花心）一起按原来的大小缩放
+ * @param {THREE.Group} field flowerField() 造出来的那片花
+ * @param {{ x: number, y: number, z: number, scale: number, turn: number }[]} blooms 造这片花时传进去的那些花
+ * @param {(index: number) => number} growth 第几朵花长到原来的几成（0 还没冒出来，1 开足了，可以超过 1 一点弹一下）
+ */
+export function growFlowerField(field, blooms, growth) {
+  const grown = blooms.map((bloom, index) => ({ ...bloom, scale: bloom.scale * Math.max(growth(index), MIN_GROWTH) }));
+  for (const mesh of field.children) {
+    placeInstances(mesh, grown);
+  }
+}
+
+/**
  * 一朵花的一圈花瓣，拼成一个网格
  * @returns {THREE.BufferGeometry}
  */
@@ -305,6 +321,17 @@ function tuftGeometry() {
  */
 function instanced(geometry, material, placements) {
   const mesh = new THREE.InstancedMesh(geometry, material, placements.length);
+  placeInstances(mesh, placements);
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/**
+ * 按位置、朝向、大小摆好一个 InstancedMesh 里的每一个
+ * @param {THREE.InstancedMesh} mesh
+ * @param {{ x: number, y: number, z: number, scale: number, turn: number }[]} placements 每一个在哪、多大、绕竖轴转多少
+ */
+function placeInstances(mesh, placements) {
   const matrix = new THREE.Matrix4();
   const rotation = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
@@ -317,8 +344,8 @@ function instanced(geometry, material, placements) {
     scale.setScalar(placement.scale);
     mesh.setMatrixAt(index, matrix.compose(position, rotation, scale));
   });
-  mesh.receiveShadow = true;
-  return mesh;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.computeBoundingSphere();
 }
 
 // ---------- 风 ----------
