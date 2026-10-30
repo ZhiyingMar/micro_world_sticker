@@ -30,8 +30,8 @@ const LISTEN = { offset: [0.7, 0], face: -Math.PI / 2, dur: 7, emote: '♪' };
  * 摆上屋里的家具，登记碰撞和兴趣点
  * @param {World} world 小屋这个世界
  * @param {import('./materials.js').FurnitureKit} furniture 造家具用的工具和材质
- * @returns {{ spout: THREE.Object3D, radio: THREE.Object3D, lamp: object }} 茶壶嘴（冒热气）；收音机（飘音符）；
- *   落地灯的灯光和材质（天黑了开灯，见 floorLamp）
+ * @returns {{ spout: THREE.Object3D, cabinet: THREE.Object3D, radio: THREE.Object3D, lamp: object }} 茶壶嘴（冒热气）；
+ *   收音机柜和柜上的收音机（放音乐、点它开关）；落地灯的灯光和材质（天黑了开灯，见 floorLamp）
  */
 export function buildFurniture(world, furniture) {
   world.solid(place(world, bed(furniture), FURNITURE.bed), BED_PAD);
@@ -61,7 +61,7 @@ export function buildFurniture(world, furniture) {
   world.solidCircle(FURNITURE.basket.x, FURNITURE.basket.z, BASKET_RADIUS);
   place(world, slippers(furniture.kit), FURNITURE.slippers);
 
-  return { spout, radio: cabinet.radio, lamp };
+  return { spout, cabinet: cabinet.group, radio: cabinet.radio, lamp };
 }
 
 /**

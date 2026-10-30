@@ -16,11 +16,12 @@
 //   garden-path.js    小路在哪：连成曲线，算一点离路多远
 //   cat.js        毛线篮旁边睡觉的小猫：呼吸、甩尾巴，人走近会抬头"喵"一声
 //   puffs.js      软软的一小团雾：茶壶的热气
-//   life.js       窗帘轻轻晃、茶壶冒热气、收音机飘音符
+//   life.js       窗帘轻轻晃、茶壶冒热气
+//   radio.js      收音机放轻音乐（src/music.js 现场编曲），一个音飘一个音符；点它开关，白天小曲、夜里摇篮曲
 //   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
 //   people.js     居民和台词
 //   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星，拨墙上的钟，开关落地灯；
-//                 夜里花园的蝴蝶换成萤火虫，鸟叫换成蟋蟀
+//                 夜里花园的蝴蝶换成萤火虫，鸟叫换成蟋蟀，收音机换成摇篮曲
 //   lamp.js       落地灯的开关：天黑了"咔哒"一声亮起来
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -37,6 +38,7 @@ import { placeGarden } from './garden.js';
 import { createPeople } from './people.js';
 import { bringDayAndNight } from './daylight.js';
 import { wireLamp } from './lamp.js';
+import { placeRadio } from './radio.js';
 import {
   CAMERA_POS,
   CAMERA_TARGET,
@@ -58,7 +60,7 @@ export default {
   style: 'cozy',
   styleLabel: '动森风 · 起点',
   magnetStyle: 'cozy',
-  // 屋里很安静，窗外有鸟叫
+  // 屋里很安静，窗外有鸟叫（收音机的音乐是屋里的东西放的，在 radio.js）
   ambient: 'home',
   bg: 'radial-gradient(circle at 50% 30%, #fff6e3 0%, #f8dfc0 55%, #ecc39c 100%)',
   // 下午两点的光：午后的暖光从左前方斜照进来，家具朝镜头的一面亮，影子往右后方拖；天光偏冷一点，暗面不发灰
@@ -150,9 +152,10 @@ export default {
 
     createPeople(world);
     const puffs = createPuffs(world);
-    bringToLife(world, { curtains: room.curtains, spout: furniture.spout, radio: furniture.radio, puffs });
+    bringToLife(world, { curtains: room.curtains, spout: furniture.spout, puffs });
+    const radio = placeRadio(world, { cabinet: furniture.cabinet, radio: furniture.radio });
     createTouch(world);
     const lamp = wireLamp(world, furniture.lamp);
-    bringDayAndNight(world, { room, lamp, garden });
+    bringDayAndNight(world, { room, lamp, garden, radio });
   },
 };

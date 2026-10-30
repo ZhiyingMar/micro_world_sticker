@@ -1,7 +1,6 @@
-// 让小屋活起来：窗帘被窗缝里的风吹得轻轻晃，桌上的茶壶冒热气，收音机隔一会儿飘出一个音符
+// 让小屋活起来：窗帘被窗缝里的风吹得轻轻晃，桌上的茶壶冒热气（收音机的音乐和音符在 radio.js）
 // 都只是看的，不挡路，也不会被点到
 import * as THREE from 'three';
-import { canvasTexture } from '../../kit.js';
 
 // 窗帘：晃多快、晃多大（弧度），两片步子错开多少；一阵风大一阵风小，多久一个来回
 const CURTAIN_SPEED = 1.1;
@@ -16,31 +15,17 @@ const STEAM = { count: 1, color: '#ffffff', size: 0.38, spread: 0.02, rise: 0.28
 // 茶壶嘴口离壶嘴模型中心多远（沿壶嘴往外），热气从那儿冒
 const SPOUT_TIP = 0.1;
 
-// 收音机的音符：隔多久飘一个（秒），飘多高、左右晃多大、多久散掉，多大
-const NOTE_GAP = 2.6;
-const NOTE_RISE = 0.7;
-const NOTE_SWAY = 0.12;
-const NOTE_LIFE = 2.4;
-const NOTE_SIZE = 0.2;
-const NOTE_GLYPHS = ['♪', '♫'];
-const NOTE_COLORS = ['#e85d5d', '#5d9ce8', '#f4a259'];
-const NOTE_TEXTURE_PX = 64;
-// 从收音机顶上多高的地方冒出来
-const NOTE_START_HEIGHT = 0.25;
-
 /**
  * 让小屋动起来
  * @param {World} world 小屋这个世界
  * @param {object} context
  * @param {THREE.Group[]} context.curtains 两片窗帘（原点在横杆上）
  * @param {THREE.Object3D} context.spout 茶壶嘴
- * @param {THREE.Object3D} context.radio 收音机
  * @param {{ emit: Function }} context.puffs 冒热气用
  */
-export function bringToLife(world, { curtains, spout, radio, puffs }) {
+export function bringToLife(world, { curtains, spout, puffs }) {
   swayCurtains(world, curtains);
   steamTea(world, spout, puffs);
-  playRadio(world, radio);
 }
 
 /**
@@ -78,62 +63,5 @@ function steamTea(world, spout, puffs) {
     }
     wait = STEAM_GAP * (0.7 + Math.random() * 0.6);
     puffs.emit(tip, STEAM);
-  });
-}
-
-/**
- * 收音机隔一会儿飘出一个彩色音符，晃着往上飘，慢慢变淡
- * @param {World} world
- * @param {THREE.Object3D} radio
- */
-function playRadio(world, radio) {
-  radio.updateWorldMatrix(true, false);
-  const start = new THREE.Vector3(0, NOTE_START_HEIGHT, 0).applyMatrix4(radio.matrixWorld);
-  const textures = NOTE_GLYPHS.map((glyph) => world.texture(noteTexture(glyph)));
-  const notes = [];
-  let wait = NOTE_GAP / 2;
-  let count = 0;
-
-  world.onUpdate((dt) => {
-    wait -= dt;
-    if (wait <= 0) {
-      wait = NOTE_GAP * (0.8 + Math.random() * 0.4);
-      const material = new THREE.SpriteMaterial({ map: textures[count % textures.length], color: NOTE_COLORS[count % NOTE_COLORS.length], transparent: true, depthWrite: false });
-      const sprite = new THREE.Sprite(material);
-      sprite.scale.setScalar(NOTE_SIZE);
-      world.add(sprite, start.x, start.y, start.z);
-      notes.push({ sprite, age: 0, phase: Math.random() * Math.PI * 2 });
-      count++;
-    }
-
-    for (let i = notes.length - 1; i >= 0; i--) {
-      const note = notes[i];
-      note.age += dt;
-      const progress = note.age / NOTE_LIFE;
-      if (progress >= 1) {
-        note.sprite.removeFromParent();
-        note.sprite.material.dispose();
-        notes.splice(i, 1);
-        continue;
-      }
-      note.sprite.position.y = start.y + progress * NOTE_RISE;
-      note.sprite.position.x = start.x + Math.sin(note.phase + progress * Math.PI * 2) * NOTE_SWAY;
-      note.sprite.material.opacity = Math.sin(progress * Math.PI);
-    }
-  });
-}
-
-/**
- * 一个音符的贴图：白色的字（颜色由材质染）
- * @param {string} glyph ♪ 或 ♫
- * @returns {THREE.CanvasTexture}
- */
-function noteTexture(glyph) {
-  return canvasTexture(NOTE_TEXTURE_PX, NOTE_TEXTURE_PX, (context, width, height) => {
-    context.font = `bold ${Math.round(height * 0.8)}px sans-serif`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillStyle = '#ffffff';
-    context.fillText(glyph, width / 2, height / 2);
   });
 }

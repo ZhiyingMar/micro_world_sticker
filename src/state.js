@@ -12,6 +12,8 @@ function fresh() {
     decor: { owned: [] },
     // 小屋里的时间怎么走：real 跟着这台设备的钟；fast 快进，还记着从几点（startHour）、什么时候（startedAt）开始快进
     time: { mode: 'real' },
+    // 小屋的收音机开着没有：关掉以后下次进来也还是关着；老存档没有这个字段，按新存档补成开着
+    radioOn: true,
   };
 }
 

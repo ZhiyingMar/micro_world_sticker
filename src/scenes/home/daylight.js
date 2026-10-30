@@ -1,4 +1,4 @@
-// 小屋的一天：按钟点换光、背景色、星星，墙上的钟跟着走，天黑了落地灯自己亮
+// 小屋的一天：按钟点换光、背景色、星星，墙上的钟跟着走，天黑了落地灯自己亮、收音机换摇篮曲
 // 光照着下面一张"关键时刻表"走，两个时刻之间平滑过渡，不会一档一档地跳
 // 太阳的路线：早上从屋子右边（东，没有墙）斜照进来铺满地板；下午转到左前方，就是原来那种午后光；
 // 傍晚落到左墙那边，左墙的影子一点点拉长盖过地板，屋里慢慢暗下来；夜里换成又冷又弱的月光
@@ -34,8 +34,8 @@ const KEYFRAMES = [
   { hour: 20.5, sky: '#4a5aa8', ground: '#2c2846', skyLight: 0.8, sun: '#a8bcff', sunLight: 0.7, bearing: 60, elevation: 50, tint: '#10142e', tintStrength: 0.85, night: 1 },
 ];
 const HOURS_PER_DAY = 24;
-// 夜有多深时环境声里的鸟叫换成蟋蟀（大约 19 点到 5 点半）
-const CRICKETS_FROM_NIGHT = 0.5;
+// 夜有多深时换成夜里的声音：窗外的鸟叫换成蟋蟀，收音机下一首换成摇篮曲（大约 19 点到 5 点半）
+const NIGHT_SOUNDS_FROM = 0.5;
 // 落地灯：傍晚几点自己亮（屋里被左墙的影子盖住、开始暗下来的时候），早上几点关（太阳照进屋以后）
 const LAMP_ON_HOUR = 17.75;
 const LAMP_OFF_HOUR = 6.5;
@@ -61,8 +61,9 @@ const FRAMES = KEYFRAMES.map((frame) => ({
  * @param {{ showNightSky(level: number): void, showTime(hour: number): void }} parts.room 房间：天黑了外面的星星出来，墙上的钟
  * @param {{ switchTo(on: boolean, instantly?: boolean): void }} parts.lamp 落地灯的开关
  * @param {{ showNight(level: number): void }} parts.garden 花园：天黑了蝴蝶躲起来、萤火虫出来
+ * @param {{ setNight(night: boolean): void }} parts.radio 收音机：天黑了下一首放摇篮曲
  */
-export function bringDayAndNight(world, { room, lamp, garden }) {
+export function bringDayAndNight(world, { room, lamp, garden, radio }) {
   const { hemi, sun } = world.env;
   const clock = createDisplayClock();
   const day = blankFrame();
@@ -76,7 +77,9 @@ export function bringDayAndNight(world, { room, lamp, garden }) {
     applyLights(day, hemi, sun);
     room.showNightSky(day.night);
     garden.showNight(day.night);
-    sfx.nightSounds(day.night >= CRICKETS_FROM_NIGHT);
+    const nightSounds = day.night >= NIGHT_SOUNDS_FROM;
+    sfx.nightSounds(nightSounds);
+    radio.setNight(nightSounds);
     room.showTime(hour);
     lamp.switchTo(isLampTime(hour), instantly);
 

@@ -206,6 +206,40 @@ function startCritters(config) {
   }
 }
 
+// ---------- 收音机的音乐（编曲在 music.js） ----------
+// 收音机的小喇叭：太低、太高的都削掉一点（赫兹），听起来是从一台小收音机里放出来的，不是满屋子的音响
+const RADIO_SPEAKER = { highpass: 110, lowpass: 3200 };
+// 收音机整体多响（乘在每个音上），嫌吵、嫌小声就调这一个数
+// 0.6 时平均响度比环境声大 6~7 dB，最响的低音比猫叫轻一点、比捡东西的"叮"轻一大截，只当背景
+const RADIO_VOLUME = 0.6;
+// 开关收音机时喇叭多快响起来、静下去（秒）：关掉就是一下没声，不留音尾巴
+const RADIO_POWER_SECONDS = 0.06;
+let radioSpeaker = null;
+
+/**
+ * 收音机的小喇叭：音乐的每个音都从这里出去
+ * @description 只造一次，一直接在总音量上；换世界时音乐自己停了，喇叭留着下次进小屋再用
+ * @param {AudioContext} c
+ * @returns {GainNode} 喇叭的音量，开关收音机时拧它
+ */
+function speaker(c) {
+  if (radioSpeaker) {
+    return radioSpeaker;
+  }
+
+  const volume = c.createGain();
+  volume.gain.value = RADIO_VOLUME;
+  const high = c.createBiquadFilter();
+  high.type = 'highpass';
+  high.frequency.value = RADIO_SPEAKER.highpass;
+  const low = c.createBiquadFilter();
+  low.type = 'lowpass';
+  low.frequency.value = RADIO_SPEAKER.lowpass;
+  volume.connect(high).connect(low).connect(master);
+  radioSpeaker = volume;
+  return radioSpeaker;
+}
+
 const ambientVol = () => (state.muted || !AMBIENT[ambientKind] ? 0 : AMBIENT[ambientKind].vol);
 
 function stopAmbient() {
@@ -301,6 +335,71 @@ export const sfx = {
   refreshAmbient() {
     if (!ctx || !ambientNodes) return;
     ambientNodes.gain.gain.linearRampToValueAtTime(ambientVol(), ctx.currentTime + 0.3);
+  },
+  /**
+   * 音乐用的钟：音频那边现在是第几秒
+   * @description 音乐的音要提前排到准确的时刻上，用音频自己的钟，不用画面的帧
+   * @returns {number | null} 还没点过一次（浏览器还不肯出声、没有音频的钟）时是 null
+   */
+  musicClock() {
+    return ctx ? ctx.currentTime : null;
+  },
+  /**
+   * 收音机里响一个音：一下拨响，慢慢弱下去
+   * @param {number} frequency 音高（赫兹）
+   * @param {number} time 什么时候响，音频的钟上的秒（见 musicClock）；已经过了就马上响
+   * @param {number} duration 多久弱到听不见（秒）
+   * @param {object} sound 音色
+   * @param {OscillatorType} sound.wave 波形
+   * @param {number} sound.volume 最响时多响
+   * @param {number} sound.attack 多快响到最响（秒）
+   */
+  musicNote(frequency, time, duration, { wave, volume, attack }) {
+    if (!ctx || state.muted) {
+      return;
+    }
+
+    const start = Math.max(time, ctx.currentTime);
+    const oscillator = ctx.createOscillator();
+    oscillator.type = wave;
+    oscillator.frequency.value = frequency;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+    oscillator.connect(gain).connect(speaker(ctx));
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.05);
+  },
+  /**
+   * 收音机通电 / 断电：喇叭一下响起来或者一下没声
+   * @description 关掉时已经排好的音、还没散的音尾巴一起掐掉，像真的拧了开关
+   * @param {boolean} on 开着
+   */
+  radioPower(on) {
+    if (!ctx) {
+      return;
+    }
+
+    const volume = speaker(ctx).gain;
+    const now = ctx.currentTime;
+    volume.cancelScheduledValues(now);
+    volume.setValueAtTime(volume.value, now);
+    volume.linearRampToValueAtTime(on ? RADIO_VOLUME : 0, now + RADIO_POWER_SECONDS);
+  },
+  /**
+   * 拧收音机的开关："咔哒"一下；开的时候接一小段调台的沙沙声，关的时候声音"噗"地往下掉
+   * @param {boolean} on 打开还是关掉
+   */
+  radioSwitch(on) {
+    tone(on ? 1500 : 1100, 0, 0.03, { type: 'square', vol: 0.03 });
+    if (on) {
+      noiseBurst({ highpass: 900, lowpass: 3500, duration: 0.45, volume: 0.05 });
+      tone(1400, 0.05, 0.35, { type: 'sine', vol: 0.012, slide: 0.6 });
+      return;
+    }
+    tone(520, 0.03, 0.18, { type: 'sine', vol: 0.05, slide: 0.45 });
   },
   thunder() {
     const c = ac();
