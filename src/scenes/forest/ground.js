@@ -32,7 +32,8 @@ const road = new THREE.Color();
 /**
  * 画森林的地面
  * @param {World} world 童话森林
- * @returns {{ waterSurface: number, heightAt: Function }} 水面多高、画出来的地面多高
+ * @returns {{ waterSurface: number, heightAt: Function, crossings: { stones: object[], bridges: object[] } }}
+ *   水面多高、画出来的地面多高；踏脚石和桥（魔法停了时沉下去、塌下去）
  */
 export function buildGround(world) {
   return buildSoftTerrain(world, LOOK);

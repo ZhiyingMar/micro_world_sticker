@@ -25,21 +25,24 @@ const FISH_SEED = 7;
  * @param {THREE.Group[]} context.crowns 所有树冠
  * @param {number} context.waterSurface 水面多高
  * @param {{ ripple: Function, splash: Function }} context.splashes 水面上的波纹和水珠
+ * @returns {{ butterflies: { setPresence(level: number): void } }} 蝴蝶出来多少（魔法停了时先躲着）
  */
 export function bringToLife(world, { crowns, waterSurface, splashes }) {
   swayInWind(world, crowns);
-  butterflies(world);
+  const flock = butterflies(world);
   jumpingFish(world, waterSurface, splashes);
+  return { butterflies: flock };
 }
 
 /**
  * 蝴蝶：每片花丛上一只，绕着花丛飞，人走近会被惊飞
  * @param {World} world
+ * @returns {{ setPresence(level: number): void }} 出来多少（1 都在飞 ~ 0 都躲起来了）
  */
 function butterflies(world) {
   // 花丛的中心：空地上那几大片，加上每座蘑菇屋门口
   const gardens = [...FLOWER_PATCHES.map(([x, z]) => [x, z]), ...HOUSES.map((house) => [house.x + Math.sin(house.facing), house.z + Math.cos(house.facing)])];
-  createButterflies(world, gardens.map(([x, z]) => ({ x, z, y: world.heightAt(x, z) })), BUTTERFLY_SEED);
+  return createButterflies(world, gardens.map(([x, z]) => ({ x, z, y: world.heightAt(x, z) })), BUTTERFLY_SEED);
 }
 
 /**

@@ -214,6 +214,7 @@ function pick(random, list) {
 
 /**
  * 水面上的荷叶、荷花，和放在一片荷叶上的金币
+ * @description 金币先藏着：踏脚石沉在水底时，站在左岸一角离那片荷叶也够得着，要等石头浮上来才出现
  * @param {World} world
  * @param {number} surface 水面多高
  */
@@ -225,5 +226,5 @@ function lilyPads(world, surface) {
   world.add(lotus(world.kit), lotusX, surface, lotusZ);
 
   const [coinX, coinZ] = COIN_PAD;
-  world.placeItem('coin', coinX, surface + COIN_LIFT, coinZ);
+  world.placeItem('coin', coinX, surface + COIN_LIFT, coinZ, { hidden: true });
 }

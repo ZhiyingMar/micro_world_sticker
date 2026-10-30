@@ -93,6 +93,7 @@ function featureTrees(world) {
 
 /**
  * 空心木头：爱心藏在开口那头，点木头时镜头转到开口往里看
+ * @description 爱心先藏着，蘑菇仔讲起故事（童话书放回去）才出现
  * @param {World} world
  */
 function log(world) {
@@ -104,7 +105,7 @@ function log(world) {
   // 开口朝 +x：爱心在开口那头往里一点
   const heartX = LOG.x + LOG.length / 2 - HEART_INSET;
   hollow.userData.peek = { target: [heartX, groundY + PEEK_HEIGHT, LOG.z], from: LOG_PEEK_FROM };
-  world.placeItem('heart', heartX, groundY + HEART_LIFT, LOG.z, { ry: Math.PI / 2, spin: false });
+  world.placeItem('heart', heartX, groundY + HEART_LIFT, LOG.z, { ry: Math.PI / 2, spin: false, hidden: true });
 
   world.poi(LOG.x, LOG.z + LOG.radius + LOG_SPOT_GAP, { emote: '🐛', face: Math.PI, dur: LOG_STAY });
 }

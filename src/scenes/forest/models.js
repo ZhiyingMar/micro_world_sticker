@@ -9,6 +9,8 @@ const CAP_FLATTEN = 0.75;
 const CAP_DOTS = 9;
 // 高塔底下有多粗：摆的地方按这个登记碰撞
 export const TOWER_BASE_RADIUS = 0.85;
+// 高塔有多高（旗杆顶）：塔尖上的魔法星星放在这上面
+export const TOWER_TOP = 4.6;
 
 /**
  * 蘑菇屋：奶油色的菌柄是墙，圆圆的菌盖是屋顶，上面撒着白点；门和一扇亮着的圆窗朝 +z
@@ -55,19 +57,24 @@ export function mushroomHouse(kit, { stemRadius, stemHeight, capRadius, capColor
  * @param {Kit} kit
  * @param {number} capRadius 菌盖的半径
  * @param {number} seed 随机种子
+ * @param {object} [options]
+ * @param {number} [options.flatten] 菌盖压扁了多少（和菌盖一样）
+ * @param {number} [options.count] 撒几个
+ * @param {number[]} [options.elevations] 白点撒在菌盖上多高的一圈 [从, 到]（弧度，0 是菌盖边，π/2 是顶）
+ * @param {number[]} [options.sizes] 白点多大 [从, 到]（菌盖半径的几成）
  * @returns {THREE.Mesh[]} 位置以菌盖底面中心为原点
  */
-function capDots(kit, capRadius, seed) {
+function capDots(kit, capRadius, seed, { flatten = CAP_FLATTEN, count = CAP_DOTS, elevations = [0.25, 1.15], sizes = [0.1, 0.16] } = {}) {
   const random = rng(seed);
   const dots = [];
 
-  for (let i = 0; i < CAP_DOTS; i++) {
+  for (let i = 0; i < count; i++) {
     const around = random() * Math.PI * 2;
-    const elevation = 0.25 + random() * 0.9;
-    const dot = kit.sphere(capRadius * (0.1 + random() * 0.06), '#ffffff', 12);
+    const elevation = elevations[0] + random() * (elevations[1] - elevations[0]);
+    const dot = kit.sphere(capRadius * (sizes[0] + random() * (sizes[1] - sizes[0])), '#ffffff', 12);
     dot.position.set(
       Math.cos(around) * Math.cos(elevation) * capRadius,
-      Math.sin(elevation) * capRadius * CAP_FLATTEN,
+      Math.sin(elevation) * capRadius * flatten,
       Math.sin(around) * Math.cos(elevation) * capRadius,
     );
     dot.scale.set(1, 0.35, 1);
@@ -80,10 +87,51 @@ function capDots(kit, capRadius, seed) {
   return dots;
 }
 
+// 撑桥的大红蘑菇：菌盖压得很扁、比桥宽一圈，两边露出带白点的红边；菌柄有菌盖的几成粗；白点撒几个、撒在菌盖边上那一圈
+const PIER_CAP_FLATTEN = 0.3;
+const PIER_STEM_RADIUS = 0.3;
+const PIER_DOTS = 14;
+const PIER_DOT_ELEVATIONS = [0.15, 0.6];
+const PIER_DOT_SIZES = [0.06, 0.09];
+
+/**
+ * 撑着桥的大红蘑菇：粗粗的奶油色菌柄从溪底长上来，又宽又扁的红菌盖顶着桥面
+ * @description 桥面离水面很近，菌盖只能压得很扁、铺得比桥宽，两边露出的红边和白点让人一眼看出桥是搭在蘑菇上的
+ * @param {Kit} kit
+ * @param {object} options
+ * @param {number} options.height 从溪底到菌盖顶多高（菌盖顶正好贴着桥面底下）
+ * @param {number} options.capRadius 菌盖多大
+ * @param {number} options.seed 白点怎么撒
+ * @returns {THREE.Group} 原点在菌柄底面中心
+ */
+export function bridgeMushroom(kit, { height, capRadius, seed }) {
+  const group = new THREE.Group();
+  const capHeight = capRadius * PIER_CAP_FLATTEN;
+  const capBase = height - capHeight;
+  const stemRadius = capRadius * PIER_STEM_RADIUS;
+  group.add(at(kit.cyl(stemRadius * 0.85, stemRadius, capBase, '#fff3dd', 16), 0, capBase / 2, 0));
+
+  const cap = new THREE.Group();
+  cap.position.y = capBase;
+  const dome = kit.dome(capRadius, '#f26b6b', Math.PI / 2, 28);
+  dome.scale.y = PIER_CAP_FLATTEN;
+  cap.add(dome);
+  const dotOptions = { flatten: PIER_CAP_FLATTEN, count: PIER_DOTS, elevations: PIER_DOT_ELEVATIONS, sizes: PIER_DOT_SIZES };
+  for (const dot of capDots(kit, capRadius, seed, dotOptions)) {
+    cap.add(dot);
+  }
+  group.add(cap);
+  return group;
+}
+
+// 塔窗亮着时发多亮的光
+export const TOWER_WINDOW_GLOW = 0.6;
+
 /**
  * 童话高塔：淡紫色的圆塔，顶上一圈垛口、粉色尖顶和一面小旗；门和两扇亮着的窗朝 +z
  * @param {Kit} kit
- * @returns {{ group: THREE.Group, flag: THREE.Group }} flag 是小旗，绕着旗杆转，用的地方让它飘
+ * @returns {{ group: THREE.Group, flag: THREE.Group, windows: THREE.Mesh[] }}
+ *   flag 是小旗，绕着旗杆转，用的地方让它飘；windows 是两扇窗，魔法停了时暗下去
  */
 export function fairyTower(kit) {
   const group = new THREE.Group();
@@ -98,19 +146,21 @@ export function fairyTower(kit) {
   }
 
   // 尖顶、旗杆、小旗（小旗挂在旗杆上，绕着旗杆摆）
+  const poleLength = 0.5;
   group.add(at(kit.cone(1.0, 1.4, '#f6a6c8', 24), 0, 3.45, 0));
-  group.add(at(kit.cyl(0.015, 0.015, 0.5, '#8a6a4a', 6), 0, 4.35, 0));
+  group.add(at(kit.cyl(0.015, 0.015, poleLength, '#8a6a4a', 6), 0, TOWER_TOP - poleLength / 2, 0));
   const flag = new THREE.Group();
   flag.add(at(kit.box(0.3, 0.18, 0.02, '#ffd84a', 0.01), 0.16, 0, 0));
-  group.add(at(flag, 0, 4.5, 0));
+  group.add(at(flag, 0, TOWER_TOP - 0.1, 0));
 
   // 门和两扇窗
   group.add(at(kit.box(0.42, 0.7, 0.1, '#8a5a3a', 0.1), 0, 0.35, 0.82));
-  for (const windowY of [1.3, 2.05]) {
-    const towerWindow = kit.box(0.22, 0.32, 0.08, '#ffe9a8', 0.08, { emissive: '#ffd27a', emissiveIntensity: 0.6 });
+  const windows = [1.3, 2.05].map((windowY) => {
+    const towerWindow = kit.box(0.22, 0.32, 0.08, '#ffe9a8', 0.08, { emissive: '#ffd27a', emissiveIntensity: TOWER_WINDOW_GLOW });
     group.add(at(towerWindow, 0, windowY, 0.8));
-  }
-  return { group, flag };
+    return towerWindow;
+  });
+  return { group, flag, windows };
 }
 
 /**
@@ -212,15 +262,19 @@ export function sidePebble(kit, radius) {
   return pebble;
 }
 
+// 树桩多粗（底下最粗的地方）、顶面多高：摆的地方按它登记碰撞、往顶上放东西
+export const STUMP_RADIUS = 0.3;
+export const STUMP_HEIGHT = 0.32;
+
 /**
  * 树桩：一截矮矮的树干，顶上一圈浅色年轮，底下几条树根
  * @param {Kit} kit
- * @returns {THREE.Group} 半径大约 0.3
+ * @returns {THREE.Group} 半径是 STUMP_RADIUS，顶面在 STUMP_HEIGHT
  */
 export function stump(kit) {
   const group = new THREE.Group();
-  const height = 0.3;
-  group.add(at(kit.cyl(0.24, 0.3, height, '#a0663a', 14), 0, height / 2, 0));
+  const height = STUMP_HEIGHT - 0.02;
+  group.add(at(kit.cyl(0.24, STUMP_RADIUS, height, '#a0663a', 14), 0, height / 2, 0));
   group.add(at(kit.cyl(0.235, 0.235, 0.02, '#e3b787', 14), 0, height + 0.01, 0));
 
   const roots = 3;

@@ -174,10 +174,16 @@ export const TOADSTOOLS = [
   [-6.2, 0.4], // 小土坡上
 ];
 
+// ---------- 主线：森林的魔法停了，要把小屋带来的三样东西放回去 ----------
+// 蘑菇仔的读书树桩：小土坡上，黄蘑菇屋门口旁边，从台阶上来一眼看得见；童话书放回树桩顶上
+export const READING_STUMP = [-4.7, 2.55];
+// 讲故事的人站在树桩左边，面朝树桩（也就侧着朝镜头）
+export const READING_SPOT = { x: -5.35, z: 2.5, face: 1.5 };
+
 // ---------- 小人 ----------
 export const SPAWN = [-1.4, 5.2];
 export const VILLAGERS = {
   bobo: [-2.4, 2.2],
   lily: [5.0, 1.6],
-  mushroomKid: [-4.6, 2.5], // 在小土坡上，自己的黄蘑菇屋旁边
+  mushroomKid: [READING_SPOT.x, READING_SPOT.z], // 在小土坡上，自己的黄蘑菇屋旁边、读书树桩边上
 };

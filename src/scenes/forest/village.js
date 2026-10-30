@@ -1,6 +1,7 @@
 // 蘑菇屋：三座散在林子里（左后的红蘑菇屋、小土坡上的黄蘑菇屋、右边草地上的蓝蘑菇屋），门口是小人闲逛时爱去的地方
-import { mushroomHouse } from './models.js';
-import { HOUSES } from './layout.js';
+// 黄蘑菇屋门口还有蘑菇仔的读书树桩：童话书就放在它顶上
+import { mushroomHouse, stump, STUMP_RADIUS, STUMP_HEIGHT } from './models.js';
+import { HOUSES, READING_STUMP } from './layout.js';
 
 // 墙外面再留一点，人别贴着墙走
 const WALL_PAD = 0.05;
@@ -10,12 +11,28 @@ const DOORSTEP = 0.35;
 const DOORSTEP_STAY = 6;
 
 /**
- * 摆三座蘑菇屋
+ * 摆三座蘑菇屋和蘑菇仔的读书树桩
+ * @description 树桩要在花草之前摆好，花草才会绕开它长
  * @param {World} world 童话森林
- * @returns {{ houses: { x: number, z: number, radius: number, size: number, cap: THREE.Group }[] }} 每座屋子在哪、墙多粗、多大、菌盖（碰一下会弹）
+ * @returns {{ houses: { x: number, z: number, radius: number, size: number, cap: THREE.Group }[], readingStump: { x: number, y: number, z: number } }}
+ *   每座屋子在哪、墙多粗、多大、菌盖（碰一下会弹）；读书树桩顶面的中心
  */
 export function buildVillage(world) {
-  return { houses: HOUSES.map((house) => placeHouse(world, house)) };
+  const houses = HOUSES.map((house) => placeHouse(world, house));
+  return { houses, readingStump: placeReadingStump(world) };
+}
+
+/**
+ * 黄蘑菇屋门口的读书树桩
+ * @param {World} world
+ * @returns {{ x: number, y: number, z: number }} 树桩顶面的中心，童话书放在这儿
+ */
+function placeReadingStump(world) {
+  const [x, z] = READING_STUMP;
+  const groundY = world.heightAt(x, z);
+  world.add(stump(world.kit), x, groundY, z);
+  world.solidCircle(x, z, STUMP_RADIUS);
+  return { x, y: groundY + STUMP_HEIGHT, z };
 }
 
 /**

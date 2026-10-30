@@ -1,5 +1,6 @@
 // 童话森林 —— 蘑菇屋、山顶的高塔、踏脚石过池塘，卡通着色
 // 小山和池塘把森林分成左右两半，只有池塘里的踏脚石和小溪上的桥能过去
+// 刚到的时候森林的魔法停了：桥塌了，踏脚石沉了，要把从小屋带来的童话书、红蘑菇、魔法星星放回原处，才能逛到对岸
 //
 // 文件分工：
 //   layout.js    地形文字地图、各处东西的位置
@@ -15,7 +16,9 @@
 //   life.js      风吹树冠、蝴蝶（人走近会被惊飞）、池塘里跳起来的鱼
 //   （水面上的波纹和溅起的水珠在 src/splashes.js，和像素小镇共用）
 //   touch.js     碰一下会有反应的：踩踏脚石溅水花、桥上的脚步声、撞到蘑菇屋菌盖会弹、路过小红蘑菇会弹
-//   people.js    居民和台词
+//   people.js    居民和台词（魔法停了时、修好以后各一套）
+//   crossings.js 桥塌下去、踏脚石沉下去，挡住去对岸的路；修好时红蘑菇长出来顶起桥、石头一块块浮上来
+//   story.js     主线：三个修复点、修好以后各自醒过来、老存档
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildGround } from './ground.js';
@@ -29,6 +32,7 @@ import { createPeople } from './people.js';
 import { bringToLife } from './life.js';
 import { createSplashes } from '../../splashes.js';
 import { createTouch } from './touch.js';
+import { createStory } from './story.js';
 import { mushroomPickup } from './models.js';
 import { MAP, LEVEL, SPAWN, FIT_HEIGHT, MUSHROOM_HIDING } from './layout.js';
 
@@ -51,9 +55,20 @@ export default {
   camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: FIT_HEIGHT, min: 2.5 },
   terrain: { map: MAP, level: LEVEL },
   spawn: SPAWN,
-  // 第一次进来时，这个小人会主动打招呼
-  greet: { name: '波波', text: '哇，新面孔！欢迎来到童话森林～听说这里藏着几样“像素的东西”。' },
+  // 第一次进来时主动打招呼：魔法停了时和修好以后各一句
+  // 修好以后那句用原来的 key（世界的 id），改版以前就来过的人不会再听一遍
+  greet: (world) =>
+    world.restored
+      ? { name: '波波', text: '欢迎来到童话森林～听说林子里藏着几样“像素的东西”。' }
+      : { key: 'forest:broken', name: '波波', text: '啊，你来啦！森林的魔法停了……桥塌了，池塘里的踏脚石也沉了下去。你是从小屋来的吗？我们丢的东西，会不会在你那儿？' },
   next: 'pixel',
+  // 破败世界：到的时候魔法停了，要先把小屋里找到的东西放回原处
+  brokenGoal: '森林的魔法停了！四处找找，哪里少了从 <b>「我的小屋」</b> 带来的东西',
+  repairs: [
+    { id: 'book', from: 'home', hint: '小土坡上，蘑菇仔身边的树桩', msg: '蘑菇仔讲起了故事' },
+    { id: 'mushroom', from: 'home', hint: '小溪上塌下去的桥底下', msg: '它一下长成了桥墩' },
+    { id: 'star', from: 'home', hint: '山顶高塔的塔尖（先得过桥）', msg: '森林的魔法回来了' },
+  ],
   // 森林的材料：灌木丛、树桩、落叶堆里翻出来的小蘑菇，以后回家合成用
   materials: [{ id: 'mushroom', name: '小蘑菇', icon: '🍄', make: mushroomPickup }],
   // 每次进来藏在哪：灌木丛、树桩、落叶堆，都要翻找
@@ -114,14 +129,16 @@ export default {
     const ground = buildGround(world);
     const village = buildVillage(world);
     buildPond(world, ground);
-    buildHill(world);
+    const hill = buildHill(world);
     buildForage(world);
     // 树墙、花、草要避开前面摆好的东西，最后种
     const woods = buildWoods(world);
     buildScenery(world);
-    createPeople(world);
+    const people = createPeople(world);
     const splashes = createSplashes(world, ground.waterSurface);
-    bringToLife(world, { crowns: woods.crowns, waterSurface: ground.waterSurface, splashes });
+    const life = bringToLife(world, { crowns: woods.crowns, waterSurface: ground.waterSurface, splashes });
     createTouch(world, { houses: village.houses, splashes });
+    // 主线最后搭：桥和踏脚石挡路的格子不能影响前面的树和花往哪儿长
+    createStory(world, { ground, village, hill, people, life, splashes });
   },
 };
