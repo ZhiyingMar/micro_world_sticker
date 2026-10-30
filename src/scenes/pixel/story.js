@@ -4,7 +4,7 @@
 //   🪙 像素金币投进大台阶底下的投币机 → 三条台阶一级级长回来，能上台地（蓝屋子后院的小出租车、风车山）
 //   🎮 游戏卡带插进风车门口的卡槽机（要先上台地）→ 风车转起来，响一段开场曲，音乐回来了，苹果树下的萨克斯出现
 // 爱心和金币先放哪个都行，卡带一定在台阶长回来之后；全部修好时大家欢呼，喷泉边蹦出一把彩色小方块
-// 卡住的小镇灰蒙蒙的，小人动作也慢吞吞；修好一处颜色回来一些、小人快一些，全修好就恢复原样。每修好一处，镜头暂时挪过去看变化
+// 卡住的小镇灰蒙蒙的（小人还是原来的颜色），小人动作也慢吞吞；修好一处颜色回来一些、小人快一些，全修好就恢复原样。每修好一处，镜头暂时挪过去看变化
 import * as THREE from 'three';
 import { ghostify } from '../../world.js';
 import { sfx } from '../../audio.js';
@@ -104,19 +104,27 @@ export function createStory(world, { ground, town, water, life, people, bits }) 
   const toast = (text) => world.env.toast?.(text);
   // 最后修好的那一处动画要放多久（秒）：放完了再欢呼
   const finale = { wait: 0 };
-  // 灰蒙蒙要在放虚影之前做：虚影、放回去的东西、物品都保持原色，在灰里正好显眼；已经修好的存档不用褪色
-  const keep = [...world.items.values(), ...world.hiddenItems.values()];
-  const wash = restored() ? null : washOut(world, { keep });
-  const wake = { level: 0 };
+  // 小镇缓过来几成、褪色（全搭好以后才有）
+  const wake = { level: 0, wash: null };
   const afterRepair = (instant) => {
     refreshLines();
-    settleTown(world, { wash, wake, timeline, instant, has });
+    settleTown(world, { wake, timeline, instant, has });
   };
   const context = { timeline, people, toast, finale, afterRepair };
 
   water.fountain.setFlow(0);
   life.windmill.setPower(0);
-  settleTown(world, { wash, wake, timeline, instant: true, has });
+  settleTown(world, { wake, timeline, instant: true, has });
+  // 灰蒙蒙要等全搭好再做：藏好的像素块也得一起灰，不然在灰里一眼就看见了。
+  // 小人、虚影、放回去的东西保持原色；已经修好的存档不用褪色
+  world.afterBuilt(() => {
+    if (restored()) {
+      return;
+    }
+    const ghosts = [...world.repairs.values()].map((repair) => repair.spot);
+    wake.wash = washOut(world, { keep: [...world.villagers.map((villager) => villager.root), ...ghosts] });
+    settleTown(world, { wake, timeline, instant: true, has });
+  });
 
   heartSpot(world, town.fountain, { ...context, water });
   coinSpot(world, town.coinMachine, { ...context, stairs });
@@ -129,19 +137,19 @@ export function createStory(world, { ground, town, water, life, people, bits }) 
  * 小镇跟着还没修好的地方缓过来：三处都没修时最灰、小人最慢，修好一处颜色回来一些、小人快一些，全修好恢复原样
  * @param {World} world
  * @param {object} options
- * @param {{ setGrey(level: number): void } | null} options.wash 褪色（已经修好的存档没有）
- * @param {{ level: number }} options.wake 现在缓过来几成（0 卡得最厉害，1 恢复原样），慢慢变时从它开始
+ * @param {{ level: number, wash: { setGrey(level: number): void } | null }} options.wake 现在缓过来几成（0 卡得最厉害，1 恢复原样），
+ *   慢慢变时从它开始；wash 是褪色（全搭好以后才有，已经修好的存档一直没有）
  * @param {object} options.timeline
  * @param {boolean} options.instant 读档时直接变过去
  * @param {(id: string) => boolean} options.has 某处修好了没有
  */
-function settleTown(world, { wash, wake, timeline, instant, has }) {
+function settleTown(world, { wake, timeline, instant, has }) {
   const left = world.def.repairs.filter((repair) => !has(repair.id)).length;
   const target = 1 - left / world.def.repairs.length;
   const apply = (level) => {
     wake.level = level;
     const stuck = 1 - level;
-    wash?.setGrey(MOST_GREY * stuck);
+    wake.wash?.setGrey(MOST_GREY * stuck);
     world.setSkyTint(stuck > 0 ? { color: SKY_GREY, strength: SKY_GREY_STRENGTH * stuck } : null);
     for (const villager of world.villagers) {
       villager.pace = THREE.MathUtils.lerp(SLOWEST_PACE, 1, level);
@@ -213,6 +221,8 @@ function heartSpot(world, fountain, { timeline, water, toast, finale, afterRepai
     seeR: fountain.radius + 2,
     fn(instant) {
       const heart = forestModel(world, 'heart', HEART_SCALE);
+      // 放回去的东西在灰蒙蒙的小镇里也是原色
+      heart.userData.keepColor = true;
       world.add(heart, fountain.x, heartY, fountain.z);
       // 心一跳一跳：快快地鼓两下，停一停
       world.onUpdate((dt, time) => {
@@ -351,8 +361,10 @@ function cartridgeSpot(world, slot, { timeline, life, people, toast, finale, aft
     seeR: 2.4,
     fn(instant) {
       const cartridge = forestModel(world, 'cartridge', CARTRIDGE_SCALE);
+      cartridge.userData.keepColor = true;
       world.add(cartridge, x, standingY, z);
       slot.led.material = world.kit.m(LED_ON, { emissive: LED_ON, emissiveIntensity: 0.9 });
+      slot.led.userData.keepColor = true;
       afterRepair(instant);
       if (instant) {
         life.windmill.setPower(1);

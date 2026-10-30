@@ -47,6 +47,8 @@ export class World {
     this.fog = null;
     // 拆掉世界时要一起收拾的（换上去的材质……），见 onDispose()
     this.disposers = [];
+    // 世界全搭好以后要做的（修好的地方恢复了、材料也藏好了），见 afterBuilt()
+    this.builtFns = [];
     this.restoredFns = [];
     this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
@@ -72,6 +74,18 @@ export class World {
     if (def.scatter) {
       this.hideMaterials(def.scatter);
     }
+    for (const fn of this.builtFns) {
+      fn();
+    }
+  }
+
+  /**
+   * 等世界全搭好再做点什么
+   * @description 场景的 build() 跑完以后，修好了的地方才一处处恢复、材料才藏进去；要对这些也起作用的事（比如让整个世界褪色）放在这里
+   * @param {Function} fn 搭好时调用一次
+   */
+  afterBuilt(fn) {
+    this.builtFns.push(fn);
   }
 
   // ---------- 翻找材料 ----------

@@ -12,8 +12,8 @@ const LUMA = '0.2126, 0.7152, 0.0722';
 
 /**
  * 让世界里现在有的东西都能褪色
- * @description 只管调用时已经在世界里的东西；之后才放进来的（修好时放回去的东西、翻出来的材料）保持原色，
- *   在灰蒙蒙的世界里正好显眼。要一直保持原色的（物品）放进 keep
+ * @description 只管调用时已经在世界里的东西；之后才放进来的（修好时放回去的东西）保持原色，在灰蒙蒙的世界里正好显眼。
+ *   要保持原色的（小人、虚影）放进 keep，或者在物体上标 userData.keepColor
  * @param {World} world
  * @param {object} [options]
  * @param {THREE.Object3D[]} [options.keep] 不褪色的东西（连同下面的子物体）
@@ -56,7 +56,7 @@ export function washOut(world, { keep = [] } = {}) {
 /**
  * 把一棵树下面所有网格的材质换成会褪色的复制品
  * @param {THREE.Object3D} root 从哪儿开始找
- * @param {Set<THREE.Object3D>} keep 跳过这些（连同下面的子物体）
+ * @param {Set<THREE.Object3D>} keep 跳过这些（连同下面的子物体）；标了 userData.keepColor 的也跳过
  * @param {object} uniforms 所有复制品共用的褪色参数
  * @returns {{ mesh: THREE.Mesh, original: THREE.Material | THREE.Material[] }[]} 换过的网格和它原来的材质
  */
@@ -64,7 +64,7 @@ function swapMaterials(root, keep, uniforms) {
   const clones = new Map();
   const swapped = [];
   const visit = (object) => {
-    if (keep.has(object)) {
+    if (keep.has(object) || object.userData.keepColor) {
       return;
     }
     if (object.isMesh) {
