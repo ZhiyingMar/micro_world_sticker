@@ -65,6 +65,7 @@ src/
   audio.js       WebAudio 合成的音效和环境声
   music.js       小屋收音机里现场编的轻音乐
   timeline.js    按世界里的时间排的小动画（过一会儿做什么、慢慢变过去），切走世界就停
+  color-wash.js  让一个世界灰蒙蒙地褪色，再一点点还回颜色（像素小镇卡住时）
   daytime.js     小屋里现在几点：跟着现在 / 快进两种走法（画面怎么变在 scenes/home/daylight.js）
   ui.js          界面：收集栏、对话框、冰箱、合成动画
   terrain.js     有高低的地面：用文字地图描述
