@@ -16,6 +16,8 @@ export class Villager {
     this.lines = opts.lines || [];
     this.lineIdx = 0;
     this.speed = opts.speed || 0.85;
+    // 动作快慢：1 是平常；像素小镇卡住时小于 1，走路、迈腿、待着的时间都跟着慢下来，像游戏卡了。玩家自己不受影响
+    this.pace = 1;
     this.radius = 0.22;
     this.controlled = !!opts.controlled;
 
@@ -574,15 +576,16 @@ export class Villager {
 
   // ---------------- 每帧 ----------------
   update(dt, t, input) {
+    const pacedDt = this.controlled ? dt : dt * this.pace;
     if (this.controlled) this.control(dt, input);
-    else this.ai(dt);
+    else this.ai(pacedDt);
 
     this.root.rotation.y = lerpAngle(this.root.rotation.y, this.heading, 1 - Math.exp(-dt * 10));
     // 站在地面上（有高低的世界里跟着地走）
     if (!this.sitting) this.root.position.y = this.world.heightAt(this.x, this.z);
 
     const m = this.moving;
-    this.phase += dt * (this.controlled ? 13 : 10) * (m ? 1 : 0);
+    this.phase += pacedDt * (this.controlled ? 13 : 10) * (m ? 1 : 0);
     const swing = Math.sin(this.phase) * 0.7 * m;
     if (this.sitting) {
       this.legL.rotation.x = this.legR.rotation.x = -1.45;
