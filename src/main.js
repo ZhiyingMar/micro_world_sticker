@@ -868,6 +868,9 @@ function maybeGreet() {
   const key = g.key || world.def.id;
   if (!state.greeted) state.greeted = {};
   if (state.greeted[key]) return;
+  // 修好以后的开场白：修好前已经打过招呼（见过面了），就不再说一遍
+  const metBefore = g.seenWith?.some((seen) => state.greeted[seen]);
+  if (metBefore) return;
   const v = world.villagers.find((x) => x.name === g.name);
   if (!v) return;
   state.greeted[key] = true;

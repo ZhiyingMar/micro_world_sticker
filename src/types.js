@@ -64,6 +64,7 @@
  * @property {string} name 说话的小人名字
  * @property {string} text 说的话
  * @property {string} [key] 记在存档里的名字，同一个世界想说两次不同的话时用不同的 key
+ * @property {string[]} [seenWith] 这几个 key 的招呼已经打过的话，这句就不说了（修好以后的开场白，修好前已经见过面就不用再说一遍）
  */
 
 /**
