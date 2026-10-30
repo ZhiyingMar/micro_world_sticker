@@ -1,4 +1,4 @@
-// 让小镇活起来：风吹树冠、稻草人和芦苇轻轻晃，风车一直转，烟囱冒出一团团方块烟，
+// 让小镇活起来：风吹树冠、稻草人和芦苇轻轻晃，风车一直转（小镇卡住了时停着），烟囱冒出一团团方块烟，
 // 方块云从天上飘过、影子从小镇上滑过去，花丛上飞着蝴蝶（人走近会被惊飞）
 // 都只是看的，不挡路，也不会被点到
 import * as THREE from 'three';
@@ -53,27 +53,36 @@ const BUTTERFLY_SEED = 31;
  * @param {THREE.Group} context.blades 风车的风叶
  * @param {THREE.Vector3[]} context.chimneys 烟囱口在哪
  * @param {number[][]} context.gardens 几大片花丛的中心 [x, z]
+ * @returns {{ windmill: { setPower(level: number): void } }} 风车转得多带劲（0 停着，1 平时那样转）
  */
 export function bringToLife(world, { crowns, swaying, blades, chimneys, gardens }) {
   swayInWind(world, [...crowns, ...swaying]);
-  spinWindmill(world, blades);
+  const windmill = spinWindmill(world, blades);
   for (const chimney of chimneys) {
     chimneySmoke(world, chimney);
   }
   driftingClouds(world);
   createButterflies(world, gardens.map(([x, z]) => ({ x, z, y: world.heightAt(x, z) })), BUTTERFLY_SEED);
+  return { windmill };
 }
 
 /**
  * 风车一直转，风大的时候快一点
  * @param {World} world
  * @param {THREE.Group} blades
+ * @returns {{ setPower(level: number): void }} 转得多带劲：0 停着，1 平时那样转（转起来时从 0 慢慢加上去）
  */
 function spinWindmill(world, blades) {
+  let power = 1;
   world.onUpdate((dt, time) => {
     const gust = 1 + GUST_DEPTH * Math.sin(time * GUST_SPEED);
-    blades.rotation.z -= dt * WINDMILL_SPEED * gust;
+    blades.rotation.z -= dt * WINDMILL_SPEED * gust * power;
   });
+  return {
+    setPower(level) {
+      power = level;
+    },
+  };
 }
 
 /**

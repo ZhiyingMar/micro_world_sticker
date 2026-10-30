@@ -1,5 +1,6 @@
 // 像素小镇 —— 建在缓坡上的方块小镇：风车、两座房子、喷泉广场、池塘和小瀑布，一层层台地用台阶连起来
 // 像素感来自体素地形、体素模型和方块小人；画面本身和别的世界一样按屏幕分辨率渲染，头顶的气泡、字都是清楚的
+// 刚到的时候小镇"卡住了"：喷泉干了、广场上去的台阶塌了、风车停了，要把从森林带来的爱心、金币、卡带放回原处
 //
 // 文件分工：
 //   layout.js    地形文字地图、各处东西的位置
@@ -7,7 +8,7 @@
 //   ground.js    地面：小体素画的草地、土路、石板广场（src/terrain-voxel.js 画）
 //   models.js    模型（只造不摆）：房子、风车、干草堆、喷泉、路灯、长椅、木箱、栅栏、稻草人、菜、小鸡、像素块……
 //   plants.js    体素树、灌木、方块小花和草丛（只造不摆）
-//   town.js      房子、风车和门口的干草堆、喷泉广场、路灯、长椅；小月亮在喷泉里，小出租车在蓝屋子后头
+//   town.js      房子、风车和门口的干草堆、卡槽机，喷泉广场、投币机、路灯、长椅；小月亮在喷泉里，小出租车在蓝屋子后头
 //   garden.js    左前的菜园：白栅栏、菜畦、稻草人，栅栏外的矮苹果树和萨克斯
 //   pond.js      右前的池塘：荷叶、芦苇、石头，台地上流下来的瀑布
 //   woods.js     显眼的几棵树、四周的树墙、会沙沙响的灌木
@@ -18,7 +19,9 @@
 //   chickens.js  几只小鸡：转悠、啄地，人走近会扑腾着跑开
 //   bits.js      蹦出来的小方块：羽毛、叶子
 //   touch.js     碰一下会有反应：台阶上一步一个音，撞灌木沙沙响，贴着喷泉走溅水
-//   people.js    居民和台词
+//   people.js    居民和台词（小镇卡住了时、修好以后各一套）
+//   stairs.js    广场上去的台阶塌成一层底座，挡住上台地的路；投了币一级级长回来
+//   story.js     主线：三个修复点、修好以后各自动起来、老存档
 import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { buildGround } from './ground.js';
@@ -34,6 +37,7 @@ import { createChickens } from './chickens.js';
 import { createBits } from './bits.js';
 import { createTouch } from './touch.js';
 import { createPeople } from './people.js';
+import { createStory } from './story.js';
 import { createSplashes } from '../../splashes.js';
 import { pixelBlock } from './models.js';
 import { MAP, LEVEL, SPAWN, FIT_HEIGHT, SUN, BLOCK_HIDING } from './layout.js';
@@ -57,9 +61,20 @@ export default {
   camera: { pos: [11.5, 11, 14.5], target: [0, 0.6, 0], fitH: FIT_HEIGHT, min: 2.5 },
   terrain: { map: MAP, level: LEVEL },
   spawn: SPAWN,
-  // 第一次进来时，这个小人会主动打招呼
-  greet: { name: '方方', text: '欢迎来到像素小镇！这里一切都是方的，包括我的脑袋。' },
+  // 第一次进来时主动打招呼：小镇卡住了时和修好以后各一句
+  // 修好以后那句用原来的 key（世界的 id），改版以前就来过的人不会再听一遍
+  greet: (world) =>
+    world.restored
+      ? { name: '方方', text: '欢迎来到像素小镇！这里一切都是方的，包括我的脑袋。' }
+      : { key: 'pixel:broken', name: '方方', text: '啊，有人来了！小镇卡住了——喷泉不冒水，台阶的方块不见了，风车也不转了。你是从森林来的吗？我们的东西好像被风吹到那儿去了。' },
   next: 'city',
+  // 破败世界：到的时候小镇卡住了，要先把森林里找到的东西放回原处
+  brokenGoal: '小镇卡住了！四处找找，哪里少了从 <b>「童话森林」</b> 带来的东西',
+  repairs: [
+    { id: 'heart', from: 'forest', hint: '广场上不冒水的喷泉', msg: '喷泉又有心跳了' },
+    { id: 'coin', from: 'forest', hint: '大台阶底下的投币机', msg: '投币成功' },
+    { id: 'cartridge', from: 'forest', hint: '风车门口的卡槽机（先得上台地）', msg: '读到卡带了' },
+  ],
   // 像素小镇的材料：一个个亮色的像素块，以后回家合成用
   materials: [{ id: 'block', name: '像素块', icon: '🟪', make: pixelBlock }],
   // 每次进来藏在哪：灌木丛、后院的木箱堆和木桶、菜畦、干草堆，都要翻找
@@ -128,13 +143,13 @@ export default {
     // 树墙、花、草要避开前面摆好的东西，最后种
     const woods = buildWoods(world);
     const scenery = buildScenery(world);
-    createPeople(world);
+    const people = createPeople(world);
     buildForage(world, { bushes: woods.hidingBushes, backyard: town.backyard, beds: garden.beds, haystack: town.haystack });
 
     const splashes = createSplashes(world, ground.waterSurface, { square: true });
     const bits = createBits(world);
-    createWaterLife(world, { fountain: town.fountain, waterfall: pond.waterfall, pads: pond.pads, waterSurface: ground.waterSurface, splashes });
-    bringToLife(world, {
+    const water = createWaterLife(world, { fountain: town.fountain, waterfall: pond.waterfall, pads: pond.pads, waterSurface: ground.waterSurface, splashes });
+    const life = bringToLife(world, {
       crowns: [...woods.crowns, ...garden.crowns],
       swaying: [...garden.swaying, ...pond.reeds],
       blades: town.blades,
@@ -143,5 +158,7 @@ export default {
     });
     createChickens(world, bits);
     createTouch(world, { bushes: woods.bushes, fountain: town.fountain, splashes, bits });
+    // 主线最后搭：台阶挡路的格子不能影响前面的树和花往哪儿长
+    createStory(world, { ground, town, water, life, people, bits });
   },
 };

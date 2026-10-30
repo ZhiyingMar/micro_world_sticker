@@ -46,7 +46,8 @@ const paint = new THREE.Color();
 /**
  * 画像素小镇的地面
  * @param {World} world 像素小镇
- * @returns {{ waterSurface: number, waterPatch: (width: number, depth: number) => THREE.Mesh }} 水面多高；做一小块一样的水面
+ * @returns {{ waterSurface: number, waterPatch: (width: number, depth: number) => THREE.Mesh, stairs: object[] }}
+ *   水面多高；做一小块一样的水面；每一格台阶（小镇卡住了时，广场上去的台阶塌成一层底座）
  */
 export function buildGround(world) {
   return buildVoxelTerrain(world, LOOK);

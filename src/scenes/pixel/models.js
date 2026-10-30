@@ -313,14 +313,16 @@ const BASIN_STONE = ['#b9b6c4', '#cfccd8'];
  * 喷泉：方方的大池子四角立着小石墩，中间一根石柱托着小池子，两层水面都是会流的像素水
  * @param {Kit} kit
  * @param {(width: number, depth: number) => THREE.Mesh} waterPatch 做一块和地上的水一样的水面
- * @returns {{ group: THREE.Group, lowerWater: number, upperWater: number, spout: number, radius: number }} 两层水面多高、喷水口多高、池子多大（一半）
+ * @returns {{ group: THREE.Group, lowerWater: number, upperWater: number, spout: number, radius: number, lowerFloor: number, waters: { lower: THREE.Mesh, upper: THREE.Mesh } }}
+ *   两层水面多高、喷水口多高、池子多大（一半）；大池子的池底多高、两块水面（喷泉干了时水退下去）
  */
 export function fountain(kit, waterPatch) {
   const group = new THREE.Group();
   const [stone, stoneLight] = BASIN_STONE;
   const half = BASIN_SIZE / 2;
 
-  group.add(at(kit.box(BASIN_SIZE, 0.06, BASIN_SIZE, stone), 0, 0.03, 0));
+  const lowerFloor = 0.06;
+  group.add(at(kit.box(BASIN_SIZE, lowerFloor, BASIN_SIZE, stone), 0, lowerFloor / 2, 0));
   for (let i = 0; i < 4; i++) {
     const wall = kit.box(BASIN_SIZE - BASIN_WALL, BASIN_HEIGHT, BASIN_WALL, i % 2 ? stone : stoneLight);
     const angle = (i / 4) * Math.PI * 2;
@@ -335,16 +337,18 @@ export function fountain(kit, waterPatch) {
     }
   }
   const lowerWater = BASIN_HEIGHT - WATER_BELOW_RIM;
-  group.add(at(waterPatch(BASIN_SIZE - BASIN_WALL * 2, BASIN_SIZE - BASIN_WALL * 2), 0, lowerWater, 0));
+  const lower = at(waterPatch(BASIN_SIZE - BASIN_WALL * 2, BASIN_SIZE - BASIN_WALL * 2), 0, lowerWater, 0);
+  group.add(lower);
 
   group.add(at(kit.box(PILLAR_SIZE, PILLAR_HEIGHT, PILLAR_SIZE, stoneLight), 0, PILLAR_HEIGHT / 2, 0));
   const upperBottom = PILLAR_HEIGHT;
   group.add(at(kit.box(UPPER_BASIN, 0.14, UPPER_BASIN, stone), 0, upperBottom + 0.07, 0));
   const upperWater = upperBottom + 0.12;
-  group.add(at(waterPatch(UPPER_BASIN - 0.12, UPPER_BASIN - 0.12), 0, upperWater, 0));
+  const upper = at(waterPatch(UPPER_BASIN - 0.12, UPPER_BASIN - 0.12), 0, upperWater, 0);
+  group.add(upper);
   group.add(at(kit.box(0.12, 0.26, 0.12, stoneLight), 0, upperWater + 0.13, 0));
   group.add(at(kit.box(0.08, 0.08, 0.08, '#e8e6f0'), 0, upperWater + 0.3, 0));
-  return { group, lowerWater, upperWater, spout: upperWater + 0.3, radius: half };
+  return { group, lowerWater, upperWater, spout: upperWater + 0.3, radius: half, lowerFloor, waters: { lower, upper } };
 }
 
 // ---------- 小件 ----------
@@ -406,6 +410,71 @@ function crate(kit, size) {
   }
   group.add(at(kit.box(size + 0.02, size * 0.7, frame, dark), 0, size / 2, 0));
   return group;
+}
+
+// ---------- 投币机（大台阶底下） ----------
+// 机身多宽、多高、多深，颜色；屏幕多大、在多高；投币口多大、在多高
+const COIN_MACHINE_SIZE = [0.42, 0.66, 0.34];
+const COIN_MACHINE_COLOR = '#e85d5d';
+const COIN_SCREEN_SIZE = [0.34, 0.18];
+const COIN_SCREEN_Y = 0.5;
+const COIN_SLOT_SIZE = [0.14, 0.13];
+const COIN_SLOT_Y = 0.28;
+
+/**
+ * 投币机：红色的小机身，上面一块黑屏幕，下面一个黄色的投币口，像街机上那样
+ * @description 屏幕上的字由用的地方贴上去（一闪一闪的 INSERT COIN、投了以后换字）
+ * @param {Kit} kit
+ * @returns {{ group: THREE.Group, screen: THREE.Mesh, slot: THREE.Vector3 }} screen 是屏幕上贴字的那块面（朝 +z），slot 是投币口在哪（相对原点）
+ */
+export function coinMachine(kit) {
+  const group = new THREE.Group();
+  const [width, height, depth] = COIN_MACHINE_SIZE;
+  const [dark, base, light] = shadesOf(COIN_MACHINE_COLOR);
+  group.add(at(kit.box(width + 0.04, 0.06, depth + 0.04, '#4a4a5a'), 0, 0.03, 0));
+  group.add(at(kit.box(width, height, depth, base), 0, 0.06 + height / 2, 0));
+  group.add(at(kit.box(width + 0.04, 0.06, depth + 0.04, light), 0, 0.06 + height + 0.03, 0));
+  // 两边侧板深一点，正面看得出是个盒子
+  for (const side of [-1, 1]) {
+    group.add(at(kit.box(0.03, height, depth + 0.01, dark), side * (width / 2 - 0.01), 0.06 + height / 2, 0));
+  }
+
+  const [screenWidth, screenHeight] = COIN_SCREEN_SIZE;
+  group.add(at(kit.box(screenWidth + 0.04, screenHeight + 0.04, 0.02, '#2a2a36'), 0, COIN_SCREEN_Y, depth / 2 + 0.01));
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenWidth, screenHeight), new THREE.MeshBasicMaterial({ color: '#000000' }));
+  screen.position.set(0, COIN_SCREEN_Y, depth / 2 + 0.025);
+  group.add(screen);
+
+  const [slotWidth, slotHeight] = COIN_SLOT_SIZE;
+  group.add(at(kit.box(slotWidth, slotHeight, 0.02, '#ffd84a'), 0, COIN_SLOT_Y, depth / 2 + 0.01));
+  group.add(at(kit.box(0.02, slotHeight * 0.65, 0.02, '#2a2a36'), 0, COIN_SLOT_Y, depth / 2 + 0.02));
+  return { group, screen, slot: new THREE.Vector3(0, COIN_SLOT_Y, depth / 2 + 0.03) };
+}
+
+// ---------- 卡槽机（风车门口） ----------
+// 机身多宽、多高、多深；卡带插进去以后露在外面多高；小灯多大
+const CONSOLE_SIZE = [0.36, 0.16, 0.28];
+const CONSOLE_LED = 0.04;
+
+/**
+ * 风车门口的卡槽机：一个灰色的小方盒子，顶上一道卡槽，正面一个小灯，后面一根线连进风车
+ * @param {Kit} kit
+ * @param {number} cableLength 线往后（-z）拉多长，正好连到风车墙上
+ * @returns {{ group: THREE.Group, led: THREE.Mesh, slotTop: number }} led 是小灯（用的地方换颜色），slotTop 是卡槽口多高（卡带从这儿插进去）
+ */
+export function cartridgeConsole(kit, cableLength) {
+  const group = new THREE.Group();
+  const [width, height, depth] = CONSOLE_SIZE;
+  const [dark, base, light] = shadesOf('#8c8c9c');
+  group.add(at(kit.box(width, height, depth, base), 0, height / 2, 0));
+  group.add(at(kit.box(width + 0.02, 0.03, depth + 0.02, light), 0, height + 0.015, 0));
+  group.add(at(kit.box(width * 0.8, 0.02, 0.07, '#2a2a36'), 0, height + 0.03, 0));
+  group.add(at(kit.box(width, 0.04, depth + 0.01, dark), 0, 0.02, 0));
+
+  const led = kit.box(CONSOLE_LED, CONSOLE_LED, 0.02, '#ff4d4d');
+  group.add(at(led, width / 2 - 0.07, height * 0.55, depth / 2 + 0.01));
+  group.add(at(kit.box(0.04, 0.04, cableLength, '#3a3a46'), -width / 4, 0.04, -depth / 2 - cableLength / 2));
+  return { group, led, slotTop: height + 0.03 };
 }
 
 // 木箱堆旁边那个小箱子摆在哪（相对大箱子），放在右边，左边留给人走过去拿车

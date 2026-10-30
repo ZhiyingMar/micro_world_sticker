@@ -184,6 +184,12 @@ export const BLOCK_HIDING = [
   { material: 'block', count: 3, from: ['bush'] },
 ];
 
+// ---------- 小镇卡住了：要把森林带来的三样东西放回去 ----------
+// 投币机：广场上大台阶的左边（大台阶在 x 0..2），贴着台地的崖脚，正面朝着广场；投了币，广场上去的三条台阶才长回来
+export const COIN_MACHINE = [-0.4, -1.6];
+// 卡槽机：风车门口左边（右边是上来的小路），后面一根线连进风车；卡带插在它顶上
+export const CARTRIDGE_CONSOLE = [-5.5, -3.72];
+
 // ---------- 小鸡 ----------
 // 几只小鸡一开始在哪：广场前面、菜园外面，在附近转悠、啄地
 export const CHICKENS = [

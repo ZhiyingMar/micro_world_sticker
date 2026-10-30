@@ -1,8 +1,8 @@
-// 小镇的房子和广场：风车（门口一个干草堆）、红屋顶和蓝屋顶两座房子、喷泉、路灯、长椅、屋后的木箱，还有信箱和路牌
-// 小月亮浮在喷泉的水池里，小出租车停在蓝屋子后头的木箱上；干草堆、木箱堆、木桶能翻像素块（forage.js 登记）
+// 小镇的房子和广场：风车（门口一个干草堆、一台卡槽机）、红屋顶和蓝屋顶两座房子、喷泉、大台阶底下的投币机、路灯、长椅、屋后的木箱，还有信箱和路牌
+// 小月亮浮在喷泉的水池里（喷泉冒水了才浮上来），小出租车停在蓝屋子后头的木箱上；干草堆、木箱堆、木桶能翻像素块（forage.js 登记）
 import * as THREE from 'three';
-import { house, windmill, haystack, fountain, lamp, bench, crateStack, barrel, mailbox, signpost, BENCH_SEAT_HEIGHT, SMALL_CRATE_OFFSET } from './models.js';
-import { RED_HOUSE, BLUE_HOUSE, WINDMILL, HAYSTACK, FOUNTAIN, MOON_OFFSET, LAMPS, BENCHES, CRATES, BARREL, MAILBOX, SIGNPOST } from './layout.js';
+import { house, windmill, haystack, fountain, lamp, bench, crateStack, barrel, mailbox, signpost, coinMachine, cartridgeConsole, BENCH_SEAT_HEIGHT, SMALL_CRATE_OFFSET } from './models.js';
+import { RED_HOUSE, BLUE_HOUSE, WINDMILL, HAYSTACK, FOUNTAIN, MOON_OFFSET, LAMPS, BENCHES, CRATES, BARREL, MAILBOX, SIGNPOST, COIN_MACHINE, CARTRIDGE_CONSOLE } from './layout.js';
 
 // 房子的碰撞比墙大一点点（石头地基露在外面）
 const HOUSE_PAD = 0.06;
@@ -33,13 +33,17 @@ const BENCH_STAY = 8;
 const GOLDEN_ANGLE = 2.39996;
 // 木箱堆旁边那个小箱子的碰撞多大
 const SMALL_CRATE_RADIUS = 0.17;
+// 投币机、卡槽机的碰撞比机身大多少
+const MACHINE_PAD = 0.04;
+const CONSOLE_RADIUS = 0.22;
 
 /**
  * 搭小镇：房子、风车、广场
  * @param {World} world 像素小镇
  * @param {{ waterPatch: Function }} ground 地面（喷泉的水和地上的水一样）
- * @returns {{ blades: THREE.Group, chimneys: THREE.Vector3[], fountain: { x: number, z: number, groundY: number, lowerWater: number, upperWater: number, spout: number, radius: number }, haystack: THREE.Group, backyard: { crates: THREE.Group, barrel: THREE.Group } }}
- *   haystack、backyard 是能翻像素块的地方，forage.js 拿去登记
+ * @returns {{ blades: THREE.Group, chimneys: THREE.Vector3[], fountain: object, haystack: THREE.Group, backyard: { crates: THREE.Group, barrel: THREE.Group }, coinMachine: { screen: THREE.Mesh, slotAt: THREE.Vector3 }, cartridgeConsole: { led: THREE.Mesh, slotAt: THREE.Vector3 } }}
+ *   fountain 是喷泉在哪、各层水多高、两块水面；haystack、backyard 是能翻像素块的地方，forage.js 拿去登记；
+ *   投币机的屏幕和投币口、卡槽机的小灯和卡槽口，主线（story.js）拿去用
  */
 export function buildTown(world, ground) {
   const chimneys = [buildHouse(world, RED_HOUSE, '🏠'), buildHouse(world, BLUE_HOUSE, '🔑')];
@@ -48,7 +52,9 @@ export function buildTown(world, ground) {
   const fountainInfo = buildFountain(world, ground);
   buildStreetProps(world);
   const backyard = buildCrates(world);
-  return { blades, chimneys, fountain: fountainInfo, haystack: haystackModel, backyard };
+  const machine = buildCoinMachine(world);
+  const cartridgeSlot = buildCartridgeConsole(world);
+  return { blades, chimneys, fountain: fountainInfo, haystack: haystackModel, backyard, coinMachine: machine, cartridgeConsole: cartridgeSlot };
 }
 
 /**
@@ -111,7 +117,8 @@ function buildHaystack(world) {
  * 广场中间的喷泉；小月亮浮在下面那层水池里
  * @param {World} world
  * @param {{ waterPatch: Function }} ground
- * @returns {{ x: number, z: number, groundY: number, lowerWater: number, upperWater: number, spout: number, radius: number }} 喷泉在哪、各层水多高（相对地面）
+ * @returns {{ x: number, z: number, groundY: number, lowerWater: number, upperWater: number, spout: number, radius: number, lowerFloor: number, waters: { lower: THREE.Mesh, upper: THREE.Mesh } }}
+ *   喷泉在哪、各层水多高、池底多高（相对地面），两块水面
  */
 function buildFountain(world, ground) {
   const built = fountain(world.kit, ground.waterPatch);
@@ -120,7 +127,7 @@ function buildFountain(world, ground) {
   const half = built.radius;
   world.solidBox(FOUNTAIN.x - half, FOUNTAIN.x + half, FOUNTAIN.z - half, FOUNTAIN.z + half);
 
-  world.placeItem('moon', FOUNTAIN.x + MOON_OFFSET[0], groundY + built.lowerWater + MOON_FLOAT, FOUNTAIN.z + MOON_OFFSET[1]);
+  world.placeItem('moon', FOUNTAIN.x + MOON_OFFSET[0], groundY + built.lowerWater + MOON_FLOAT, FOUNTAIN.z + MOON_OFFSET[1], { hidden: true });
 
   // 一个人站在池子前面看水，一个人站在左边往池子里扔硬币
   const spotGap = half + FOUNTAIN_SPOT_GAP;
@@ -186,4 +193,35 @@ function buildCrates(world) {
   const barrelModel = world.add(barrel(world.kit), BARREL[0], world.heightAt(...BARREL), BARREL[1]);
   world.solidCircle(BARREL[0], BARREL[1], BARREL_RADIUS);
   return { crates: group, barrel: barrelModel };
+}
+
+/**
+ * 大台阶左脚边的投币机
+ * @param {World} world
+ * @returns {{ screen: THREE.Mesh, slotAt: THREE.Vector3 }} 屏幕（贴字用）、投币口在世界里的位置
+ */
+function buildCoinMachine(world) {
+  const [x, z] = COIN_MACHINE;
+  const { group, screen, slot } = coinMachine(world.kit);
+  world.add(group, x, world.heightAt(x, z), z);
+  world.solid(group, MACHINE_PAD);
+
+  group.updateMatrixWorld(true);
+  return { screen, slotAt: group.localToWorld(slot.clone()) };
+}
+
+/**
+ * 风车门口的卡槽机，后面的线一直连到风车墙上
+ * @param {World} world
+ * @returns {{ led: THREE.Mesh, slotAt: THREE.Vector3 }} 小灯、卡槽口在世界里的位置
+ */
+function buildCartridgeConsole(world) {
+  const [x, z] = CARTRIDGE_CONSOLE;
+  // 线从机子后面一直拉到风车底座前沿，再钻进底座里
+  const baseFront = WINDMILL.z + WINDMILL_HALF;
+  const { group, led, slotTop } = cartridgeConsole(world.kit, z - baseFront);
+  const groundY = world.heightAt(x, z);
+  world.add(group, x, groundY, z);
+  world.solidCircle(x, z, CONSOLE_RADIUS);
+  return { led, slotAt: new THREE.Vector3(x, groundY + slotTop, z) };
 }

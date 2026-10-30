@@ -137,6 +137,7 @@ function shortTree(world) {
   const { group, crown } = voxelTree(world.kit, { kind: 'apple', size: SHORT_TREE_SIZE, seed: TREE_SEED });
   world.add(group, x, world.heightAt(x, z), z, SHORT_TREE_TURN);
   world.solidCircle(x, z, TRUNK_RADIUS);
-  world.placeItem('sax', SAX[0], world.heightAt(...SAX) + SAX_LIFT, SAX[1]);
+  // 萨克斯先藏着：卡带插回风车、小镇的音乐回来了才出现
+  world.placeItem('sax', SAX[0], world.heightAt(...SAX) + SAX_LIFT, SAX[1], { hidden: true });
   return crown;
 }
