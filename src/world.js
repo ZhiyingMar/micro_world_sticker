@@ -43,6 +43,10 @@ export class World {
     this.fadeables = []; // 挡住人时会变半透明的大件（楼），见 fadeable()
     // 地图的第几版：拿掉一个障碍（修好了桥……）就加一，小人记着的"走不到的地方"要重新算
     this.layoutVersion = 0;
+    // 世界里的雾（THREE.Fog），没有就是 null；换到这个世界时镜头的场景用它（童话森林魔法停了时起雾）
+    this.fog = null;
+    // 拆掉世界时要一起收拾的（换上去的材质……），见 onDispose()
+    this.disposers = [];
     this.restoredFns = [];
     this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
@@ -663,11 +667,20 @@ export class World {
     this.fx.update(dt);
   }
 
+  /**
+   * 拆掉这个世界时顺便收拾点东西
+   * @param {Function} fn 拆的时候调用
+   */
+  onDispose(fn) {
+    this.disposers.push(fn);
+  }
+
   dispose() {
     this.root.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
     });
     for (const t of this.textures) t.dispose();
+    for (const fn of this.disposers) fn();
     this.root.removeFromParent();
   }
 }

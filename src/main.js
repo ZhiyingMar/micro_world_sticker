@@ -71,6 +71,8 @@ let overview = null; // 拉远看整个方块时的镜头 { pos, target }（原�
 // 进世界时窗口还没有大小（比如内嵌面板还没显示），全貌和开场镜头都没法取景，等窗口有了大小再补上
 let framingPending = false;
 let hold = false; // 镜头暂时不跟着人走（往电话亭里看的时候），人一动就恢复
+// 修好东西时镜头暂时对准变了的地方（踏脚石浮上来、台阶长回来……）：{ shots, index, left, back }，见 startShowcase()
+let showcase = null;
 let game = null; // 正在玩的小游戏：{ g, pos, target }
 let greeting = null; // 小人正在主动打招呼：{ v, t }
 const anims = [];
@@ -283,6 +285,7 @@ function loadScene(id) {
     startGame: (id) => startGame(id),
     onBackdrop: (css) => ui.setBackdrop(css),
     onSkyTint: (tint) => ui.setSkyTint(tint),
+    showcase: (shots) => startShowcase(shots),
     // 拍宣传片时不弹面板：导演直接选分镜里写好的那款
     openWorkbench: (onPick) => {
       if (director) {
@@ -293,6 +296,8 @@ function loadScene(id) {
     },
   });
   scene.add(world.root);
+  // 有雾的世界（童话森林魔法停了时）带上它的雾，别的世界没有雾
+  scene.fog = world.fog;
   blob.scale.set(world.size[0] / 10, world.size[1] / 10, 1);
   // 阴影只算方块范围内的：世界大了跟着放大
   const sr = Math.hypot(...world.size) / 2 + 1;
@@ -319,6 +324,7 @@ function loadScene(id) {
   controls.minAzimuthAngle = c.minAz ?? -Infinity;
   controls.maxAzimuthAngle = c.maxAz ?? Infinity;
   focus = null;
+  showcase = null;
   hold = false;
   recentering = false;
 
@@ -438,6 +444,7 @@ function peekAt(obj) {
   // 已经在这个角度附近了，就当普通点击处理（继续放大）
   if (camera.position.distanceTo(p) < 0.6) return false;
   focus = { t: 0, dur: 0.8, fromT: controls.target.clone(), toT: t, fromP: camera.position.clone(), toP: p };
+  showcase = null;
   hold = true; // 看完之前镜头先别跟着人走
   return true;
 }
@@ -445,7 +452,57 @@ function peekAt(obj) {
 // 拉远看整个小世界（原来的“上帝视角”）。拉得够远时镜头会自动围着方块中心转
 function resetView() {
   hold = false;
+  showcase = null;
   focus = { t: 0, dur: 0.9, fromT: controls.target.clone(), toT: overview.target, fromP: camera.position.clone(), toP: overview.pos };
+}
+
+// 修好东西时镜头挪到一处要多久（秒）
+const SHOWCASE_MOVE = 1.0;
+
+/**
+ * 修好东西时，镜头暂时对准变了的地方，一处一处看过去，看完回到原来的地方，再接着跟人
+ * @description 修好的地方常常不在人旁边（星星在山顶，踏脚石在池塘里），镜头不挪过去就看不到变化。
+ *   镜头保持现在的角度，只挪过去、拉到跟人时的远近；点"全貌"、往东西里看、开始玩小游戏都会打断它
+ * @param {{ at: THREE.Vector3, zoom?: number, hold: number }[]} shots 依次看哪儿（世界里的坐标）、
+ *   拉多远（1 是平时跟人的远近，大于 1 更远、看得更大一片）、到了以后看多久（秒）
+ * @returns {number[]} 每一处镜头到位是在多少秒以后，场景按它排那里的变化
+ */
+function startShowcase(shots) {
+  // 上一段还没看完又来一段：看完以后还是回到最早的地方
+  const back = showcase?.back ?? { target: controls.target.clone(), pos: camera.position.clone() };
+  const direction = camera.position.clone().sub(controls.target).normalize();
+  const planned = shots.map((shot) => {
+    const target = world.root.localToWorld(shot.at.clone());
+    const distance = followDist() * (shot.zoom ?? 1);
+    return { target, pos: target.clone().addScaledVector(direction, distance), hold: shot.hold };
+  });
+
+  showcase = { shots: planned, index: -1, left: 0, back };
+  nextShowcaseShot();
+
+  const arrivals = [];
+  let elapsed = 0;
+  for (const shot of planned) {
+    elapsed += SHOWCASE_MOVE;
+    arrivals.push(elapsed);
+    elapsed += shot.hold;
+  }
+  return arrivals;
+}
+
+/**
+ * 镜头挪到下一处；都看完了就挪回原来的地方，接着跟人
+ */
+function nextShowcaseShot() {
+  showcase.index += 1;
+  const shot = showcase.shots[showcase.index];
+  const to = shot ?? showcase.back;
+  focus = { t: 0, dur: SHOWCASE_MOVE, fromT: controls.target.clone(), toT: to.target.clone(), fromP: camera.position.clone(), toP: to.pos.clone() };
+  if (!shot) {
+    showcase = null;
+    return;
+  }
+  showcase.left = shot.hold;
 }
 document.getElementById('btn-reset').addEventListener('click', () => {
   sfx.click();
@@ -472,6 +529,12 @@ function updateCamera(dt) {
     controls.target.lerpVectors(focus.fromT, focus.toT, k);
     camera.position.lerpVectors(focus.fromP, focus.toP, k);
     if (k >= 1) focus = null;
+  } else if (showcase) {
+    // 停在修好的地方看一会儿，再看下一处
+    showcase.left -= dt;
+    if (showcase.left <= 0) {
+      nextShowcaseShot();
+    }
   } else if (player && !hold) {
     // 镜头中心看 followPoint（旋转、缩放交给 OrbitControls）；拉得越远越偏向整个方块的中心
     const d = camera.position.distanceTo(controls.target);
@@ -854,6 +917,7 @@ function startGame(id) {
   const g = world.games.get(id);
   endTalk();
   focus = null;
+  showcase = null;
   player.moveTarget = null;
   player.root.visible = false; // 别挡在楼前面
   controls.enabled = false;
