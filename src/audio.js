@@ -5,6 +5,10 @@ let ctx = null;
 let master = null;
 
 function ac() {
+  // 页面藏起来时声音整个停着（见 followPageVisibility），这时候的音效不排，免得回来时一下全响出来
+  if (document.hidden) {
+    return null;
+  }
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
@@ -291,6 +295,30 @@ function startAmbient() {
   ambientNodes = { src, gain, lfo };
   startCritters(cfg);
 }
+
+/**
+ * 页面藏起来（切到别的标签页、浏览器最小化、手机切到别的应用）时所有声音一起停，回来时接着放
+ * @description 环境声是一段循环的声音加上计时器叫的鸟和蟋蟀，画面停了也照样响；收音机却是跟着画面排音的，画面一停它就哑了。
+ *   干脆把整个声音的钟停住：回来时环境声接着响，收音机从停下的那一小节接着放。
+ *   Claude 桌面应用的预览窗口藏起来时不会告诉页面（页面还以为看得见，只是画面变慢），那里藏起来还是会响
+ */
+function followPageVisibility() {
+  if (!ctx) {
+    return;
+  }
+
+  if (document.hidden) {
+    stopBirds();
+    stopCrickets();
+    ctx.suspend();
+    return;
+  }
+  ctx.resume();
+  if (ambientNodes) {
+    startCritters(AMBIENT[ambientKind] || AMBIENT.city);
+  }
+}
+document.addEventListener('visibilitychange', followPageVisibility);
 
 export const sfx = {
   unlock() {
