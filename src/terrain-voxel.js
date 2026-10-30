@@ -75,8 +75,9 @@ const scratch = new THREE.Color();
  * @param {string[]} look.stairs 台阶石板，两种颜色一级一级错开
  * @param {string} look.plank 桥的木头
  * @param {string} look.stone 踏脚石
- * @returns {{ waterSurface: number, waterPatch: (width: number, depth: number) => THREE.Mesh }} 水面多高；
- *   做一小块和地上一样的水面（喷泉这种小水池用，波纹一样大、一起流），原点在中心，平躺着
+ * @returns {{ waterSurface: number, waterPatch: (width: number, depth: number) => THREE.Mesh, stairs: CellFeature[] }} 水面多高；
+ *   做一小块和地上一样的水面（喷泉这种小水池用，波纹一样大、一起流），原点在中心，平躺着；
+ *   每一格台阶（场景要让它塌掉、再一级级长回来时用）
  */
 export function buildVoxelTerrain(world, look) {
   const terrain = world.terrain;
@@ -92,13 +93,17 @@ export function buildVoxelTerrain(world, look) {
   group.add(world.kit.mesh(builder.geometry(), '#ffffff', { vertexColors: true }));
   const water = buildWater(world, terrain, grid, look, waterSurface);
   group.add(water.group);
+  const stairs = [];
   for (const feature of cellFeatures(world.kit, terrain, look)) {
-    group.add(feature);
+    group.add(feature.object);
+    if (STAIRS[feature.symbol]) {
+      stairs.push(feature);
+    }
   }
 
   world.root.add(group);
   const waterPatch = (width, depth) => waterPatchMesh(terrain, water.material, width, depth);
-  return { waterSurface, waterPatch };
+  return { waterSurface, waterPatch, stairs };
 }
 
 /**
@@ -551,20 +556,36 @@ function rippleTexture(look) {
 // ---------- 台阶、桥、踏脚石 ----------
 
 /**
+ * 单独画出来的一格：一格台阶、一座桥、一块踏脚石
+ * @typedef {object} CellFeature
+ * @property {THREE.Object3D} object 画出来的东西（台阶是一组石板，一级一块）
+ * @property {string} symbol 地图上这一格的符号
+ * @property {number} column 第几列
+ * @property {number} row 第几行
+ * @property {number} x 这一格中心
+ * @property {number} z 这一格中心
+ * @property {number} baseY 这一格低的那头多高（台阶从这儿往上长）
+ */
+
+/**
  * 地图上那些单独画的格子：台阶、桥、踏脚石
  * @param {Kit} kit
  * @param {Terrain} terrain
  * @param {object} look
- * @returns {THREE.Object3D[]}
+ * @returns {CellFeature[]}
  */
 function cellFeatures(kit, terrain, look) {
   const features = [];
   for (let row = 0; row < terrain.d; row++) {
     for (let column = 0; column < terrain.w; column++) {
-      const feature = cellFeature(kit, terrain, look, column, row);
-      if (feature) {
-        features.push(feature);
+      const object = cellFeature(kit, terrain, look, column, row);
+      if (!object) {
+        continue;
       }
+      const x = terrain.x0 + column + 0.5;
+      const z = terrain.z0 + row + 0.5;
+      const baseY = terrain.levelOf(column, row) * terrain.level;
+      features.push({ object, symbol: terrain.ch(column, row), column, row, x, z, baseY });
     }
   }
   return features;

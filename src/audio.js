@@ -584,6 +584,20 @@ export const sfx = {
   twinkle() {
     [1319, 1568, 1760, 2093, 2637].forEach((f, i) => tone(f, i * 0.09, 0.45, { type: 'sine', vol: 0.08 }));
   },
+  // 投币：街机那种“叮——”，两个音往上一跳
+  coin() {
+    tone(988, 0, 0.08, { type: 'square', vol: 0.05 });
+    tone(1319, 0.08, 0.35, { type: 'square', vol: 0.05 });
+  },
+  // 游戏开场曲：一小段 8-bit 旋律往上走，底下垫三个低音（卡带插回去、小镇的音乐回来了）
+  gameStart() {
+    const melody = [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36], [784, 0.54], [1047, 0.66], [1319, 0.8]];
+    melody.forEach(([frequency, time], index) => {
+      const last = index === melody.length - 1;
+      tone(frequency, time, last ? 0.5 : 0.12, { type: 'square', vol: 0.045 });
+    });
+    [262, 392, 523].forEach((frequency, index) => tone(frequency, index * 0.36, 0.34, { type: 'triangle', vol: 0.18 }));
+  },
   // 蝴蝶被惊飞：轻轻几下“扑棱”
   flutter() {
     for (let i = 0; i < 4; i++) {
