@@ -1,5 +1,6 @@
 // 广场上去台地的三条台阶：小镇卡住了时石板方块都不见了，只剩贴着地的一层底座，上不了台地
 // 挡路是数据（blocker），塌掉只是画面；投了币以后石板一级接一级长回来，每一级叮一个音，一条长完了才能走
+import * as THREE from 'three';
 import { sfx } from '../../audio.js';
 import { easeOutBack } from '../../timeline.js';
 
@@ -26,8 +27,8 @@ const GATE_SAY = '台阶的方块都不见了，上不去……';
  * @param {{ x: number, z: number }} context.from 从哪儿开始长（投币机），离它近的台阶先长
  * @param {{ burst: Function }} context.bits 蹦小方块
  * @param {ReturnType<import('../../timeline.js').createTimeline>} context.timeline 排动画用
- * @returns {{ rebuild(options?: { instant?: boolean, delay?: number, done?: Function }): void, rebuildTime: number }}
- *   rebuild 让台阶长回来；rebuildTime 是全长回来要多久（秒）
+ * @returns {{ rebuild(options?: { instant?: boolean, delay?: number, done?: Function }): void, rebuildTime: number, center: THREE.Vector3 }}
+ *   rebuild 让台阶长回来；rebuildTime 是全长回来要多久（秒）；center 是几条台阶中间（镜头看台阶长回来时对准这儿）
  */
 export function createStairGates(world, ground, { from, bits, timeline }) {
   const lowest = Math.min(...ground.stairs.map((feature) => feature.baseY));
@@ -38,9 +39,15 @@ export function createStairGates(world, ground, { from, bits, timeline }) {
 
   const flightTime = (stepsPerFlight(flights) - 1) * STEP_GAP + STEP_GROW;
   const rebuildTime = (flights.length - 1) * (flightTime + FLIGHT_GAP) + flightTime;
+  const center = new THREE.Vector3();
+  for (const flight of flights) {
+    center.add(new THREE.Vector3(flight.x, flight.baseY, flight.z));
+  }
+  center.divideScalar(Math.max(flights.length, 1));
   return {
     rebuild: (options = {}) => rebuild(world, flights, { bits, timeline, flightTime, ...options }),
     rebuildTime,
+    center,
   };
 }
 

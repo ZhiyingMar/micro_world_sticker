@@ -4,15 +4,17 @@
 //   🪙 像素金币投进大台阶底下的投币机 → 三条台阶一级级长回来，能上台地（蓝屋子后院的小出租车、风车山）
 //   🎮 游戏卡带插进风车门口的卡槽机（要先上台地）→ 风车转起来，响一段开场曲，音乐回来了，苹果树下的萨克斯出现
 // 爱心和金币先放哪个都行，卡带一定在台阶长回来之后；全部修好时大家欢呼，喷泉边蹦出一把彩色小方块
+// 卡住的小镇灰蒙蒙的，小人动作也慢吞吞；修好一处颜色回来一些、小人快一些，全修好就恢复原样。每修好一处，镜头暂时挪过去看变化
 import * as THREE from 'three';
 import { ghostify } from '../../world.js';
 import { sfx } from '../../audio.js';
 import { canvasTexture } from '../../kit.js';
 import { foundIn, repairedIn, save } from '../../state.js';
 import { createTimeline, easeOutBack, easeInOut } from '../../timeline.js';
+import { washOut } from '../../color-wash.js';
 import { createStairGates } from './stairs.js';
 import forest from '../forest/index.js';
-import { SAX } from './layout.js';
+import { SAX, WINDMILL } from './layout.js';
 
 // 哪个修复点修好以后出现哪些东西（小出租车在台地上，台阶回来才够得着）
 // 老存档里这些东西已经找到了、修复点却没修，说明是改版以前就逛开了的小镇
@@ -25,13 +27,20 @@ const HEART_BEAT_RATE = 1.2;
 const HEART_BEAT = 0.12;
 // 爱心放回去以后：水冒满要多久（秒）；站在池边多远够得着喷泉顶（池子一半大往外再加多少）
 const FOUNTAIN_FILL = 2.2;
-const FOUNTAIN_REACH = 0.9;
+const FOUNTAIN_REACH = 1.2;
+// 镜头凑近喷泉看水冒起来：拉多近（平时跟人的几成），对准池子上面多高，月亮浮上来以后再看多久
+const FOUNTAIN_LOOK_ZOOM = 0.75;
+const FOUNTAIN_LOOK_HEIGHT = 0.5;
+const FOUNTAIN_LINGER = 0.8;
 
 // 金币：比森林里找到时大几倍，飘在投币口前面多远；投进去要多久；投完多久台阶开始长
 const COIN_SCALE = 1.5;
 const COIN_HOVER = 0.18;
 const COIN_SLIDE = 0.35;
 const STAIRS_AFTER_COIN = 0.5;
+// 镜头拉远一点看三条台阶长回来，长完再看多久
+const STAIRS_LOOK_ZOOM = 1.3;
+const STAIRS_LINGER = 0.8;
 // 投币机屏幕：贴图多少像素（像素字），字什么颜色；INSERT COIN 一秒闪几下
 const SCREEN_PX = [48, 26];
 const SCREEN_FONT = 'bold 10px monospace';
@@ -45,9 +54,12 @@ const CARTRIDGE_SINK = 0.08;
 const CARTRIDGE_SLIDE = 0.3;
 // 卡槽机的小灯：没插卡带红的，插上绿的
 const LED_ON = '#5cff7a';
-// 风车转起来要多久；开场曲放多久以后萨克斯出现
+// 风车转起来要多久
 const WINDMILL_SPIN_UP = 2.5;
-const SAX_AFTER_MUSIC = 1.6;
+// 镜头先看风车转起来（对准风车多高、看多久），再挪到苹果树下看萨克斯出现（看多久）
+const WINDMILL_LOOK_HEIGHT = 1.6;
+const LOOK_AT_WINDMILL = 1.4;
+const LOOK_AT_SAX = 2.4;
 // 萨克斯出现时旁边冒的一阵亮晶晶
 const SAX_SPARKLES = { count: 22, spread: 0.5, size: 0.35, rise: 1.2, color: '#ffe680' };
 
@@ -58,6 +70,14 @@ const CONFETTI_PER_BURST = 8;
 const CONFETTI_COLORS = ['#ff6b8b', '#ffd84a', '#5cc8ff', '#7ddc6a', '#b38ee8'];
 // 弹出来的东西一开始有多小：缩到 0 的矩阵会让 three.js 算不出包围球
 const MIN_SCALE = 0.001;
+
+// 卡住的小镇：最灰的时候褪掉几成颜色，背景蒙一层什么颜色的灰、最多盖多少；小人最慢的时候是平常的几成快
+// 修好一处缓过来一些要多久（秒）
+const MOST_GREY = 0.8;
+const SKY_GREY = '#a3a8b2';
+const SKY_GREY_STRENGTH = 0.8;
+const SLOWEST_PACE = 0.4;
+const WAKE_TIME = 2.5;
 
 /**
  * 搭小镇的主线：台阶塌了、喷泉干了、风车停了，三个修复点，修好以后各自动起来
@@ -84,16 +104,56 @@ export function createStory(world, { ground, town, water, life, people, bits }) 
   const toast = (text) => world.env.toast?.(text);
   // 最后修好的那一处动画要放多久（秒）：放完了再欢呼
   const finale = { wait: 0 };
-  const context = { timeline, people, toast, finale, refreshLines };
+  // 灰蒙蒙要在放虚影之前做：虚影、放回去的东西、物品都保持原色，在灰里正好显眼；已经修好的存档不用褪色
+  const keep = [...world.items.values(), ...world.hiddenItems.values()];
+  const wash = restored() ? null : washOut(world, { keep });
+  const wake = { level: 0 };
+  const afterRepair = (instant) => {
+    refreshLines();
+    settleTown(world, { wash, wake, timeline, instant, has });
+  };
+  const context = { timeline, people, toast, finale, afterRepair };
 
   water.fountain.setFlow(0);
   life.windmill.setPower(0);
+  settleTown(world, { wash, wake, timeline, instant: true, has });
 
   heartSpot(world, town.fountain, { ...context, water });
   coinSpot(world, town.coinMachine, { ...context, stairs });
   cartridgeSpot(world, town.cartridgeConsole, { ...context, life });
   celebrateWhenRestored(world, { timeline, finale, refreshLines, bits, fountain: town.fountain });
   refreshLines();
+}
+
+/**
+ * 小镇跟着还没修好的地方缓过来：三处都没修时最灰、小人最慢，修好一处颜色回来一些、小人快一些，全修好恢复原样
+ * @param {World} world
+ * @param {object} options
+ * @param {{ setGrey(level: number): void } | null} options.wash 褪色（已经修好的存档没有）
+ * @param {{ level: number }} options.wake 现在缓过来几成（0 卡得最厉害，1 恢复原样），慢慢变时从它开始
+ * @param {object} options.timeline
+ * @param {boolean} options.instant 读档时直接变过去
+ * @param {(id: string) => boolean} options.has 某处修好了没有
+ */
+function settleTown(world, { wash, wake, timeline, instant, has }) {
+  const left = world.def.repairs.filter((repair) => !has(repair.id)).length;
+  const target = 1 - left / world.def.repairs.length;
+  const apply = (level) => {
+    wake.level = level;
+    const stuck = 1 - level;
+    wash?.setGrey(MOST_GREY * stuck);
+    world.setSkyTint(stuck > 0 ? { color: SKY_GREY, strength: SKY_GREY_STRENGTH * stuck } : null);
+    for (const villager of world.villagers) {
+      villager.pace = THREE.MathUtils.lerp(SLOWEST_PACE, 1, level);
+    }
+  };
+
+  if (instant) {
+    apply(target);
+    return;
+  }
+  const from = wake.level;
+  timeline.tween(WAKE_TIME, (progress) => apply(THREE.MathUtils.lerp(from, target, easeInOut(progress))));
 }
 
 /**
@@ -143,7 +203,7 @@ function forestModel(world, id, scale) {
  * @param {{ x: number, z: number, groundY: number, spout: number, radius: number }} fountain 喷泉
  * @param {object} context
  */
-function heartSpot(world, fountain, { timeline, water, toast, finale, refreshLines }) {
+function heartSpot(world, fountain, { timeline, water, toast, finale, afterRepair }) {
   const heartY = fountain.groundY + fountain.spout + HEART_ABOVE_SPOUT;
   const ghost = ghostify(forestModel(world, 'heart', HEART_SCALE));
 
@@ -159,21 +219,25 @@ function heartSpot(world, fountain, { timeline, water, toast, finale, refreshLin
         const beat = Math.max(Math.sin(time * HEART_BEAT_RATE * Math.PI * 2), 0) ** 4;
         heart.scale.setScalar(1 + beat * HEART_BEAT);
       });
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         water.fountain.setFlow(1);
         world.revealItem('moon', true);
         return;
       }
 
-      sfx.splash();
-      timeline.tween(FOUNTAIN_FILL, (progress) => water.fountain.setFlow(easeInOut(progress)));
-      timeline.after(FOUNTAIN_FILL, () => {
+      // 镜头凑近喷泉，到了水才冒起来，水满了小月亮浮上来
+      const [atFountain] = world.showcase([
+        { at: new THREE.Vector3(fountain.x, fountain.groundY + FOUNTAIN_LOOK_HEIGHT, fountain.z), zoom: FOUNTAIN_LOOK_ZOOM, hold: FOUNTAIN_FILL + FOUNTAIN_LINGER },
+      ]);
+      timeline.after(atFountain, () => sfx.splash());
+      timeline.tween(FOUNTAIN_FILL, (progress) => water.fountain.setFlow(easeInOut(progress)), atFountain);
+      timeline.after(atFountain + FOUNTAIN_FILL, () => {
         world.revealItem('moon');
         sfx.twinkle();
         toast('🌙 池子里浮起来一个小月亮！');
       });
-      finale.wait = FOUNTAIN_FILL;
+      finale.wait = atFountain + FOUNTAIN_FILL;
     },
   });
 }
@@ -186,7 +250,7 @@ function heartSpot(world, fountain, { timeline, water, toast, finale, refreshLin
  * @param {{ screen: THREE.Mesh, slotAt: THREE.Vector3 }} machine 投币机的屏幕和投币口
  * @param {object} context
  */
-function coinSpot(world, machine, { timeline, stairs, people, toast, finale, refreshLines }) {
+function coinSpot(world, machine, { timeline, stairs, people, toast, finale, afterRepair }) {
   const screens = {
     insert: screenMaterial(world, ['INSERT', 'COIN'], INSERT_COLOR),
     blank: screenMaterial(world, [], INSERT_COLOR),
@@ -210,7 +274,7 @@ function coinSpot(world, machine, { timeline, stairs, people, toast, finale, ref
     fn(instant) {
       paid = true;
       machine.screen.material = screens.thanks;
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         stairs.rebuild({ instant: true });
         return;
@@ -227,14 +291,17 @@ function coinSpot(world, machine, { timeline, stairs, people, toast, finale, ref
         coin.removeFromParent();
         sfx.coin();
       });
+      // 镜头拉远一点对准几条台阶，到了台阶才一级级长回来
+      const [atStairs] = world.showcase([{ at: stairs.center, zoom: STAIRS_LOOK_ZOOM, hold: stairs.rebuildTime + STAIRS_LINGER }]);
+      const stairsFrom = Math.max(atStairs, COIN_SLIDE + STAIRS_AFTER_COIN);
       stairs.rebuild({
-        delay: COIN_SLIDE + STAIRS_AFTER_COIN,
+        delay: stairsFrom,
         done: () => {
           toast('🪜 台阶长回来了，能上台地了！');
           people.doudou.showBubble('❗', 2);
         },
       });
-      finale.wait = COIN_SLIDE + STAIRS_AFTER_COIN + stairs.rebuildTime;
+      finale.wait = stairsFrom + stairs.rebuildTime;
     },
   });
 }
@@ -273,7 +340,7 @@ function screenMaterial(world, lines, color) {
  * @param {{ led: THREE.Mesh, slotAt: THREE.Vector3 }} slot 卡槽机的小灯和卡槽口
  * @param {object} context
  */
-function cartridgeSpot(world, slot, { timeline, life, people, toast, finale, refreshLines }) {
+function cartridgeSpot(world, slot, { timeline, life, people, toast, finale, afterRepair }) {
   const { x, y, z } = slot.slotAt;
   const ghost = ghostify(forestModel(world, 'cartridge', CARTRIDGE_SCALE));
   const standingY = y + cartridgeHalfHeight(world) - CARTRIDGE_SINK;
@@ -286,27 +353,34 @@ function cartridgeSpot(world, slot, { timeline, life, people, toast, finale, ref
       const cartridge = forestModel(world, 'cartridge', CARTRIDGE_SCALE);
       world.add(cartridge, x, standingY, z);
       slot.led.material = world.kit.m(LED_ON, { emissive: LED_ON, emissiveIntensity: 0.9 });
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         life.windmill.setPower(1);
         world.revealItem('sax', true);
         return;
       }
 
-      // 卡带"咔"地插进去 → 风车慢慢转起来、开场曲响起 → 苹果树下的萨克斯出现
+      // 卡带"咔"地插进去 → 风车慢慢转起来、开场曲响起 → 镜头挪到苹果树下，萨克斯出现
       timeline.tween(CARTRIDGE_SLIDE, (progress) => {
         cartridge.position.y = standingY + CARTRIDGE_SINK * (1 - easeOutBack(progress));
       });
       timeline.after(CARTRIDGE_SLIDE, () => sfx.gameStart());
       timeline.tween(WINDMILL_SPIN_UP, (progress) => life.windmill.setPower(easeInOut(progress)), CARTRIDGE_SLIDE);
-      timeline.after(CARTRIDGE_SLIDE + SAX_AFTER_MUSIC, () => {
-        const [saxX, saxZ] = SAX;
-        world.fx.emit(new THREE.Vector3(saxX, world.heightAt(saxX, saxZ), saxZ), SAX_SPARKLES);
+
+      const [saxX, saxZ] = SAX;
+      const saxSpot = new THREE.Vector3(saxX, world.heightAt(saxX, saxZ), saxZ);
+      const windmillBody = new THREE.Vector3(WINDMILL.x, world.heightAt(WINDMILL.x, WINDMILL.z) + WINDMILL_LOOK_HEIGHT, WINDMILL.z);
+      const [, atSax] = world.showcase([
+        { at: windmillBody, hold: LOOK_AT_WINDMILL },
+        { at: saxSpot, hold: LOOK_AT_SAX },
+      ]);
+      timeline.after(atSax, () => {
+        world.fx.emit(saxSpot, SAX_SPARKLES);
         world.revealItem('sax');
         people.axiang.showBubble('🎵', 3);
         toast('🎵 音乐回来了！菜园外的苹果树下面，有什么东西金灿灿的');
       });
-      finale.wait = CARTRIDGE_SLIDE + SAX_AFTER_MUSIC;
+      finale.wait = atSax;
     },
   });
 }
