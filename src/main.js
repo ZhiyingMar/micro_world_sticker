@@ -477,7 +477,7 @@ function updateCamera(dt) {
     const d = camera.position.distanceTo(controls.target);
     const far = overview.pos.distanceTo(overview.target);
     const k = THREE.MathUtils.smoothstep(d, followDist() + 1, Math.max(far * 0.9, followDist() + 2));
-    followPoint(_want).lerp(overview.target, k);
+    followPoint(_want, k).lerp(overview.target, k);
     _delta.copy(_want).sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 6));
     controls.target.add(_delta);
     camera.position.add(_delta);
@@ -488,29 +488,35 @@ const _want = new THREE.Vector3();
 const _delta = new THREE.Vector3();
 const _playerPoint = new THREE.Vector3();
 const _onScreen = new THREE.Vector3();
+const _afterDrift = new THREE.Vector3();
 
 // 镜头不一直跟人：人走到离空白区域的边多近（按界面之间那块空白算，中心 0、边上 1）镜头才挪过去，挪到人回到这么靠中间为止
 // 按空白区域算而不是按整个屏幕：不然人会躲到下面的收集栏、旁边的提示卡底下
 const FREE_LOOK_EDGE = 0.8;
 const FREE_LOOK_SETTLED = 0.3;
+// 拉远时不跟人的镜头会慢慢偏到方块中心：偏过去以后人会被推到 FREE_LOOK_EDGE 外面，就一直跟着人；
+// 偏过去以后人离边还有这么远，才停止跟人。两条线之间不变，留余地
+// 不这样的话：停了跟人 → 镜头偏向中心 → 人被推到边上 → 又跟人，人在画面上来回晃
+const OVERVIEW_DRIFT_EDGE = 0.7;
 let recentering = false; // 镜头正在挪回人身上
 
 /**
  * 镜头这一帧想对准哪儿（拉远时还会再往方块中心偏）
  * @description 镜头不一直跟着人：缩放朝鼠标指的地方，想看哪儿就放大哪儿；人快走出画面时才把镜头挪回人身上
  * @param {THREE.Vector3} out 结果写进这里
+ * @param {number} pull 拉远了多少、要往方块中心偏多少（0 不偏，1 拉到最远、对准中心）
  * @returns {THREE.Vector3} out
  */
-function followPoint(out) {
+function followPoint(out, pull) {
   _playerPoint.set(player.x, player.root.position.y + 0.5, player.z);
-  _onScreen.copy(_playerPoint).project(camera);
   const safe = safeArea();
-  const acrossX = (_onScreen.x - (safe.x0 + safe.x1) / 2) / ((safe.x1 - safe.x0) / 2);
-  const acrossY = (_onScreen.y - (safe.y0 + safe.y1) / 2) / ((safe.y1 - safe.y0) / 2);
-  const offCenter = Math.max(Math.abs(acrossX), Math.abs(acrossY));
-  if (offCenter > FREE_LOOK_EDGE) {
+  const offCenter = offCenterOnScreen(_playerPoint, safe);
+  const settled = settledOffCenter(_playerPoint, pull, safe, offCenter);
+  const nearEdge = offCenter > FREE_LOOK_EDGE || settled > FREE_LOOK_EDGE;
+  const backInMiddle = offCenter < FREE_LOOK_SETTLED && settled < OVERVIEW_DRIFT_EDGE;
+  if (nearEdge) {
     recentering = true;
-  } else if (offCenter < FREE_LOOK_SETTLED) {
+  } else if (backInMiddle) {
     recentering = false;
   }
 
@@ -518,6 +524,39 @@ function followPoint(out) {
     return out.copy(_playerPoint);
   }
   return out.copy(controls.target);
+}
+
+/**
+ * 一个点在画面上离界面之间那块空白的中心多远
+ * @param {THREE.Vector3} point 世界里的一点
+ * @param {{ x0: number, x1: number, y0: number, y1: number }} safe 那块空白（safeArea() 算的）
+ * @returns {number} 0 在正中间，1 在空白的边上；左右、上下取离边近的那个
+ */
+function offCenterOnScreen(point, safe) {
+  _onScreen.copy(point).project(camera);
+  const acrossX = (_onScreen.x - (safe.x0 + safe.x1) / 2) / ((safe.x1 - safe.x0) / 2);
+  const acrossY = (_onScreen.y - (safe.y0 + safe.y1) / 2) / ((safe.y1 - safe.y0) / 2);
+  return Math.max(Math.abs(acrossX), Math.abs(acrossY));
+}
+
+/**
+ * 不跟人的话，镜头最后停下来时人离画面中心多远
+ * @description 拉远了一点，不跟人的镜头就会一直慢慢往方块中心偏，直到对准中心；没拉远就停在原地不动。
+ *   只看人、方块中心和镜头的角度远近，和镜头现在对着哪儿无关，所以镜头挪来挪去时它不会跟着变
+ * @param {THREE.Vector3} point 人身上镜头对准的那一点
+ * @param {number} pull 往方块中心偏多少（0 是没拉远、不偏）
+ * @param {{ x0: number, x1: number, y0: number, y1: number }} safe 界面之间那块空白
+ * @param {number} offCenterNow 人现在离画面中心多远（不偏的时候就是它）
+ * @returns {number} 0 在正中间，1 在空白的边上
+ */
+function settledOffCenter(point, pull, safe, offCenterNow) {
+  if (pull <= 0) {
+    return offCenterNow;
+  }
+
+  // 镜头整个平移到对准方块中心，人在画面上就往反方向挪同样多
+  _afterDrift.copy(point).sub(overview.target).add(controls.target);
+  return offCenterOnScreen(_afterDrift, safe);
 }
 
 // ---------------- 拾取 / 点击 ----------------
