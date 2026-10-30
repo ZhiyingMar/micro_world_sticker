@@ -668,6 +668,23 @@ export class World {
   }
 
   /**
+   * 镜头暂时对准变了的地方（修好东西时），一处处看过去，看完回到原来的地方
+   * @param {{ at: THREE.Vector3, zoom?: number, hold: number }[]} shots 依次看哪儿（世界里的坐标）、拉多远（1 是平时跟人的远近）、看多久（秒）
+   * @returns {number[]} 每一处镜头到位是在多少秒以后，场景按它排那里的变化；没有镜头时（测试场景）按一下就到算
+   */
+  showcase(shots) {
+    if (this.env.showcase) {
+      return this.env.showcase(shots);
+    }
+    let elapsed = 0;
+    return shots.map((shot) => {
+      const arrive = elapsed;
+      elapsed += shot.hold;
+      return arrive;
+    });
+  }
+
+  /**
    * 拆掉这个世界时顺便收拾点东西
    * @param {Function} fn 拆的时候调用
    */
