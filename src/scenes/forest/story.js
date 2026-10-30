@@ -4,12 +4,14 @@
 //   🍄 红蘑菇放到塌下去的桥底下 → 长成大红蘑菇，把桥顶平，能过到小溪对岸
 //   ⭐ 魔法星星放回高塔的塔尖（要先过桥上山）→ 塔亮了，踏脚石浮上来、金币出现，塔背后的花开了、卡带出现
 // 书和蘑菇先放哪个都行，星星一定在桥修好之后；全部修好时躲着的蝴蝶飞出来，大家欢呼
+// 没修好时林子里起雾，修好一处散一些，全修好就散干净；变化不在人旁边时，镜头暂时挪过去看
 import * as THREE from 'three';
 import { ghostify } from '../../world.js';
 import { sfx } from '../../audio.js';
 import { foundIn, repairedIn, save } from '../../state.js';
 import { createTimeline, easeOutBack, easeInOut } from '../../timeline.js';
 import { createCrossings } from './crossings.js';
+import { createMist } from './mist.js';
 import home from '../home/index.js';
 import { LOG, READING_SPOT } from './layout.js';
 
@@ -21,10 +23,12 @@ const REVEALS = { book: ['heart'], star: ['coin', 'cartridge'] };
 const BOOK_SCALE = 1.4;
 const BOOK_LIFT = 0.05;
 const BOOK_TURN = 0.5;
-// 放回书以后：蘑菇仔站着读多久（秒）才走开；故事讲到空心木头、爱心出现要多久；读书的兴趣点待多久
+// 放回书以后：蘑菇仔站着读多久（秒）才走开；读书的兴趣点待多久
 const KID_READS_FOR = 9;
-const STORY_TO_HEART = 2.6;
 const READING_STAY = 8;
+// 镜头先看着蘑菇仔读一会儿，再挪到空心木头那边看爱心出现（各看多久，秒）
+const LOOK_AT_READER = 0.9;
+const LOOK_AT_LOG = 2.2;
 // 空心木头那边冒出的一阵亮晶晶
 const HEART_SPARKLES = { count: 26, spread: 0.6, size: 0.35, rise: 1.4, color: '#ffc2d4' };
 
@@ -45,6 +49,13 @@ const TRAIL_SPARKLES = { count: 4, spread: 0.25, size: 0.3, rise: 0.2, color: '#
 const TRAIL_ARC = 1.2;
 // 光点落在池塘的哪儿：踏脚石中间那块
 const POND_CENTER = new THREE.Vector3(1.0, 0, -1.0);
+// 镜头先看着塔亮起来、花开（看多久，对准塔身多高），再挪到池塘看踏脚石浮上来，浮完再多看一会儿
+const LOOK_AT_TOWER = 1.8;
+const TOWER_LOOK_HEIGHT = 2.0;
+const POND_LINGER = 1.2;
+
+// 修好一处，雾散一些要多久（秒）
+const MIST_CLEAR = 2.5;
 
 // 弹出来的东西一开始有多小：缩到 0 的矩阵会让 three.js 算不出包围球
 const MIN_SCALE = 0.001;
@@ -77,7 +88,14 @@ export function createStory(world, { ground, village, hill, people, life, splash
   const toast = (text) => world.env.toast?.(text);
   // 最后修好的那一处动画要放多久（秒）：放完了再欢呼
   const finale = { wait: 0 };
-  const context = { timeline, crossings, people, hill, toast, finale, refreshLines };
+  // 已经修好的存档不起雾，也就不用镜头的雾
+  const mist = restored() ? null : createMist(world);
+  const afterRepair = (instant) => {
+    refreshLines();
+    settleMist(world, mist, { timeline, instant, has });
+  };
+  const context = { timeline, crossings, people, hill, toast, finale, afterRepair };
+  settleMist(world, mist, { timeline, instant: true, has });
 
   if (!has('book')) {
     people.mushroomKid.pin({ emote: '💤', face: READING_SPOT.face });
@@ -91,6 +109,30 @@ export function createStory(world, { ground, village, hill, people, life, splash
   starSpot(world, context);
   celebrateWhenRestored(world, { timeline, life, finale, refreshLines });
   refreshLines();
+}
+
+/**
+ * 雾跟着还没修好的地方变：三处都没修是最浓的雾，修好一处散一些，全修好散干净
+ * @param {World} world
+ * @param {{ setThickness(level: number): void, thickness: number } | null} mist 雾（已经修好的存档没有）
+ * @param {object} options
+ * @param {object} options.timeline
+ * @param {boolean} options.instant 读档时直接变过去，不慢慢散
+ * @param {(id: string) => boolean} options.has 某处修好了没有
+ */
+function settleMist(world, mist, { timeline, instant, has }) {
+  if (!mist) {
+    return;
+  }
+
+  const left = world.def.repairs.filter((repair) => !has(repair.id)).length;
+  const target = left / world.def.repairs.length;
+  if (instant) {
+    mist.setThickness(target);
+    return;
+  }
+  const from = mist.thickness;
+  timeline.tween(MIST_CLEAR, (progress) => mist.setThickness(THREE.MathUtils.lerp(from, target, easeInOut(progress))));
 }
 
 /**
@@ -148,7 +190,7 @@ function scaled(model, scale) {
  * @param {{ x: number, y: number, z: number }} stumpTop 树桩顶面的中心
  * @param {object} context
  */
-function bookSpot(world, stumpTop, { timeline, people, toast, finale, refreshLines }) {
+function bookSpot(world, stumpTop, { timeline, people, toast, finale, afterRepair }) {
   const kid = people.mushroomKid;
   const ghost = scaled(ghostify(homeModel(world, 'book')), BOOK_SCALE);
   ghost.rotation.y = BOOK_TURN;
@@ -161,23 +203,28 @@ function bookSpot(world, stumpTop, { timeline, people, toast, finale, refreshLin
       const book = scaled(homeModel(world, 'book'), BOOK_SCALE);
       world.add(book, stumpTop.x, stumpTop.y + BOOK_LIFT, stumpTop.z, BOOK_TURN);
       world.poi(READING_SPOT.x, READING_SPOT.z, { emote: '📖', face: READING_SPOT.face, dur: READING_STAY });
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         world.revealItem('heart', true);
         return;
       }
 
-      // 蘑菇仔醒过来，捧着书读一会儿；故事讲到空心木头，那颗心就真的出现了
+      // 蘑菇仔醒过来，捧着书读一会儿；故事讲到空心木头，镜头挪过去，那颗心就真的出现了
       sfx.pageTurn();
       kid.pin({ emote: '📖', face: READING_SPOT.face });
       timeline.after(KID_READS_FOR, () => kid.unpin());
-      timeline.after(STORY_TO_HEART, () => {
-        world.fx.emit(new THREE.Vector3(LOG.x, world.heightAt(LOG.x, LOG.z) + LOG.radius * 2, LOG.z), HEART_SPARKLES);
+      const logTop = new THREE.Vector3(LOG.x, world.heightAt(LOG.x, LOG.z) + LOG.radius * 2, LOG.z);
+      const [, atLog] = world.showcase([
+        { at: new THREE.Vector3(stumpTop.x, stumpTop.y, stumpTop.z), hold: LOOK_AT_READER },
+        { at: logTop, hold: LOOK_AT_LOG },
+      ]);
+      timeline.after(atLog, () => {
+        world.fx.emit(logTop, HEART_SPARKLES);
         world.revealItem('heart');
         sfx.twinkle();
         toast('💗 故事里说，空心木头里住着一颗小小的心……');
       });
-      finale.wait = STORY_TO_HEART;
+      finale.wait = atLog;
     },
   });
 }
@@ -189,7 +236,7 @@ function bookSpot(world, stumpTop, { timeline, people, toast, finale, refreshLin
  * @param {World} world
  * @param {object} context
  */
-function mushroomSpot(world, { timeline, crossings, people, toast, finale, refreshLines }) {
+function mushroomSpot(world, { timeline, crossings, people, toast, finale, afterRepair }) {
   const { x, z, waterY } = crossings.bridge;
   const ghost = scaled(ghostify(homeModel(world, 'mushroom')), MUSHROOM_GHOST_SCALE);
 
@@ -199,7 +246,7 @@ function mushroomSpot(world, { timeline, crossings, people, toast, finale, refre
     seeR: 2.4,
     fn(instant) {
       crossings.liftBridge({ instant });
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         return;
       }
@@ -221,7 +268,7 @@ function mushroomSpot(world, { timeline, crossings, people, toast, finale, refre
  * @param {World} world
  * @param {object} context
  */
-function starSpot(world, { timeline, crossings, hill, toast, finale, refreshLines }) {
+function starSpot(world, { timeline, crossings, hill, toast, finale, afterRepair }) {
   const { starAt, starScale } = hill;
   const ghost = scaled(ghostify(homeModel(world, 'star')), starScale);
 
@@ -231,7 +278,7 @@ function starSpot(world, { timeline, crossings, hill, toast, finale, refreshLine
     seeR: 2.6,
     fn(instant) {
       const star = hill.placeStar(homeModel(world, 'star'));
-      refreshLines();
+      afterRepair(instant);
       if (instant) {
         hill.setMagic(1);
         crossings.raiseStones({ instant: true });
@@ -240,15 +287,22 @@ function starSpot(world, { timeline, crossings, hill, toast, finale, refreshLine
         return;
       }
 
-      // 星星弹上塔尖 → 塔一点点醒过来、花一朵朵开 → 一串光点飘到池塘 → 踏脚石一块块浮上来
+      // 星星弹上塔尖 → 塔一点点醒过来、花一朵朵开 → 镜头跟着一串光点挪到池塘 → 踏脚石一块块浮上来
       sfx.twinkle();
       star.scale.setScalar(MIN_SCALE);
       timeline.tween(STAR_POP, (progress) => star.scale.setScalar(Math.max(easeOutBack(progress), MIN_SCALE)));
       timeline.tween(MAGIC_WAKE, (progress) => hill.setMagic(easeInOut(progress)), STAR_POP);
       timeline.after(STAR_POP + MAGIC_WAKE * CARTRIDGE_AT, () => world.revealItem('cartridge'));
-      magicTrail(world, timeline, starAt, STAR_POP);
 
-      const stonesFrom = STAR_POP + TRAIL_TIME;
+      const towerBody = new THREE.Vector3(starAt.x, world.heightAt(starAt.x, starAt.z) + TOWER_LOOK_HEIGHT, starAt.z);
+      const pond = POND_CENTER.clone().setY(world.heightAt(POND_CENTER.x, POND_CENTER.z));
+      const [, atPond] = world.showcase([
+        { at: towerBody, hold: LOOK_AT_TOWER },
+        { at: pond, hold: crossings.stonesRiseTime + POND_LINGER },
+      ]);
+      // 光点正好在镜头到池塘时落进水里
+      const stonesFrom = Math.max(atPond, STAR_POP + TRAIL_TIME);
+      magicTrail(world, timeline, starAt, stonesFrom - TRAIL_TIME);
       crossings.raiseStones({
         delay: stonesFrom,
         done: () => {
