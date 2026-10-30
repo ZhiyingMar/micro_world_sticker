@@ -1,37 +1,8 @@
 // 夜都用到的模型：只负责造出来。摆在哪、挡不挡路、跟不跟电力走，由用它的地方决定
+// 楼在 buildings.js
 import * as THREE from 'three';
-import { at, facade, canvasTexture } from '../../kit.js';
+import { at, canvasTexture } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
-
-// 有窗户的楼。windows 是正面、侧面两面墙，各有亮灯 / 停电两套贴图，电力系统按亮度切换
-export function building(w, { size: [W, H, D], roof = '#4a4e63', ...look }) {
-  const k = w.kit;
-  const cols = (len) => Math.max(2, Math.round(len / 0.45));
-  const rows = Math.max(2, Math.round(H / 0.55));
-  const faces = (opts) => {
-    const front = facade(cols(W), rows, opts);
-    const side = facade(cols(D), rows, { ...opts, seed: opts.seed + 7 });
-    [front.map, front.emissive, side.map, side.emissive].forEach((t) => w.texture(t));
-    return { front, side };
-  };
-  const on = faces(look);
-  const off = faces({ ...look, ratio: 0 }); // 停电时：一扇亮着的窗户都没有
-  const lit = (f) => new THREE.MeshStandardMaterial({ map: f.map, emissiveMap: f.emissive, emissive: '#ffffff', emissiveIntensity: 1, roughness: 0.85 });
-  const mFront = lit(on.front);
-  const mSide = lit(on.side);
-  const mRoof = new THREE.MeshStandardMaterial({ color: roof, roughness: 0.9 });
-
-  const group = new THREE.Group();
-  const body = k.mesh(new THREE.BoxGeometry(W, H, D), mFront);
-  body.material = [mSide, mSide, mRoof, mRoof, mFront, mFront];
-  group.add(at(body, 0, H / 2, 0));
-  group.add(at(k.box(W + 0.1, 0.12, D + 0.1, roof, 0.03), 0, H + 0.06, 0)); // 楼顶边沿
-  const windows = [
-    { mat: mFront, on: on.front, off: off.front },
-    { mat: mSide, on: on.side, off: off.side },
-  ];
-  return { group, body, windows };
-}
 
 // 路灯：灯泡、光晕、点光源都单独返回，电力系统要开关它们
 export function lampPost(k) {
@@ -323,15 +294,6 @@ export function shed(kit) {
   group.add(at(roof, 0, 1.08, 0));
   group.add(at(kit.box(0.04, 0.7, 0.4, '#5a4436', 0.01), 0.51, 0.35, 0));
   return group;
-}
-
-/**
- * 背景高楼：只有朝街这一面，进不去
- * @param {World} world
- * @param {{ width: number, height: number, depth: number, seed: number }} spec 宽、高、进深、窗户的随机种子
- */
-export function backdropBuilding(world, { width, height, depth, seed }) {
-  return building(world, { size: [width, height, depth], wall: '#3f4766', frame: '#2c3350', dark: '#1d2238', lit: '#ffdca0', ratio: 0.45, seed, roof: '#2c3350' });
 }
 
 /**

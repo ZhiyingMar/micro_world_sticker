@@ -4,13 +4,16 @@ import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
 import { ramp } from './power.js';
-import { building, convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
+import { convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
+import { building, fireEscape } from './buildings.js';
 import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, STOOL, ALLEY, KITCHEN_BINS, KITCHEN_DOOR_Z, NOOK_BIN } from './layout.js';
 
 const DARK_ALLEY_SAY = '🌑 小巷里黑漆漆的，什么也看不见……';
 const FENCE_SAY = '🕸️ 铁丝网挡着……对面看得见，可是过不去';
 // 巷子两头黑着的时候挡住的那一段有多深
 const ALLEY_MOUTH = 0.45;
+// BAR 侧墙上的消防梯离楼中间往后挪多少（正面挂着招牌）
+const BAR_ESCAPE_OFFSET = -0.2;
 
 /**
  * 搭街区
@@ -31,10 +34,10 @@ export function buildBlock(world, power) {
  * 摆一栋有窗户的楼，登记成障碍
  * @param {World} world
  * @param {{ x, z, size }} spot 位置和大小
- * @param {object} look 外立面的颜色、亮灯比例
+ * @param {object} spec 楼的样子（buildings.js 的 building() 除了 size 以外的那些）
  */
-function placeBuilding(world, { x, z, size }, look) {
-  const result = building(world, { size, ...look });
+function placeBuilding(world, { x, z, size }, spec) {
+  const result = building(world, { size, ...spec });
   world.add(result.group, x, world.heightAt(x, z), z);
   world.solid(result.body);
   return result;
@@ -62,11 +65,20 @@ function attach(result, spot, object, x, y, z) {
  */
 function tower(world, power) {
   const kit = world.kit;
-  const result = placeBuilding(world, TOWER, { wall: '#5b6285', frame: '#3e4463', dark: '#2a2f4a', lit: '#ffe39a', ratio: 0.55, seed: 3, roof: '#3e4463' });
+  // 正面整面要留给俄罗斯方块：不加挑檐，一楼是玻璃大堂
+  const antennaOffset = -0.2;
+  const result = placeBuilding(world, TOWER, {
+    look: { wall: '#5b6285', frame: '#3e4463', dark: '#2a2f4a', lit: '#ffe39a', ratio: 0.55, seed: 3, pattern: 'panel' },
+    roof: '#3e4463',
+    groundFloor: 'lobby',
+    ledge: false,
+    rooftop: ['hut', 'ac', 'dish', 'vent'],
+    keepClear: [[antennaOffset, 0, 0.3]],
+  });
   power.windows(result.windows, 0.3);
 
   const top = TOWER.size[1];
-  const antennaX = TOWER.x - 0.2;
+  const antennaX = TOWER.x + antennaOffset;
   attach(result, TOWER, kit.cyl(0.03, 0.03, 0.9, '#9a9db0', 6), antennaX, top + 0.5, TOWER.z);
   const beacon = kit.sphere(0.07, '#ff3b3b', 10, { emissive: '#ff2020', emissiveIntensity: 2 });
   attach(result, TOWER, beacon, antennaX, top + 0.98, TOWER.z);
@@ -98,9 +110,23 @@ function tower(world, power) {
  */
 function bar(world, power) {
   const kit = world.kit;
-  const result = placeBuilding(world, BAR, { wall: '#7a5f6e', frame: '#5a4352', dark: '#2e2533', lit: '#ffc48a', ratio: 0.6, seed: 9, roof: '#4a3a44' });
+  // 砖砌的老楼：一楼是酒吧的门，楼顶的水塔旁边别堆杂物
+  const tankOffset = [0.3, -0.3];
+  const result = placeBuilding(world, BAR, {
+    look: { wall: '#7a5f6e', frame: '#5a4352', dark: '#2e2533', lit: '#ffc48a', ratio: 0.6, seed: 9, pattern: 'brick' },
+    roof: '#4a3a44',
+    groundFloor: 'door',
+    rooftop: ['ac', 'vent', 'dish'],
+    keepClear: [[...tankOffset, 0.5]],
+  });
   power.windows(result.windows, 0);
-  attach(result, BAR, waterTank(kit), BAR.x + 0.3, BAR.size[1] + 0.06, BAR.z - 0.3);
+  attach(result, BAR, waterTank(kit), BAR.x + tankOffset[0], BAR.size[1] + 0.06, BAR.z + tankOffset[1]);
+
+  // 消防梯挂在朝右边人行道的侧墙上，靠后一点，别挡着正面的招牌
+  const sideColumnWidth = BAR.size[2] / result.grid.sideColumns;
+  const escape = fireEscape(kit, result.grid, sideColumnWidth * 2);
+  attach(result, BAR, escape, BAR.x + BAR.size[0] / 2, 0, BAR.z + BAR_ESCAPE_OFFSET);
+  escape.rotation.y = Math.PI / 2;
 
   const signTexture = world.texture(neonText('BAR', { color: '#ff5fa2', bg: 'rgba(20,8,30,0.85)' }));
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.36), new THREE.MeshBasicMaterial({ map: signTexture, transparent: true }));

@@ -1,10 +1,13 @@
 // 马路外面的边缘：坡上公园、社区花园、后巷和背景高楼、观景台
 // 都要过马路才去得了；藏在这里的东西由 story.js 和瓶子那边放
-import { bench, darkTree, bush, telescope, planter, hedge, gardenBed, shed, backdropBuilding, dumpster, airConditioner, cat } from './models.js';
+import { bench, darkTree, bush, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat } from './models.js';
+import { backdropBuilding } from './buildings.js';
 import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKDROP, BACKDROP_Z, BACKDROP_DEPTH, BACK_LANE_PROPS, TELESCOPE, PLANTERS, MOON } from './layout.js';
 
 // 垃圾桶盖子的高度（猫蹲在上面）
 const DUMPSTER_LID = 0.62;
+// 背景高楼的墙色，一栋一个，不是三栋一模一样的蓝盒子
+const BACKDROP_WALLS = ['#3f4766', '#4f4163', '#3a5462'];
 
 /**
  * 搭边缘
@@ -92,13 +95,14 @@ function garden(world) {
 function backLane(world, power) {
   const kit = world.kit;
 
-  for (const spec of BACKDROP) {
-    const result = backdropBuilding(world, { ...spec, depth: BACKDROP_DEPTH });
+  BACKDROP.forEach((spec, index) => {
+    const wall = BACKDROP_WALLS[index % BACKDROP_WALLS.length];
+    const result = backdropBuilding(world, { ...spec, depth: BACKDROP_DEPTH, wall });
     placeOnGround(world, result.group, spec.x, BACKDROP_Z);
     world.solid(result.body);
     world.fadeable(result.group);
     power.windows(result.windows, 0.45);
-  }
+  });
 
   BACK_LANE_PROPS.dumpsters.forEach(([x, z], index) => {
     const bin = placeOnGround(world, dumpster(kit), x, z);
