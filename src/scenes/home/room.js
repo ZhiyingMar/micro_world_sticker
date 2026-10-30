@@ -17,9 +17,10 @@ const FLOOR_EDGE = WOOD;
 const WALL_EDGE = '#f3e6cf';
 // 窗框比墙面往屋里凸出来多少
 const WINDOW_INSET = 0.05;
-// 晒太阳：小人站在窗前离墙多远（z）、待多久
+// 晒太阳：小人站在窗前离墙多远（z）、待多久；白天头上冒太阳，夜里换成看月亮
 const BASK_Z = -3.55;
 const BASK_TIME = 5;
+const BASK_EMOTE = { day: '☀', night: '🌙' };
 // 左墙上的钟：挂在哪、多大；秒针一跳用多久（秒）
 const CLOCK = { x: -4.45, y: 2.9, z: -0.4, radius: 0.38, tickTime: 0.12 };
 // 三根指针和中间的钉子离墙多远（表盘朝 +x）：一根叠在一根前面，叠在一起时不会互相穿过去
@@ -48,9 +49,9 @@ const STAR_SEED = 11;
  * 搭小屋的地板、墙和墙上的摆设
  * @description 壁纸、地板、墙裙用的是小屋自己的材质，工作台上换装修时只换它们的贴图和颜色，不用重新搭
  * @param {World} w 小屋这个世界
- * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[], showNightSky(level: number): void, showTime(hour: number): void }}
+ * @returns {{ applyDecor(kind: string, entry: object): void, curtains: THREE.Group[], showNightSky(level: number): void, showTime(hour: number): void, setNight(night: boolean): void }}
  *   换装修用的小接口；两片窗帘（会被风吹得轻轻晃）；夜有多深时外面的星星跟着亮（0 白天 ~ 1 深夜）；
- *   钟的时针分针指到几点（0~24 的小时）
+ *   钟的时针分针指到几点（0~24 的小时）；天黑了 / 天亮了：窗前的小人看月亮 / 晒太阳
  */
 export function buildRoom(w) {
   const k = w.kit;
@@ -59,8 +60,8 @@ export function buildRoom(w) {
   const { wallpaper: wpMat, wainscot: wainscotMat } = buildWalls(w);
   const windowModel = buildWindow(k, WINDOW);
   w.add(windowModel.group, WINDOW.x, WINDOW.y, -(HOUSE.wallInner - WINDOW_INSET));
-  // 小人闲逛时会走到窗前，朝着窗外晒太阳
-  w.poi(WINDOW.x, BASK_Z, { emote: '☀', face: Math.PI, dur: BASK_TIME });
+  // 小人闲逛时会走到窗前，朝着窗外晒太阳（夜里是看月亮）
+  const bask = w.poi(WINDOW.x, BASK_Z, { emote: BASK_EMOTE.day, face: Math.PI, dur: BASK_TIME });
   // 窗台上的小盆栽
   const sill = new THREE.Group();
   sill.add(k.cyl(0.11, 0.08, 0.16, '#e07a5f', 14));
@@ -111,7 +112,11 @@ export function buildRoom(w) {
 
   applyDecor('wallpaper', currentDecor('wallpaper'));
   applyDecor('floor', currentDecor('floor'));
-  return { applyDecor, curtains: windowModel.curtains, showNightSky: stars.atNight, showTime: clock.showTime };
+  const setNight = (night) => {
+    bask.emote = night ? BASK_EMOTE.night : BASK_EMOTE.day;
+  };
+
+  return { applyDecor, curtains: windowModel.curtains, showNightSky: stars.atNight, showTime: clock.showTime, setNight };
 }
 
 /**

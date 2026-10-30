@@ -577,8 +577,17 @@ export class World {
     return null;
   }
 
+  /**
+   * 登记一个兴趣点：小人闲逛时会走过去待一会儿
+   * @param {number} x 站在哪
+   * @param {number} z 站在哪
+   * @param {object} opts 待多久（dur）、头上冒什么（emote）、朝哪（face）、坐不坐……
+   * @returns {object} 登记好的兴趣点，场景以后还能改它（比如小屋夜里换头上冒的东西）
+   */
   poi(x, z, opts) {
-    this.pois.push({ x, z, dur: 6, ...opts, taken: null });
+    const poi = { x, z, dur: 6, ...opts, taken: null };
+    this.pois.push(poi);
+    return poi;
   }
 
   heightAt(x, z) {

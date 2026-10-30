@@ -19,9 +19,9 @@
 //   life.js       窗帘轻轻晃、茶壶冒热气
 //   radio.js      收音机放轻音乐（src/music.js 现场编曲），一个音飘一个音符；点它开关，白天小曲、夜里摇篮曲
 //   touch.js      碰一下会有反应：踢毛线球会滚、木地板和地毯上不一样的脚步声
-//   people.js     居民和台词
+//   people.js     居民和台词（白天、夜里说的不一样）
 //   daylight.js   小屋的一天：按钟点（设置里选跟着现在或快进）换光、背景色、星星，拨墙上的钟，开关落地灯；
-//                 夜里花园的蝴蝶换成萤火虫，鸟叫换成蟋蟀，收音机换成摇篮曲
+//                 夜里花园的蝴蝶换成萤火虫，鸟叫换成蟋蟀，收音机换成摇篮曲，小人说夜里的话、窗前看月亮
 //   lamp.js       落地灯的开关：天黑了"咔哒"一声亮起来
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -150,12 +150,12 @@ export default {
     world.placeItem('book', -2.55, 0.06, -2.5, { spin: false });
     world.placeItem('star', 3.95, 2.5, -4.0);
 
-    createPeople(world);
+    const people = createPeople(world);
     const puffs = createPuffs(world);
     bringToLife(world, { curtains: room.curtains, spout: furniture.spout, puffs });
     const radio = placeRadio(world, { cabinet: furniture.cabinet, radio: furniture.radio });
     createTouch(world);
     const lamp = wireLamp(world, furniture.lamp);
-    bringDayAndNight(world, { room, lamp, garden, radio });
+    bringDayAndNight(world, { room, lamp, garden, radio, people });
   },
 };
