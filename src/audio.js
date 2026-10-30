@@ -17,8 +17,39 @@ function ac() {
     master.gain.value = 0.35;
     master.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  wake(ctx);
   return ctx;
+}
+
+/**
+ * 让声音的钟走起来：被我们暂停了（suspended）、被系统打断了（interrupted）都算
+ * @description iPhone 锁屏再打开时，Safari 把声音标成 interrupted 而不是 suspended；只认 suspended 的话，
+ *   之后怎么点都不响，只能刷新。不是在点屏幕的那一下里调用时，浏览器可能不让恢复，那就等下一次点屏幕再试
+ * @param {AudioContext} c
+ */
+function wake(c) {
+  const stopped = c.state !== 'running' && c.state !== 'closed';
+  if (!stopped) {
+    return;
+  }
+  c.resume().catch((error) => {
+    console.warn('声音暂时恢复不了（浏览器要等点一下屏幕），点屏幕时再试', error);
+  });
+}
+
+/**
+ * 点屏幕、按键时试着把声音叫醒
+ * @description 锁屏回来时页面自己恢复声音，手机上常常不被允许；只有在点屏幕的那一下里恢复才算数。
+ *   点的是界面上的按钮（回家、全貌、设置）也算，不用非得点在画面上
+ */
+function wakeOnGesture() {
+  // 鸟叫、蟋蟀的计时器在页面回来时已经重新开始了，这里只要让钟走起来
+  if (ctx && !document.hidden) {
+    wake(ctx);
+  }
+}
+for (const gesture of ['pointerdown', 'touchend', 'keydown']) {
+  document.addEventListener(gesture, wakeOnGesture, true);
 }
 
 function tone(freq, start, dur, { type = 'sine', vol = 0.5, slide = 0 } = {}) {
@@ -313,7 +344,7 @@ function followPageVisibility() {
     ctx.suspend();
     return;
   }
-  ctx.resume();
+  wake(ctx);
   if (ambientNodes) {
     startCritters(AMBIENT[ambientKind] || AMBIENT.city);
   }
