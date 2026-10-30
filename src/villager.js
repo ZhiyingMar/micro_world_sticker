@@ -33,6 +33,8 @@ export class Villager {
     this.timer = 0.5 + Math.random() * 2;
     this.target = null;
     this.poi = null;
+    // 算过走不到的兴趣点（比如桥塌了，在小溪对岸）→ 算的时候地图是第几版；地图变了（障碍拿掉了）再重新算
+    this.unreachable = new Map();
     this.stuck = 0;
     this.avoidSide = Math.random() < 0.5 ? 1 : -1;
     this.heading = Math.random() * Math.PI * 2;
@@ -319,10 +321,19 @@ export class Villager {
   }
 
   // ---------------- 日常 AI ----------------
+  /**
+   * 这个兴趣点刚才算过走不到，而且地图从那以后没变过
+   * @param {object} poi 兴趣点
+   * @returns {boolean}
+   */
+  cannotReach(poi) {
+    return this.unreachable.get(poi) === this.world.layoutVersion;
+  }
+
   chooseNext() {
     const w = this.world;
     if (Math.random() < 0.55) {
-      const free = w.pois.filter((p) => !p.taken);
+      const free = w.pois.filter((p) => !p.taken && !this.cannotReach(p));
       if (free.length) {
         const poi = free[Math.floor(Math.random() * free.length)];
         poi.taken = this;
@@ -408,6 +419,14 @@ export class Villager {
         if (this.walkFor !== this.target) {
           this.walkFor = this.target;
           this.walkPath = this.world.findPath(this.x, this.z, this.target.x, this.target.z, this.radius + 0.02);
+          // 兴趣点走不到：记下来换一个，不然会一直往河边、崖边撞
+          if (!this.walkPath && this.poi) {
+            this.unreachable.set(this.poi, this.world.layoutVersion);
+            this.releasePoi();
+            this.state = 'idle';
+            this.timer = 0.3;
+            break;
+          }
         }
         const wp = this.walkPath?.[0] || this.target;
         let arrived = this.moveToward(wp.x, wp.z, dt, this.speed);

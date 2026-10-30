@@ -41,6 +41,8 @@ export class World {
     this.interacts = new Map(); // 可以互动的东西（售货机……）：{ id, obj, x, z, reach, label, icon, fn }
     this.hideouts = new Map(); // 能翻找材料的地方（垃圾桶、草丛……），见 hideout()
     this.fadeables = []; // 挡住人时会变半透明的大件（楼），见 fadeable()
+    // 地图的第几版：拿掉一个障碍（修好了桥……）就加一，小人记着的"走不到的地方"要重新算
+    this.layoutVersion = 0;
     this.restoredFns = [];
     this.games = new Map(); // 点一下就能玩的小游戏（大楼俄罗斯方块……）
     this.pois = [];
@@ -430,6 +432,7 @@ export class World {
   unblock(c) {
     const i = this.colliders.indexOf(c);
     if (i >= 0) this.colliders.splice(i, 1);
+    this.layoutVersion++;
   }
 
   // ---------- 寻路 ----------
