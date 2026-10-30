@@ -4,6 +4,7 @@
 //
 // 文件分工：
 //   layout.js     地形文字地图、各处东西的位置
+//   ground.js     地面：铺砖、草地、挡土墙、台阶、方块侧面的土层（textures.js 是这些贴图）
 //   models.js     模型（只造不摆）
 //   power.js      三路电力，各处的灯登记在上面
 //   ring-road.js  一圈马路的几何：车道、怎么沿着车道走
@@ -14,6 +15,7 @@
 //   tower-game.js 大楼俄罗斯方块和围观的人
 import * as THREE from 'three';
 import { at } from '../../kit.js';
+import { buildGround } from './ground.js';
 import { createPower } from './power.js';
 import { buildSky } from './sky.js';
 import { buildBlock } from './block.js';
@@ -22,32 +24,8 @@ import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
-import { MAP, LEVEL, REGIONS, SPAWN, BOTTLE_HIDING } from './layout.js';
+import { MAP, LEVEL, SPAWN, BOTTLE_HIDING } from './layout.js';
 import { plasticBottle, glassBottle } from './models.js';
-
-/**
- * 地面每一格的颜色：人行道灰色，公园和花园是草地，观景台铺浅色地砖，后巷暗一些
- * @param {number} col 第几列
- * @param {number} row 第几行
- * @param {number} level 高度层
- * @returns {string}
- */
-function groundColor(col, row, level) {
-  const raised = level >= 1;
-  if (raised && row >= REGIONS.parkFromRow) {
-    return '#3d6b55';
-  }
-  if (raised && col >= REGIONS.lookoutFromCol && row <= REGIONS.lookoutToRow) {
-    return '#a9adbd';
-  }
-  if (col <= REGIONS.gardenToCol && row > REGIONS.backLaneRow && row < REGIONS.parkFromRow - 1) {
-    return '#4d6b4a';
-  }
-  if (row <= REGIONS.backLaneRow) {
-    return '#6f7383';
-  }
-  return '#8f93a3';
-}
 
 export default {
   id: 'city',
@@ -58,8 +36,9 @@ export default {
   magnetStyle: 'city',
   ambient: 'city',
   bg: 'radial-gradient(ellipse at 30% 10%, #3b4282 0%, #1d2148 45%, #0d0f26 100%)',
+  // 月光从左前方照过来；地面那头是霓虹、路灯映上来的暖紫色，背光的墙面、方块侧面不会黑成一片
   lights: {
-    hemi: ['#6a78c0', '#1e2238', 1.0],
+    hemi: ['#6a78c0', '#4a3f63', 1.0],
     sun: ['#aab8ff', 0.9, [-6, 10, 5]],
   },
   camera: { pos: [11.5, 11, 14.5], target: [0, 1, 0], fitH: 4, min: 2.5 },
@@ -139,7 +118,7 @@ export default {
     },
   ],
   build(w) {
-    w.terrain.build(w, { grass: groundColor, dirt: '#4a4e5e', steps: ['#b3b7c6', '#9a9eae'] });
+    buildGround(w);
     const power = createPower(w);
     buildSky(w, power);
     const block = buildBlock(w, power);

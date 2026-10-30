@@ -3,7 +3,7 @@
 //   台阶是嵌在草坡里的石板，踏脚石是一块块扁石头，桥两头有桥桩
 // 只管外观：走路、碰撞、寻路还是看 Terrain 的逻辑高度（heightAt）。
 // 圆角只在崖边很窄的一圈里，人本来就站不到离崖边那么近，所以人脚下的地面和逻辑高度对得上。
-// 夜都的人行道、挡土墙要方方正正，还用 Terrain.build 的方块；童话风的世界用这个
+// 夜都的人行道、挡土墙要方方正正，用自己的 scenes/city/ground.js；童话风的世界用这个
 import * as THREE from 'three';
 import { at, canvasTexture, rng, noiseAt } from './kit.js';
 

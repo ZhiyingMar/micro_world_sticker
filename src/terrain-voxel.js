@@ -3,7 +3,7 @@
 //   崖顶一圈亮边、草从崖边垂下来一点，崖壁露出一层层带杂色的土和小石子；
 //   水面是会一格一格流动的像素波纹，岸边一圈湿沙和一闪一闪的白浪
 // 只管外观：顶面高度和逻辑高度（Terrain.heightAt）一模一样，走路、碰撞、寻路都不受影响。
-// 圆润的童话风世界用 terrain-soft.js，方方正正的夜都用 Terrain.build 的大方块，像素风的世界用这个
+// 圆润的童话风世界用 terrain-soft.js，方方正正的夜都用 scenes/city/ground.js，像素风的世界用这个
 import * as THREE from 'three';
 import { canvasTexture, noiseAt, rng } from './kit.js';
 import { QuadBuilder, SIDE_FACES, TOP_FACE, jitter } from './voxel.js';

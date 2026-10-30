@@ -2,10 +2,12 @@
 import * as THREE from 'three';
 import { glow } from '../../fx.js';
 import { lampPost, hydrant, busShelter, bench } from './models.js';
+import { asphaltTexture, GROUND_TILE } from './textures.js';
 import { roundedLoop, centerRect } from './ring-road.js';
 import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, LAMP_LITTER_OFFSET } from './layout.js';
 
-const ROAD_COLOR = '#2e3241';
+// 沥青有一点点反光：路灯、便利店的光在路面上映出一片亮，像刚下过雨
+const ROAD_ROUGHNESS = 0.6;
 const LINE_COLOR = '#e8d27a';
 const ZEBRA_COLOR = '#f2f2f2';
 const CURB_COLOR = '#b3b7c6';
@@ -71,8 +73,9 @@ function flat(world, box, color, y, thickness = 0.012) {
  * @param {World} world
  */
 function roadSurface(world) {
+  const asphalt = new THREE.MeshStandardMaterial({ map: asphaltTexture(world), roughness: ROAD_ROUGHNESS });
   for (const strip of roadStrips()) {
-    flat(world, strip, ROAD_COLOR, ROAD_TOP / 2, ROAD_TOP);
+    world.root.add(groundPlane(strip, ROAD_TOP, asphalt));
   }
 
   // 路沿：沿着外圈和内圈各围一圈
@@ -88,6 +91,29 @@ function roadSurface(world) {
       flat(world, edge, CURB_COLOR, 0.035, 0.07);
     }
   }
+}
+
+/**
+ * 一块平铺在地上的面，贴图按世界坐标铺：几块挨着的路面接得上，看不出接缝
+ * @param {{ minX, maxX, minZ, maxZ }} box 范围
+ * @param {number} y 高度
+ * @param {THREE.Material} material
+ * @returns {THREE.Mesh}
+ */
+function groundPlane(box, y, material) {
+  const geometry = new THREE.PlaneGeometry(box.maxX - box.minX, box.maxZ - box.minZ);
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate((box.minX + box.maxX) / 2, y, (box.minZ + box.maxZ) / 2);
+
+  const positions = geometry.getAttribute('position');
+  const uvs = geometry.getAttribute('uv');
+  for (let index = 0; index < positions.count; index++) {
+    uvs.setXY(index, positions.getX(index) / GROUND_TILE, -positions.getZ(index) / GROUND_TILE);
+  }
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 /**
