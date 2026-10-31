@@ -30,14 +30,17 @@ const VENDING_POOL = { out: 0.6, size: 1.3, opacity: 0.3 };
  * 搭街区
  * @param {World} world 夜都
  * @param {object} power 电力
- * @returns {{ tower, bar, vending, alley }} 别的模块要用的东西
+ * @returns {{ tower, bar, vending, alley, bins: THREE.Group[] }} 别的模块要用的东西；bins 是能撞得晃一晃的垃圾桶
  */
 export function buildBlock(world, power) {
+  const shop = shops(world, power);
+  const kitchen = alley(world, power);
   return {
     tower: tower(world, power),
     bar: bar(world, power),
-    vending: shops(world, power),
-    alley: alley(world, power),
+    vending: shop.machine,
+    alley: kitchen,
+    bins: [shop.bin, ...kitchen.bins],
   };
 }
 
@@ -189,7 +192,7 @@ function bar(world, power) {
  * 便利店和售货机：门面、招牌、面板跟着城市电力亮
  * @param {World} world
  * @param {object} power
- * @returns {THREE.Group} 售货机（要能点）
+ * @returns {{ machine: THREE.Group, bin: THREE.Group }} 售货机（要能点）和它后面那条缝里的垃圾桶
  */
 function shops(world, power) {
   const { x: storeX, z: storeZ, scale } = STORE;
@@ -230,9 +233,9 @@ function shops(world, power) {
   });
 
   // 售货机后面那条缝，最里面一个垃圾桶
-  placeBin(world, 'nook', NOOK_BIN, { tags: ['bin', 'kitchen'] });
+  const bin = placeBin(world, 'nook', NOOK_BIN, { tags: ['bin', 'kitchen'] });
 
-  return machine.group;
+  return { machine: machine.group, bin };
 }
 
 /**
@@ -241,12 +244,14 @@ function shops(world, power) {
  * @param {string} id 翻找点的名字
  * @param {number[]} spot 位置 [x, z]
  * @param {{ tags: string[], when?: Function }} options 标签；when 返回 false 时先不能翻
+ * @returns {THREE.Group} 垃圾桶
  */
 function placeBin(world, id, [x, z], { tags, when }) {
   const bin = kitchenBin(world.kit);
   world.add(bin, x, world.heightAt(x, z), z, Math.PI / 2);
   world.solid(bin);
   world.hideout(id, bin, x, z, { tags, name: '垃圾桶', icon: '🗑️', when });
+  return bin;
 }
 
 /**
@@ -255,7 +260,7 @@ function placeBin(world, id, [x, z], { tags, when }) {
  *   停电时整条巷子黑漆漆的，两头都进不去；月光照进来才看得见，垃圾桶也才能翻
  * @param {World} world
  * @param {object} power
- * @returns {{ open() }} 月亮挂回去时调用，两头都能进了
+ * @returns {{ open(), bins: THREE.Group[] }} open 在月亮挂回去时调用，两头都能进了；bins 是后厨的垃圾桶
  */
 function alley(world, power) {
   const half = ALLEY.width / 2;
@@ -266,9 +271,9 @@ function alley(world, power) {
   // 后厨：便利店后门开在铁丝网后面那一半，垃圾桶靠着大楼那面墙，旁边堆几袋垃圾
   // 巷子黑着的时候看不见，不能翻
   let lit = false;
-  KITCHEN_BINS.forEach((spot, index) => {
-    placeBin(world, `kitchen${index}`, spot, { tags: ['bin', 'kitchen'], when: () => lit });
+  const bins = KITCHEN_BINS.map((spot, index) => {
     world.add(trashBag(world.kit), spot[0] + 0.05, 0, spot[1] + 0.32 * (index ? 1 : -1));
+    return placeBin(world, `kitchen${index}`, spot, { tags: ['bin', 'kitchen'], when: () => lit });
   });
   const door = kitchenDoor(world.kit);
   world.add(door.group, right - 0.02, 0, KITCHEN_DOOR_Z, Math.PI);
@@ -309,5 +314,6 @@ function alley(world, power) {
       lit = true;
       mouths.forEach((collider) => world.unblock(collider));
     },
+    bins,
   };
 }

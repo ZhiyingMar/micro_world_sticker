@@ -13,6 +13,8 @@
 //   neon.js       霓虹招牌、灯管、地上的光斑（各处的灯自己挂）
 //   puddles.js    路上的水坑，映着霓虹
 //   greenery.js   公园、花园里的花、草丛、萤火虫，风吹树冠
+//   life.js       井盖冒白汽、飞蛾绕路灯、彩灯被风吹着晃、猫甩尾巴
+//   touch.js      碰一下有反应：踩水坑溅水、撞垃圾桶晃、走近猫它扭头喵一声
 //   traffic.js    车流
 //   people.js     居民和台词
 //   story.js      主线：修复点、售货机、叫醒司机、藏起来的东西
@@ -28,6 +30,8 @@ import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createPuddles } from './puddles.js';
 import { plantGreenery } from './greenery.js';
+import { bringToLife } from './life.js';
+import { createTouch } from './touch.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
 import { MAP, LEVEL, SPAWN, BOTTLE_HIDING } from './layout.js';
@@ -128,11 +132,13 @@ export default {
     const power = createPower(w);
     buildSky(w, power);
     const block = buildBlock(w, power);
-    buildStreet(w, power);
+    const street = buildStreet(w, power);
     const edges = buildEdges(w, power);
-    createPuddles(w, power);
+    const { puddles } = createPuddles(w, power);
     // 花草要避开前面摆好的东西，最后撒
     plantGreenery(w, { ground, crowns: edges.crowns, power });
+    bringToLife(w, { power, bulbs: street.bulbs, cat: edges.cat });
+    createTouch(w, { puddles, bins: [...block.bins, ...edges.bins], cat: edges.cat });
     const traffic = createTraffic(w, power);
     const story = createStory(w, { power, block, traffic });
     createTowerGame(w, { power, tower: block.tower, story });

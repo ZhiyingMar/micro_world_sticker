@@ -1,13 +1,13 @@
 // 马路外面的边缘：坡上公园、社区花园、后巷和背景高楼、观景台
 // 都要过马路才去得了；藏在这里的东西由 story.js 和瓶子那边放
-import { bench, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat } from './models.js';
+import { bench, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat, lightPost } from './models.js';
 import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
 import { tree, bush } from '../../plants.js';
 import { backdropBuilding } from './buildings.js';
 import { hangSign, placeLightPool } from './neon.js';
 import { verticalSign } from './models.js';
-import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKDROP, BACKDROP_Z, BACKDROP_DEPTH, BACKDROP_SIGNS, BACK_LANE_PROPS, TELESCOPE, PLANTERS, MOON } from './layout.js';
+import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKDROP, BACKDROP_Z, BACKDROP_DEPTH, BACKDROP_SIGNS, BACK_LANE_PROPS, TELESCOPE, PLANTERS, LOOKOUT_POSTS, LOOKOUT_POST_HEIGHT, MOON } from './layout.js';
 
 // 垃圾桶盖子的高度（猫蹲在上面）
 const DUMPSTER_LID = 0.62;
@@ -36,14 +36,14 @@ const BACKDROP_SIGN_DELAY = [0.5, 0.58, 0.66];
  * 搭边缘
  * @param {World} world 夜都
  * @param {object} power 电力（背景高楼的窗户跟着亮）
- * @returns {{ crowns: THREE.Group[] }} 公园里的树冠（风吹着摇）
+ * @returns {{ crowns: THREE.Group[], bins: THREE.Group[], cat: THREE.Group }} 公园里的树冠（风吹着摇）、后巷的大垃圾桶（撞了会晃）、垃圾桶上的猫
  */
 export function buildEdges(world, power) {
   const crowns = park(world);
   garden(world);
-  backLane(world, power);
+  const lane = backLane(world, power);
   lookout(world);
-  return { crowns };
+  return { crowns, bins: lane.dumpsters, cat: lane.cat };
 }
 
 /**
@@ -121,6 +121,7 @@ function garden(world) {
  * 后巷：背景高楼前面一条窄巷，垃圾桶、空调外机、一只猫
  * @param {World} world
  * @param {object} power 背景高楼的窗户最后才亮
+ * @returns {{ dumpsters: THREE.Group[], cat: THREE.Group }}
  */
 function backLane(world, power) {
   const kit = world.kit;
@@ -140,10 +141,11 @@ function backLane(world, power) {
     power.windows(result.windows, 0.45);
   });
 
-  BACK_LANE_PROPS.dumpsters.forEach(([x, z], index) => {
+  const dumpsters = BACK_LANE_PROPS.dumpsters.map(([x, z], index) => {
     const bin = placeOnGround(world, dumpster(kit), x, z);
     world.solid(bin);
     world.hideout(`dumpster${index}`, bin, x, z, { tags: ['bin'], name: '大垃圾桶', icon: '🗑️', reach: 1.1 });
+    return bin;
   });
   for (const [x, z] of BACK_LANE_PROPS.airCon) {
     world.solid(placeOnGround(world, airConditioner(kit), x, z));
@@ -155,6 +157,7 @@ function backLane(world, power) {
   blackCat.position.y = DUMPSTER_LID;
   placeOnGround(world, blackCat, catX, catZ, Math.PI * 0.15);
   world.poi(catX + 0.7, catZ + 0.45, { emote: '🐈‍⬛', face: -Math.PI / 2, dur: 6 });
+  return { dumpsters, cat: blackCat };
 }
 
 /**
@@ -206,5 +209,11 @@ function lookout(world) {
 
   for (const [x, z] of PLANTERS) {
     world.solid(placeOnGround(world, planter(kit), x, z));
+  }
+
+  // 后边两根杆子，中间挂一串彩灯（life.js 挂灯）
+  for (const [x, z] of LOOKOUT_POSTS) {
+    placeOnGround(world, lightPost(kit, LOOKOUT_POST_HEIGHT), x, z);
+    world.solidCircle(x, z, 0.06);
   }
 }

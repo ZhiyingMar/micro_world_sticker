@@ -2,6 +2,8 @@
 //   外立面是一层层不一样的窗户（facade.js）；楼顶一圈矮墙，上面堆着空调外机、排气管、楼梯间、卫星锅；
 //   一楼上面绕一圈挑檐；有的楼外墙挂着铁楼梯（消防梯）、窗户底下挂着空调
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { at, rng } from '../../kit.js';
 import { windowFacade } from './facade.js';
 import { waterTank } from './models.js';
@@ -30,6 +32,40 @@ const ESCAPE_LADDER_BOTTOM = 0.95;
 // 窗下空调：多少窗户挂一台，多大
 const WINDOW_UNIT_CHANCE = 0.16;
 const WINDOW_UNIT_SIZE = [0.17, 0.11, 0.12];
+const WINDOW_UNIT_COLOR = '#d2d4dc';
+
+/**
+ * 倒了一圈小斜角的方块
+ * @description kit.box 的圆角切得很细，楼上这种又多又小的东西用它三角形太多；倒一道斜角，棱上照样有一线高光
+ * @param {Kit} kit
+ * @param {number} width
+ * @param {number} height
+ * @param {number} depth
+ * @param {string} color
+ * @param {number} bevel 斜角多宽
+ * @param {object} [options] 材质选项（发光之类）
+ * @returns {THREE.Mesh}
+ */
+function bevelBox(kit, width, height, depth, color, bevel, options) {
+  const safeBevel = Math.min(bevel, width / 2 - 0.001, height / 2 - 0.001, depth / 2 - 0.001);
+  return kit.mesh(new RoundedBoxGeometry(width, height, depth, 1, safeBevel), color, options);
+}
+
+/**
+ * 一块摆好位置的方块形状（拼到一起再做成一个网格，省得几十个小网格各画一次）
+ * @param {number} width
+ * @param {number} height
+ * @param {number} depth
+ * @param {number[]} position [x, y, z]
+ * @param {number} [tilt] 绕 z 轴斜多少（弧度）
+ * @returns {THREE.BufferGeometry}
+ */
+function placedBox(width, height, depth, [x, y, z], tilt = 0) {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  geometry.rotateZ(tilt);
+  geometry.translate(x, y, z);
+  return geometry;
+}
 
 /**
  * 一栋有窗户的楼
@@ -72,7 +108,7 @@ export function building(world, { size: [width, height, depth], look, roof, grou
   addRoofEdge(kit, group, width, depth, height, roof);
   addRooftop(kit, group, { width, depth, top: height, kinds: rooftop, keepClear, seed: look.seed, wall: look.wall });
   if (ledge) {
-    group.add(at(kit.box(width + LEDGE_OVERHANG * 2, LEDGE_HEIGHT, depth + LEDGE_OVERHANG * 2, roof, 0.015), 0, height / rows, 0));
+    group.add(at(bevelBox(kit, width + LEDGE_OVERHANG * 2, LEDGE_HEIGHT, depth + LEDGE_OVERHANG * 2, roof, 0.015), 0, height / rows, 0));
   }
 
   const windows = [
@@ -93,14 +129,14 @@ export function building(world, { size: [width, height, depth], look, roof, grou
  * @param {string} color
  */
 function addRoofEdge(kit, group, width, depth, top, color) {
-  group.add(at(kit.box(width + CORNICE_OVERHANG * 2, CORNICE_HEIGHT, depth + CORNICE_OVERHANG * 2, color, 0.02), 0, top, 0));
+  group.add(at(bevelBox(kit, width + CORNICE_OVERHANG * 2, CORNICE_HEIGHT, depth + CORNICE_OVERHANG * 2, color, 0.02), 0, top, 0));
 
   const wallY = top + CORNICE_HEIGHT / 2 + PARAPET_HEIGHT / 2;
   const halfWidth = width / 2 - PARAPET_THICKNESS / 2;
   const halfDepth = depth / 2 - PARAPET_THICKNESS / 2;
   for (const side of [-1, 1]) {
-    group.add(at(kit.box(width, PARAPET_HEIGHT, PARAPET_THICKNESS, color, 0.01), 0, wallY, side * halfDepth));
-    group.add(at(kit.box(PARAPET_THICKNESS, PARAPET_HEIGHT, depth, color, 0.01), side * halfWidth, wallY, 0));
+    group.add(at(bevelBox(kit, width, PARAPET_HEIGHT, PARAPET_THICKNESS, color, 0.01), 0, wallY, side * halfDepth));
+    group.add(at(bevelBox(kit, PARAPET_THICKNESS, PARAPET_HEIGHT, depth, color, 0.01), side * halfWidth, wallY, 0));
   }
 }
 
@@ -194,9 +230,9 @@ const ROOF_PROPS = {
  */
 function roofAirCon(kit) {
   const group = new THREE.Group();
-  group.add(at(kit.box(0.34, 0.22, 0.26, '#c3c6d2', 0.02), 0, 0.11, 0));
+  group.add(at(bevelBox(kit, 0.34, 0.22, 0.26, '#c3c6d2', 0.02), 0, 0.11, 0));
   group.add(at(kit.cyl(0.09, 0.09, 0.02, '#5a5f70', 14), 0.04, 0.23, 0));
-  group.add(at(kit.box(0.08, 0.04, 0.2, '#8d91a0', 0.01), -0.12, 0.24, 0));
+  group.add(at(bevelBox(kit, 0.08, 0.04, 0.2, '#8d91a0', 0.01), -0.12, 0.24, 0));
   return group;
 }
 
@@ -222,10 +258,10 @@ function roofVent(kit) {
  */
 function stairHut(kit, wall) {
   const group = new THREE.Group();
-  group.add(at(kit.box(0.42, 0.4, 0.36, wall, 0.02), 0, 0.2, 0));
-  group.add(at(kit.box(0.48, 0.05, 0.42, '#3e4256', 0.015), 0, 0.42, 0));
-  group.add(at(kit.box(0.16, 0.28, 0.02, '#2a2c38', 0.005), 0, 0.14, 0.185));
-  group.add(at(kit.box(0.05, 0.03, 0.03, '#fff3d0', 0.005, { emissive: '#ffd98a', emissiveIntensity: 1.2 }), 0, 0.33, 0.19));
+  group.add(at(bevelBox(kit, 0.42, 0.4, 0.36, wall, 0.02), 0, 0.2, 0));
+  group.add(at(bevelBox(kit, 0.48, 0.05, 0.42, '#3e4256', 0.015), 0, 0.42, 0));
+  group.add(at(kit.box(0.16, 0.28, 0.02, '#2a2c38', 0), 0, 0.14, 0.185));
+  group.add(at(kit.box(0.05, 0.03, 0.03, '#fff3d0', 0, { emissive: '#ffd98a', emissiveIntensity: 1.2 }), 0, 0.33, 0.19));
   return group;
 }
 
@@ -268,50 +304,50 @@ function antennaMast(kit) {
  * @returns {THREE.Group} 原点在墙脚、平台中间；墙面在 z = 0，平台往 +z 伸出去
  */
 export function fireEscape(kit, { floorHeight, rows }, span) {
-  const group = new THREE.Group();
   const floors = [];
   for (let floor = ESCAPE_FROM_FLOOR; floor < rows; floor++) {
     floors.push(floor * floorHeight);
   }
 
+  const pieces = [];
   floors.forEach((y, index) => {
-    group.add(at(kit.box(span, ESCAPE_SLAB, ESCAPE_DEPTH, IRON, 0.005), 0, y, ESCAPE_DEPTH / 2));
-    group.add(at(kit.box(span, 0.015, 0.015, IRON, 0), 0, y + ESCAPE_RAIL, ESCAPE_DEPTH - 0.01));
+    pieces.push(placedBox(span, ESCAPE_SLAB, ESCAPE_DEPTH, [0, y, ESCAPE_DEPTH / 2]));
+    pieces.push(placedBox(span, 0.015, 0.015, [0, y + ESCAPE_RAIL, ESCAPE_DEPTH - 0.01]));
     for (const side of [-1, 1]) {
-      group.add(at(kit.box(0.015, ESCAPE_RAIL, 0.015, IRON, 0), (side * span) / 2, y + ESCAPE_RAIL / 2, ESCAPE_DEPTH - 0.01));
-      group.add(at(kit.box(0.015, 0.015, ESCAPE_DEPTH, IRON, 0), (side * span) / 2, y + ESCAPE_RAIL, ESCAPE_DEPTH / 2));
+      pieces.push(placedBox(0.015, ESCAPE_RAIL, 0.015, [(side * span) / 2, y + ESCAPE_RAIL / 2, ESCAPE_DEPTH - 0.01]));
+      pieces.push(placedBox(0.015, 0.015, ESCAPE_DEPTH, [(side * span) / 2, y + ESCAPE_RAIL, ESCAPE_DEPTH / 2]));
     }
 
     const above = floors[index + 1];
     if (above !== undefined) {
-      group.add(escapeFlight(kit, span, y, above, index % 2 === 0 ? 1 : -1));
+      pieces.push(escapeFlight(span, y, above, index % 2 === 0 ? 1 : -1));
     }
   });
 
   const lowest = floors[0];
   const ladderHeight = lowest - ESCAPE_LADDER_BOTTOM;
   for (const side of [-1, 1]) {
-    group.add(at(kit.box(0.012, ladderHeight, 0.012, IRON, 0), span / 2 - 0.06 + side * 0.06, ESCAPE_LADDER_BOTTOM + ladderHeight / 2, ESCAPE_DEPTH - 0.04));
+    pieces.push(placedBox(0.012, ladderHeight, 0.012, [span / 2 - 0.06 + side * 0.06, ESCAPE_LADDER_BOTTOM + ladderHeight / 2, ESCAPE_DEPTH - 0.04]));
   }
+
+  const group = new THREE.Group();
+  group.add(kit.mesh(mergeGeometries(pieces), IRON));
   return group;
 }
 
 /**
  * 两层平台之间斜着的一段楼梯
- * @param {Kit} kit
  * @param {number} span 平台多宽
  * @param {number} from 下面那层平台多高
  * @param {number} to 上面那层平台多高
  * @param {number} lean 往哪边斜（1 往 +x 爬，-1 往 -x 爬）
- * @returns {THREE.Mesh}
+ * @returns {THREE.BufferGeometry}
  */
-function escapeFlight(kit, span, from, to, lean) {
+function escapeFlight(span, from, to, lean) {
   const run = span * 0.7;
   const rise = to - from;
   const length = Math.hypot(run, rise);
-  const flight = kit.box(length, 0.03, ESCAPE_DEPTH * 0.45, IRON, 0.005);
-  flight.rotation.z = Math.atan2(rise, run) * lean;
-  return at(flight, 0, from + rise / 2, ESCAPE_DEPTH * 0.3);
+  return placedBox(length, 0.03, ESCAPE_DEPTH * 0.45, [0, from + rise / 2, ESCAPE_DEPTH * 0.3], Math.atan2(rise, run) * lean);
 }
 
 /**
@@ -325,6 +361,7 @@ function escapeFlight(kit, span, from, to, lean) {
 export function windowUnits(kit, grid, seed, skipColumn = () => false) {
   const random = rng(seed + 53);
   const group = new THREE.Group();
+  const pieces = [];
   const [unitWidth, unitHeight, unitDepth] = WINDOW_UNIT_SIZE;
   const columnWidth = grid.width / grid.columns;
 
@@ -337,9 +374,11 @@ export function windowUnits(kit, grid, seed, skipColumn = () => false) {
       const x = -grid.width / 2 + (column + 0.5) * columnWidth;
       // 第 row 层（从上往下数）窗户的下沿
       const y = grid.height - (row + 0.78) * grid.floorHeight;
-      const unit = kit.box(unitWidth, unitHeight, unitDepth, '#d2d4dc', 0.015);
-      group.add(at(unit, x, y - unitHeight / 2, grid.depth / 2 + unitDepth / 2));
+      pieces.push(placedBox(unitWidth, unitHeight, unitDepth, [x, y - unitHeight / 2, grid.depth / 2 + unitDepth / 2]));
     }
+  }
+  if (pieces.length) {
+    group.add(kit.mesh(mergeGeometries(pieces), WINDOW_UNIT_COLOR));
   }
   return group;
 }

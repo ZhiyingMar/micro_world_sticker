@@ -562,6 +562,12 @@ export const sfx = {
     tone(left ? 150 : 135, 0, 0.04, { type: 'sine', vol: 0.035, slide: 0.8 });
     noiseBurst({ highpass: 300, lowpass: 1400, duration: 0.025, volume: 0.02 });
   },
+  // 撞到铁皮垃圾桶：“哐”一下，金属的叮当声加一点杂音
+  clank() {
+    tone(420, 0, 0.14, { type: 'square', vol: 0.04, slide: 0.9 });
+    tone(655, 0.01, 0.12, { type: 'triangle', vol: 0.05, slide: 0.85 });
+    noiseBurst({ highpass: 1200, lowpass: 5000, duration: 0.08, volume: 0.06 });
+  },
   // 小猫被吵醒：“喵～”先往上再往下
   meow() {
     tone(560, 0, 0.2, { type: 'triangle', vol: 0.11, slide: 1.4 });

@@ -337,7 +337,7 @@ export function airConditioner(kit) {
 }
 
 /**
- * 蹲着的小猫
+ * 蹲着的小猫：头和尾巴各是一个能转的组（名字叫 head、tail），碰一下的时候扭头、甩尾巴
  * @param {Kit} kit
  * @returns {THREE.Group} 脸朝 +z
  */
@@ -347,14 +347,57 @@ export function cat(kit) {
   const body = kit.sphere(0.13, color, 12);
   body.scale.set(0.9, 1, 1.2);
   group.add(at(body, 0, 0.13, 0));
-  group.add(at(kit.sphere(0.09, color, 12), 0, 0.27, 0.1));
+
+  // 头绕着脖子转：组的原点在脖子上
+  const head = new THREE.Group();
+  head.name = 'head';
+  head.position.set(0, 0.22, 0.08);
+  head.add(at(kit.sphere(0.09, color, 12), 0, 0.05, 0.02));
   for (const side of [-1, 1]) {
-    group.add(at(kit.cone(0.035, 0.07, color, 4), side * 0.05, 0.36, 0.1));
-    group.add(at(kit.sphere(0.015, '#ffe680', 6, { emissive: '#ffe680', emissiveIntensity: 1.5 }), side * 0.035, 0.28, 0.18));
+    head.add(at(kit.cone(0.035, 0.07, color, 4), side * 0.05, 0.14, 0.02));
+    head.add(at(kit.sphere(0.015, '#ffe680', 6, { emissive: '#ffe680', emissiveIntensity: 1.5 }), side * 0.035, 0.06, 0.1));
   }
-  const tail = kit.cyl(0.02, 0.02, 0.25, color, 6);
-  tail.rotation.x = -1.0;
-  group.add(at(tail, 0, 0.12, -0.2));
+  group.add(head);
+
+  // 尾巴绕着屁股转：组的原点在尾巴根
+  const tail = new THREE.Group();
+  tail.name = 'tail';
+  tail.position.set(0, 0.08, -0.14);
+  const tailMesh = kit.cyl(0.02, 0.02, 0.25, color, 6);
+  tailMesh.rotation.x = -1.0;
+  tail.add(at(tailMesh, 0, 0.04, -0.06));
+  group.add(tail);
+  return group;
+}
+
+/**
+ * 马路上的井盖：一个铁圆盖，上面一圈花纹
+ * @param {Kit} kit
+ * @returns {THREE.Group} 原点在底面中间，很薄
+ */
+export function manholeCover(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.cyl(0.24, 0.24, 0.02, '#3d404d', 20), 0, 0.01, 0));
+  const ring = kit.torus(0.16, 0.012, '#565b6b');
+  ring.rotation.x = Math.PI / 2;
+  group.add(at(ring, 0, 0.022, 0));
+  for (const angle of [0, Math.PI / 2]) {
+    group.add(at(kit.box(0.3, 0.008, 0.025, '#565b6b', 0), 0, 0.022, 0, angle));
+  }
+  return group;
+}
+
+/**
+ * 挂彩灯的细杆子
+ * @param {Kit} kit
+ * @param {number} height 多高
+ * @returns {THREE.Group} 原点在底面中间
+ */
+export function lightPost(kit, height) {
+  const group = new THREE.Group();
+  group.add(at(kit.cyl(0.03, 0.04, height, '#3a3d4a', 8), 0, height / 2, 0));
+  group.add(at(kit.sphere(0.045, '#3a3d4a', 8), 0, height, 0));
+  group.add(at(kit.cyl(0.08, 0.09, 0.05, '#3a3d4a', 10), 0, 0.025, 0));
   return group;
 }
 

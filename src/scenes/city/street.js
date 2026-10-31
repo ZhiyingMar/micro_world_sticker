@@ -23,6 +23,7 @@ const MARK_Y = 0.022;
  * 搭街道
  * @param {World} world 夜都
  * @param {object} power 电力（路灯、公交站广告跟着亮）
+ * @returns {{ bulbs: THREE.Vector3[] }} 每盏路灯灯头在哪（飞蛾绕着飞）
  */
 export function buildStreet(world, power) {
   const kit = world.kit;
@@ -30,7 +31,7 @@ export function buildStreet(world, power) {
   roadSurface(world);
   roadMarkings(world);
   roadColliders(world);
-  lamps(world, power);
+  const bulbs = lamps(world, power);
   busStop(world, power);
 
   const [hydrantX, hydrantZ] = HYDRANT;
@@ -41,6 +42,7 @@ export function buildStreet(world, power) {
   const seat = bench(kit, { length: 1.0, depth: 0.34, back: -1 });
   world.add(seat, seatX, 0, seatZ - 0.05);
   world.solid(seat);
+  return { bulbs };
 }
 
 /**
@@ -244,6 +246,7 @@ function near(box, x, z, margin) {
  * 路灯，跟着 street 电力亮；灯杆脚下有时候扔着瓶子
  * @param {World} world
  * @param {object} power
+ * @returns {THREE.Vector3[]} 灯头在世界里的位置
  */
 function lamps(world, power) {
   const list = LAMPS.map(([x, z, facing], index) => {
@@ -269,6 +272,11 @@ function lamps(world, power) {
       lamp.light.intensity = 5 * street;
       lamp.pool.material.opacity = LAMP_POOL.opacity * street;
     }
+  });
+
+  return list.map((lamp) => {
+    lamp.group.updateWorldMatrix(true, true);
+    return lamp.bulb.getWorldPosition(new THREE.Vector3());
   });
 }
 
