@@ -30,7 +30,7 @@ The target is a **cozy, handcrafted, living diorama** (think Animal Crossing, A 
 
 **Looks handcrafted**
 
-- **Hide the grid.** Cliffs and corners are rounded, shorelines and paths curve, water is one continuous surface. Natural worlds use `src/terrain-soft.js`; pixel-style worlds use `src/terrain-voxel.js` (small voxels hide the 1×1 cells); big block terrain is only for places meant to be man-made (the city's sidewalks and retaining walls).
+- **Hide the grid.** Cliffs and corners are rounded, shorelines and paths curve, water is one continuous surface. Natural worlds use `src/terrain-soft.js`; pixel-style worlds use `src/terrain-voxel.js` (small voxels hide the 1×1 cells); big block terrain is only for places meant to be man-made (the city's sidewalks and retaining walls, `src/scenes/city/ground.js`), and even there the surfaces are textured in world coordinates so the 1×1 cells don't show.
 - **Variation, not copies.** Anything that repeats comes in a few kinds (tree species, sizes, colors), each placed with its own rotation and scale. Give volumes a dark, base and light shade so they read as 3D, not as flat blobs.
 - **Composition is designed, not sprinkled.** Dense at the far edges to frame the scene, open clearings in the middle, only low things near the camera so they don't block the view. Small things grow where they naturally would: flowers by doors, along path edges and around tree trunks, not a uniform random scatter.
 - **Landmarks get room to breathe.** Buildings and big features each get their own spot with a clearing around it, linked by paths. Never line them up in a row or pack them into one corner.
