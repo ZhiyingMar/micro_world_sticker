@@ -1,8 +1,9 @@
 // 马路外面的边缘：坡上公园、社区花园、后巷和背景高楼、观景台
 // 都要过马路才去得了；藏在这里的东西由 story.js 和瓶子那边放
-import { bench, darkTree, bush, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat } from './models.js';
+import { bench, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat } from './models.js';
 import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
+import { tree, bush } from '../../plants.js';
 import { backdropBuilding } from './buildings.js';
 import { hangSign, placeLightPool } from './neon.js';
 import { verticalSign } from './models.js';
@@ -10,6 +11,17 @@ import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKD
 
 // 垃圾桶盖子的高度（猫蹲在上面）
 const DUMPSTER_LID = 0.62;
+// 公园里的树：按 PARK_TREES 的顺序一棵一种，夜里偏蓝的绿；树冠半径换算成 plants.js 的大小（大小 1 的圆冠树半径 0.7）
+const PARK_TREE_LOOKS = [
+  { kind: 'round', color: '#3f7f5f' }, // 土坡上
+  { kind: 'pine', color: '#2f6a58' }, // 右边高台上
+  { kind: 'poplar', color: '#4a8a5c' },
+  { kind: 'round', color: '#356f62' },
+];
+const TREE_SIZE_PER_RADIUS = 1 / 0.7;
+const TREE_TRUNK_RADIUS = 0.18;
+// 灌木丛三种绿，挨着的不一样
+const BUSH_COLORS = ['#3a7258', '#447d5a', '#33685c'];
 // 背景高楼的墙色，一栋一个，不是三栋一模一样的蓝盒子
 const BACKDROP_WALLS = ['#3f4766', '#4f4163', '#3a5462'];
 // 竖招牌一个字多高（宽固定）；楼顶广告牌多大、架子多高；招牌照在后巷地上的光斑离墙多远、多大、多亮
@@ -24,12 +36,14 @@ const BACKDROP_SIGN_DELAY = [0.5, 0.58, 0.66];
  * 搭边缘
  * @param {World} world 夜都
  * @param {object} power 电力（背景高楼的窗户跟着亮）
+ * @returns {{ crowns: THREE.Group[] }} 公园里的树冠（风吹着摇）
  */
 export function buildEdges(world, power) {
-  park(world);
+  const crowns = park(world);
   garden(world);
   backLane(world, power);
   lookout(world);
+  return { crowns };
 }
 
 /**
@@ -48,6 +62,7 @@ function placeOnGround(world, object, x, z, facing = 0) {
  * 坡上公园：树篱隔出弯弯曲曲的小路，左边土坡、右边高台；灌木丛（包括花园里那几丛）都能翻
  * @description 长椅藏在土坡靠马路那一面，默认镜头被土坡和树挡住，要转镜头或者走过去才发现
  * @param {World} world
+ * @returns {THREE.Group[]} 树冠
  */
 function park(world) {
   const kit = world.kit;
@@ -56,28 +71,32 @@ function park(world) {
   placeOnGround(world, bench(kit), benchX, benchZ);
   world.poi(benchX - 0.3, benchZ, { emote: '🌙', face: Math.PI, dur: 9, sit: true, seatY: 0.45 });
 
-  for (const [x, z, radius] of PARK_TREES) {
-    placeOnGround(world, darkTree(kit, radius), x, z);
-    world.solidCircle(x, z, 0.18);
-  }
+  const crowns = PARK_TREES.map(([x, z, radius], index) => {
+    const look = PARK_TREE_LOOKS[index % PARK_TREE_LOOKS.length];
+    const planted = tree(kit, { ...look, size: radius * TREE_SIZE_PER_RADIUS, seed: index + 1 });
+    placeOnGround(world, planted.group, x, z, index * 1.3);
+    world.solidCircle(x, z, TREE_TRUNK_RADIUS);
+    return planted.crown;
+  });
 
-  for (const [minX, maxX, minZ, maxZ] of HEDGES) {
+  HEDGES.forEach(([minX, maxX, minZ, maxZ], index) => {
     const x = (minX + maxX) / 2;
     const z = (minZ + maxZ) / 2;
     const alongX = maxX - minX >= maxZ - minZ;
     const length = alongX ? maxX - minX : maxZ - minZ;
     const thickness = alongX ? maxZ - minZ : maxX - minX;
-    placeOnGround(world, hedge(kit, length, thickness), x, z, alongX ? 0 : Math.PI / 2);
+    placeOnGround(world, hedge(kit, length, thickness, index + 1), x, z, alongX ? 0 : Math.PI / 2);
     world.colliders.push({ type: 'box', minX, maxX, minZ, maxZ });
-  }
+  });
 
   // 灌木丛都能翻，瓶子塞在里面只露出一点
   BUSHES.forEach(([x, z, radius, deep], index) => {
-    const shrub = placeOnGround(world, bush(kit, radius), x, z);
+    const shrub = placeOnGround(world, bush(kit, radius, BUSH_COLORS[index % BUSH_COLORS.length]), x, z, index * 0.9);
     const tags = deep ? ['bush', 'deep'] : ['bush'];
     const tucked = radius * 0.55;
     world.hideout(`bush${index}`, shrub, x, z, { tags, name: '草丛', icon: '🌿', show: 'peek', offset: [tucked, tucked] });
   });
+  return crowns;
 }
 
 /**

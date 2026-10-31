@@ -1,8 +1,13 @@
 // 夜都用到的模型：只负责造出来。摆在哪、挡不挡路、跟不跟电力走，由用它的地方决定
-// 楼在 buildings.js
+// 楼在 buildings.js，树和灌木用 plants.js 的
 import * as THREE from 'three';
-import { at, canvasTexture } from '../../kit.js';
+import { at, canvasTexture, rng } from '../../kit.js';
+import { bush as shrub } from '../../plants.js';
 import { glow, neonText } from '../../fx.js';
+
+// 树篱多高，三种绿：暗、本色、亮
+const HEDGE_HEIGHT = 0.45;
+const HEDGE_COLORS = ['#2a5442', '#33604c', '#3f7058'];
 
 // 路灯：灯泡、光晕、点光源都单独返回，电力系统要开关它们
 export function lampPost(k) {
@@ -137,21 +142,6 @@ export function waterTank(k) {
   return g;
 }
 
-export function darkTree(k, r = 0.7) {
-  const g = new THREE.Group();
-  g.add(at(k.cyl(0.1, 0.13, 1.0, '#4a3a30', 10), 0, 0.5, 0));
-  g.add(at(k.sphere(r, '#2f5a46', 18), 0, 1.0 + r * 0.6, 0));
-  g.add(at(k.sphere(r * 0.6, '#356a52', 14), r * 0.5, 1.0 + r * 0.3, 0.1));
-  return g;
-}
-
-export function bush(k, r) {
-  const b = k.sphere(r, '#3a6e55', 14);
-  b.scale.y = 0.75;
-  b.position.y = r * 0.6;
-  return b;
-}
-
 // 天台上的投币望远镜，镜筒朝 -z 斜着往上
 export function telescope(k) {
   const g = new THREE.Group();
@@ -167,11 +157,22 @@ export function telescope(k) {
   return g;
 }
 
-export function planter(k) {
-  const g = new THREE.Group();
-  g.add(at(k.box(0.6, 0.3, 0.4, '#6b4f3a', 0.04), 0, 0.15, 0));
-  for (const [x, r] of [[-0.15, 0.17], [0.13, 0.14]]) g.add(at(k.sphere(r, '#3a6e55', 12), x, 0.33, 0));
-  return g;
+/**
+ * 观景台上的木花箱：一丛灌木，边上冒出几朵小白花
+ * @param {Kit} kit
+ * @returns {THREE.Group} 0.6 × 0.4，原点在底面中间
+ */
+export function planter(kit) {
+  const group = new THREE.Group();
+  group.add(at(kit.box(0.6, 0.3, 0.4, '#6b4f3a', 0.04), 0, 0.15, 0));
+  group.add(at(kit.box(0.64, 0.04, 0.44, '#7d5c44', 0.015), 0, 0.3, 0));
+  group.add(at(shrub(kit, 0.17, '#3f7a5c'), -0.08, 0.28, 0));
+
+  const blossoms = [[0.18, 0.08, '#fff4fb'], [0.2, -0.1, '#ffd1e8'], [-0.22, -0.1, '#fff4fb']];
+  for (const [x, z, color] of blossoms) {
+    group.add(at(kit.sphere(0.035, color, 8), x, 0.36, z));
+  }
+  return group;
 }
 
 // 竖着挂的霓虹招牌（一个字一行）
@@ -250,17 +251,28 @@ export function chainFence(world, width, height) {
 }
 
 /**
- * 修剪整齐的矮树篱
+ * 修剪过的矮树篱：圆角的一长条，顶上鼓起一团团，深浅错开，不是一块绿砖头
  * @param {Kit} kit
  * @param {number} length 沿 x 的长度
  * @param {number} depth 沿 z 的厚度
- * @returns {THREE.Mesh} 原点在底面中间
+ * @param {number} seed 顶上那几团怎么鼓，每道树篱不一样
+ * @returns {THREE.Group} 原点在底面中间
  */
-export function hedge(kit, length, depth) {
-  const height = 0.45;
-  const mesh = kit.box(length, height, depth, '#2f5a46', 0.12);
-  mesh.geometry.translate(0, height / 2, 0);
-  return mesh;
+export function hedge(kit, length, depth, seed = 1) {
+  const random = rng(seed);
+  const height = HEDGE_HEIGHT;
+  const group = new THREE.Group();
+  group.add(at(kit.box(length, height * 0.8, depth, HEDGE_COLORS[1], 0.12), 0, height * 0.4, 0));
+
+  const lumps = Math.max(2, Math.round(length / (depth * 1.1)));
+  for (let i = 0; i < lumps; i++) {
+    const radius = depth * (0.55 + random() * 0.12);
+    const lump = kit.sphere(radius, HEDGE_COLORS[i % HEDGE_COLORS.length], 12);
+    lump.scale.y = 0.7;
+    const x = -length / 2 + (i + 0.5) * (length / lumps);
+    group.add(at(lump, x, height * 0.78, (random() - 0.5) * depth * 0.15));
+  }
+  return group;
 }
 
 /**

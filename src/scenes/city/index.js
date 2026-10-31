@@ -12,6 +12,7 @@
 //   sky.js / block.js / street.js / edges.js   搭场景：夜空、街区、马路、边缘
 //   neon.js       霓虹招牌、灯管、地上的光斑（各处的灯自己挂）
 //   puddles.js    路上的水坑，映着霓虹
+//   greenery.js   公园、花园里的花、草丛、萤火虫，风吹树冠
 //   traffic.js    车流
 //   people.js     居民和台词
 //   story.js      主线：修复点、售货机、叫醒司机、藏起来的东西
@@ -26,6 +27,7 @@ import { buildStreet } from './street.js';
 import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
 import { createPuddles } from './puddles.js';
+import { plantGreenery } from './greenery.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
 import { MAP, LEVEL, SPAWN, BOTTLE_HIDING } from './layout.js';
@@ -122,13 +124,15 @@ export default {
     },
   ],
   build(w) {
-    buildGround(w);
+    const ground = buildGround(w);
     const power = createPower(w);
     buildSky(w, power);
     const block = buildBlock(w, power);
     buildStreet(w, power);
-    buildEdges(w, power);
+    const edges = buildEdges(w, power);
     createPuddles(w, power);
+    // 花草要避开前面摆好的东西，最后撒
+    plantGreenery(w, { ground, crowns: edges.crowns, power });
     const traffic = createTraffic(w, power);
     const story = createStory(w, { power, block, traffic });
     createTowerGame(w, { power, tower: block.tower, story });
