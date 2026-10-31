@@ -347,13 +347,14 @@ export function windowUnits(kit, grid, seed, skipColumn = () => false) {
 /**
  * 背景高楼：只有朝街这一面，进不去；楼顶有天线、水塔，正面挂着消防梯和窗下空调，一楼是卷帘门
  * @param {World} world
- * @param {{ width: number, height: number, depth: number, seed: number, wall?: string }} spec 宽、高、进深、窗户的随机种子、墙色
+ * @param {{ width: number, height: number, depth: number, seed: number, wall?: string, keepClear?: number[][] }} spec
+ *   宽、高、进深、窗户的随机种子、墙色；keepClear 是楼顶留给广告牌的地方 [x, z, 半径]
  * @returns {{ group: THREE.Group, body: THREE.Mesh, windows: object[] }}
  */
-export function backdropBuilding(world, { width, height, depth, seed, wall = '#3f4766' }) {
+export function backdropBuilding(world, { width, height, depth, seed, wall = '#3f4766', keepClear = [] }) {
   const kit = world.kit;
   const look = { wall, frame: '#2c3350', dark: '#1d2238', lit: '#ffdca0', ratio: 0.45, seed, pattern: seed % 2 ? 'brick' : 'panel' };
-  const result = building(world, { size: [width, height, depth], look, roof: '#2c3350', groundFloor: 'shutter', rooftop: ['tank', 'antenna', 'ac', 'vent'] });
+  const result = building(world, { size: [width, height, depth], look, roof: '#2c3350', groundFloor: 'shutter', rooftop: ['tank', 'antenna', 'ac', 'vent'], keepClear });
 
   // 消防梯挂在正面靠左那两列窗户上
   const columnWidth = width / result.grid.columns;

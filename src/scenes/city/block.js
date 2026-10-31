@@ -6,6 +6,7 @@ import { glow, neonText } from '../../fx.js';
 import { ramp } from './power.js';
 import { convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
 import { building, fireEscape } from './buildings.js';
+import { catFaceSign, cocktailSign, hangSign, neonTube, placeLightPool } from './neon.js';
 import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, STOOL, ALLEY, KITCHEN_BINS, KITCHEN_DOOR_Z, NOOK_BIN } from './layout.js';
 
 const DARK_ALLEY_SAY = '🌑 小巷里黑漆漆的，什么也看不见……';
@@ -14,6 +15,16 @@ const FENCE_SAY = '🕸️ 铁丝网挡着……对面看得见，可是过不�
 const ALLEY_MOUTH = 0.45;
 // BAR 侧墙上的消防梯离楼中间往后挪多少（正面挂着招牌）
 const BAR_ESCAPE_OFFSET = -0.2;
+
+// 大楼楼顶的霓虹猫脸：多大，比楼顶高多少，离正面多远
+const CAT_SIGN = { size: [1.1, 0.86], lift: 0.62, inset: 0.3 };
+// BAR 侧面伸出来的鸡尾酒小招牌：多大、多高、离墙多远；正面招牌上面一根粉色灯管多高
+const COCKTAIL_SIGN = { size: [0.36, 0.54], y: 1.9, out: 0.24 };
+const BAR_TUBE_Y = 1.3;
+// 招牌、店门口照在地上的光斑：离楼多远、多大、最亮时多亮
+const SIGN_POOL = { out: 0.65, size: 1.8, opacity: 0.42 };
+const STORE_POOL = { out: 0.85, size: 3.0, opacity: 0.36 };
+const VENDING_POOL = { out: 0.6, size: 1.3, opacity: 0.3 };
 
 /**
  * 搭街区
@@ -96,7 +107,17 @@ function tower(world, power) {
   attach(result, TOWER, sign, signX, 3.0, BLOCK_FRONT + 0.01);
   const signGlow = glow('#4ff0ff', 2.2, 0.35);
   world.add(signGlow, signX, 3.0, BLOCK_FRONT + 0.2);
-  power.neon(sign.material, signGlow, { op: 0.35, a: 0.5 });
+  const signPool = placeLightPool(world, '#4ff0ff', SIGN_POOL.size, signX, BLOCK_FRONT + SIGN_POOL.out);
+  power.neon(sign.material, signGlow, { op: 0.35, a: 0.5, pools: [{ mesh: signPool, opacity: SIGN_POOL.opacity }] });
+
+  // 楼顶一张霓虹猫脸，远远就看得出这是“夜猫”大楼；最后才亮
+  const catZ = TOWER.z + TOWER.size[2] / 2 - CAT_SIGN.inset;
+  const catY = top + CAT_SIGN.lift;
+  const catSign = hangSign(world, result.group, { texture: catFaceSign(world), size: CAT_SIGN.size, position: [0, catY, catZ - TOWER.z] }, glow('#4ff0ff', 2.6, 0), [TOWER.x, catY, catZ + 0.2]);
+  for (const side of [-1, 1]) {
+    attach(result, TOWER, kit.box(0.04, CAT_SIGN.lift, 0.04, '#3a3d4a', 0.005), TOWER.x + side * CAT_SIGN.size[0] * 0.35, top + CAT_SIGN.lift / 2, catZ - 0.03);
+  }
+  power.neon(catSign.material, null, { op: 0, a: 0.6 });
   world.fadeable(result.group);
 
   return { body: result.body, front: result.windows[0], sign: [sign, signGlow] };
@@ -133,7 +154,21 @@ function bar(world, power) {
   attach(result, BAR, sign, BAR.x, 1.0, BLOCK_FRONT + 0.01);
   const signGlow = glow('#ff5fa2', 1.8, 0.45);
   world.add(signGlow, BAR.x, 1.0, BLOCK_FRONT + 0.2);
-  power.neon(sign.material, signGlow, { op: 0.45, a: 0, flicker: true });
+  const signPool = placeLightPool(world, '#ff5fa2', SIGN_POOL.size, BAR.x, BLOCK_FRONT + SIGN_POOL.out);
+  power.neon(sign.material, signGlow, { op: 0.45, a: 0, flicker: true, pools: [{ mesh: signPool, opacity: SIGN_POOL.opacity }] });
+
+  // 招牌上面一根粉色灯管
+  const tube = neonTube(BAR.size[0] - 0.12, '#ff5fa2');
+  attach(result, BAR, tube, BAR.x, BAR_TUBE_Y, BLOCK_FRONT + 0.03);
+  power.neon(tube.material, null, { op: 0, a: 0.05 });
+
+  // 左前角伸出来一块鸡尾酒杯的小招牌，侧着挂，从街上两头都看得到
+  const cornerX = BAR.x - BAR.size[0] / 2;
+  const cocktailZ = BLOCK_FRONT + COCKTAIL_SIGN.out;
+  attach(result, BAR, kit.box(0.03, 0.03, COCKTAIL_SIGN.out, '#3a3d4a', 0.005), cornerX + 0.05, COCKTAIL_SIGN.y + COCKTAIL_SIGN.size[1] / 2 - 0.04, BLOCK_FRONT + COCKTAIL_SIGN.out / 2);
+  const cocktailGlow = glow('#ff5fa2', 1.3, 0);
+  const cocktail = hangSign(world, result.group, { texture: cocktailSign(world), size: COCKTAIL_SIGN.size, position: [cornerX + 0.05 - BAR.x, COCKTAIL_SIGN.y, cocktailZ - BAR.z], facing: Math.PI / 2 }, cocktailGlow, [cornerX + 0.05, COCKTAIL_SIGN.y, cocktailZ]);
+  power.neon(cocktail.material, cocktailGlow, { op: 0.35, a: 0.15 });
 
   const closedTexture = world.texture(doorPlate('CLOSED', '#c8343a'));
   const openTexture = world.texture(doorPlate('OPEN', '#2f9a5a'));
@@ -168,7 +203,8 @@ function shops(world, power) {
   world.add(storeGlow, storeX, 0.7, BLOCK_FRONT + 0.3);
   const storeLight = new THREE.PointLight('#fff1c4', 4, 4.5, 1.5);
   world.add(storeLight, storeX, 0.9, BLOCK_FRONT + 0.5);
-  power.neon(store.sign.material, storeGlow, { op: 0.35, a: 0.2 });
+  const storePool = placeLightPool(world, '#fff1c4', STORE_POOL.size, storeX, BLOCK_FRONT + STORE_POOL.out);
+  power.neon(store.sign.material, storeGlow, { op: 0.35, a: 0.2, pools: [{ mesh: storePool, opacity: STORE_POOL.opacity }] });
   world.poi(storeX - 0.4, BLOCK_FRONT + 0.6, { emote: '🍙', face: Math.PI, dur: 6 });
 
   const [vendingX, vendingZ] = VENDING;
@@ -177,6 +213,7 @@ function shops(world, power) {
   world.solid(machine.group);
   const machineGlow = glow('#cfe8ff', 1.6, 0.35);
   world.add(machineGlow, vendingX, 0.95, vendingZ + 0.45);
+  const machinePool = placeLightPool(world, '#cfe8ff', VENDING_POOL.size, vendingX, vendingZ + VENDING_POOL.out);
   world.poi(vendingX, vendingZ + 0.55, { emote: '🥤', face: Math.PI, dur: 5 });
 
   const frontOn = store.front.material.color.clone();
@@ -189,6 +226,7 @@ function shops(world, power) {
     machine.panel.material.color.setScalar(0.15 + 0.85 * shop);
     machine.panel.material.emissiveIntensity = 0.05 + 0.85 * shop;
     machineGlow.material.opacity = 0.35 * shop;
+    machinePool.material.opacity = VENDING_POOL.opacity * shop;
   });
 
   // 售货机后面那条缝，最里面一个垃圾桶

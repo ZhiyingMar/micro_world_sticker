@@ -47,13 +47,20 @@ export function createPower(w) {
         }
       });
     },
-    // 霓虹招牌：mat 是招牌本身，halo 是它的光晕（最亮时透明度 op）；flicker 的偶尔闪一下
-    neon(mat, halo, { op, a, flicker = false }) {
+    // 霓虹招牌：mat 是招牌本身（灯管也行，按它原来的颜色压暗），halo 是它的光晕（最亮时透明度 op，可以没有）；flicker 的偶尔闪一下
+    // pools 是地上跟着它一起亮的光斑 [{ mesh, opacity }]，opacity 是最亮时的透明度
+    neon(mat, halo, { op, a, flicker = false, pools = [] }) {
+      const litColor = mat.color.clone();
       power.show(({ city }, t) => {
         const flick = flicker && (Math.sin(t * 13) > 0.97 || (t % 7 > 6.6 && Math.sin(t * 40) > 0));
         const s = ramp(a, a + 0.4, city) * (flick ? 0.35 : 1);
-        mat.color.setScalar(0.03 + 0.97 * s);
-        halo.material.opacity = op * s;
+        mat.color.copy(litColor).multiplyScalar(0.03 + 0.97 * s);
+        if (halo) {
+          halo.material.opacity = op * s;
+        }
+        for (const pool of pools) {
+          pool.mesh.material.opacity = pool.opacity * s;
+        }
       });
     },
   };

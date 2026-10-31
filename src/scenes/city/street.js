@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { glow } from '../../fx.js';
 import { lampPost, hydrant, busShelter, bench } from './models.js';
 import { asphaltTexture, GROUND_TILE } from './textures.js';
+import { lightPool } from './neon.js';
 import { roundedLoop, centerRect } from './ring-road.js';
 import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, LAMP_LITTER_OFFSET } from './layout.js';
 
@@ -11,6 +12,9 @@ const ROAD_ROUGHNESS = 0.6;
 const LINE_COLOR = '#e8d27a';
 const ZEBRA_COLOR = '#f2f2f2';
 const CURB_COLOR = '#b3b7c6';
+// 路灯照在地上的一片暖光：灯头在灯杆往外多远，光斑多大、最亮时多亮
+const LAMP_HEAD_OUT = 0.42;
+const LAMP_POOL = { color: '#ffcf7a', size: 2.4, opacity: 0.42 };
 // 路面上的线贴着路面画，比路面高一点点，免得闪
 const ROAD_TOP = 0.02;
 const MARK_Y = 0.022;
@@ -246,12 +250,16 @@ function lamps(world, power) {
     const lamp = lampPost(world.kit);
     world.add(lamp.group, x, world.heightAt(x, z), z, facing);
     world.solidCircle(x, z, 0.12);
+    // 光斑挂在灯杆上，跟着灯头转到灯照着的那一边
+    const pool = lightPool(LAMP_POOL.color, LAMP_POOL.size);
+    pool.position.x = LAMP_HEAD_OUT;
+    lamp.group.add(pool);
 
     // 瓶子扔在灯头那一侧的脚下，跟着灯杆转
     const [offsetX, offsetZ] = LAMP_LITTER_OFFSET;
     const litter = [offsetX * Math.cos(facing) + offsetZ * Math.sin(facing), -offsetX * Math.sin(facing) + offsetZ * Math.cos(facing)];
     world.hideout(`lamp${index}`, new THREE.Object3D(), x, z, { tags: ['lamp'], name: '路灯脚下', icon: '🧴', show: 'open', offset: litter });
-    return lamp;
+    return { ...lamp, pool };
   });
 
   power.show(({ street }) => {
@@ -259,6 +267,7 @@ function lamps(world, power) {
       lamp.bulb.material.emissiveIntensity = 1.6 * street;
       lamp.halo.material.opacity = 0.55 * street;
       lamp.light.intensity = 5 * street;
+      lamp.pool.material.opacity = LAMP_POOL.opacity * street;
     }
   });
 }

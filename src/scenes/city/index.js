@@ -8,7 +8,10 @@
 //   models.js     模型（只造不摆）
 //   power.js      三路电力，各处的灯登记在上面
 //   ring-road.js  一圈马路的几何：车道、怎么沿着车道走
+//   buildings.js  楼（facade.js 是外立面的窗户，paint.js 是画贴图的小工具）
 //   sky.js / block.js / street.js / edges.js   搭场景：夜空、街区、马路、边缘
+//   neon.js       霓虹招牌、灯管、地上的光斑（各处的灯自己挂）
+//   puddles.js    路上的水坑，映着霓虹
 //   traffic.js    车流
 //   people.js     居民和台词
 //   story.js      主线：修复点、售货机、叫醒司机、藏起来的东西
@@ -22,6 +25,7 @@ import { buildBlock } from './block.js';
 import { buildStreet } from './street.js';
 import { buildEdges } from './edges.js';
 import { createTraffic } from './traffic.js';
+import { createPuddles } from './puddles.js';
 import { createStory } from './story.js';
 import { createTowerGame } from './tower-game.js';
 import { MAP, LEVEL, SPAWN, BOTTLE_HIDING } from './layout.js';
@@ -124,6 +128,7 @@ export default {
     const block = buildBlock(w, power);
     buildStreet(w, power);
     buildEdges(w, power);
+    createPuddles(w, power);
     const traffic = createTraffic(w, power);
     const story = createStory(w, { power, block, traffic });
     createTowerGame(w, { power, tower: block.tower, story });

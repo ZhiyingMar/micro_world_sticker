@@ -176,6 +176,13 @@ export const BACKDROP = [
 ];
 export const BACKDROP_Z = -6.7;
 export const BACKDROP_DEPTH = 0.6;
+// 背景高楼上的霓虹：贴在第几栋（BACKDROP 里的第几个）、楼自己坐标的哪儿、写什么、什么颜色
+// vertical 是贴在正面的竖招牌；roof 是立在楼顶上的大广告牌（只用 x）。消防梯在每栋楼正面靠左，招牌都放右边
+export const BACKDROP_SIGNS = [
+  { building: 0, kind: 'vertical', x: 1.35, y: 3.6, text: '拉面', color: '#ff7a4f' },
+  { building: 1, kind: 'roof', x: 0.7, text: 'HOTEL ★', color: '#ffd23f' },
+  { building: 2, kind: 'vertical', x: 1.62, y: 3.0, text: '卡拉OK', color: '#b77bff' },
+];
 export const BACK_LANE_PROPS = {
   dumpsters: [[-4.4, -6.15], [0.2, -6.15]],
   airCon: [[-6.8, -6.25], [-1.6, -6.25]],
@@ -188,6 +195,17 @@ export const TELESCOPE = [4.5, -6.6];
 export const PLANTERS = [
   [5.6, -5.3],
   [7.6, -6.75],
+];
+
+// ---------- 水坑 ----------
+// 刚下过雨：[x, z, 大小, 映着什么颜色的光, 跟哪一路电力亮]。都在人走得到的地方，避开台阶、草地和东西底下
+export const PUDDLES = [
+  [-1.7, 2.55, 1.0, '#ffd98a', 'street'], // 前马路，路灯的暖光
+  [3.5, 0.5, 0.75, '#ff5fa2', 'city'], // BAR 门口，粉色招牌
+  [-5.3, -5.6, 0.8, '#ff7a4f', 'city'], // 后巷，拉面招牌
+  [1.0, -5.7, 0.85, '#b77bff', 'city'], // 后巷，后斑马线过来的地方，卡拉OK
+  [6.3, -2.0, 1.1, '#ffd98a', 'street'], // 右边马路，路灯
+  [-6.5, 3.5, 0.8, '#ffb84f', 'city'], // 公交站前面，MOON CAFE 的广告
 ];
 
 // ---------- 瓶子 ----------
