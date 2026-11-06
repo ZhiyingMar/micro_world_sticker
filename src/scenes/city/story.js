@@ -10,7 +10,7 @@ import { foundIn, repairedIn } from '../../state.js';
 import { car } from './models.js';
 import { createPeople } from './people.js';
 import { createMoonRepair } from './telescope.js';
-import { TAXI_BAY, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
+import { TAXI_BAY, TAXI_BAY_HEADING, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
 import pixel from '../pixel/index.js';
 
 export function createStory(w, { power, block, traffic, telescope }) {
@@ -123,7 +123,9 @@ function repairs(w, { power, block, traffic, telescope, people, progress, startT
 
   // 🚕 出租车回到停靠位：还要等司机醒过来
   const [tx, tz] = TAXI_BAY;
-  w.repairSpot('taxi', ghostify(car(k, '#ffd23f', { taxi: true })), tx, 0, tz, {
+  const ghostTaxi = ghostify(car(k, '#ffd23f', { taxi: true }));
+  ghostTaxi.rotation.y = TAXI_BAY_HEADING;
+  w.repairSpot('taxi', ghostTaxi, tx, 0, tz, {
     reach: 1.5,
     pickR: 0.6,
     seeR: 2.0,

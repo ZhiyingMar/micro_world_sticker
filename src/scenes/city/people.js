@@ -1,5 +1,5 @@
 // 夜都的居民和他们的台词。台词跟着城市修好的程度变
-import { DRIVER_SEAT, STOOL, VILLAGERS } from './layout.js';
+import { DRIVER_SEAT, DRIVER_SEAT_FACING, DRIVER_STAND, STOOL, VILLAGERS } from './layout.js';
 import pixel from '../pixel/index.js';
 
 const LOOKS = {
@@ -19,15 +19,14 @@ export function createPeople(w, progress, traffic) {
   const qiao = w.villager({ name: '老乔', look: LOOKS.qiao }, STOOL[0] - 0.5, STOOL[1] + 0.25);
   qiao.pin({ emote: '😢', face: 0.4 });
 
-  // 出租车司机老周：停电后在便利店门口路边的长椅上等着等着睡着了
-  // 不放在大楼前面：玩俄罗斯方块时他和 💤 会挡住最下面几行
+  // 出租车司机老周：停电后在右边窄道的长椅上，守着空车位等着等着睡着了
   const [dx, dz] = DRIVER_SEAT;
   let driver = null;
   if (!(progress.awake && has('taxi'))) {
-    driver = w.villager({ name: '老周', look: LOOKS.driver }, dx, dz - 0.5);
+    driver = w.villager({ name: '老周', look: LOOKS.driver }, ...DRIVER_STAND);
     if (!progress.awake) {
       driver.root.position.set(dx, 0, dz);
-      driver.pin({ emote: '💤', sit: true, seatY: 0.45, face: 0 });
+      driver.pin({ emote: '💤', sit: true, seatY: 0.45, face: DRIVER_SEAT_FACING });
     }
   }
 
@@ -65,8 +64,12 @@ export function createPeople(w, progress, traffic) {
         l.push('花园那边有东西在月光下一闪一闪的，是谁掉的硬币吗？');
       }
     }
-    if (!has('taxi')) l.push('车都堵在斑马线上。司机们说，要等那辆黄色出租车回来带头。');
-    else if (!progress.awake) l.push('出租车回来了，可司机老周还在便利店门口的长椅上睡大觉。他最爱喝罐装咖啡。');
+    if (!has('taxi')) {
+      l.push('车都堵在斑马线上。司机们说，要等那辆黄色出租车回来带头。');
+      l.push('右边窄道的出租车位空着，老周在旁边长椅上等着等着就睡着了。');
+    } else if (!progress.awake) {
+      l.push('出租车回来了，可老周还在右边窄道的长椅上睡大觉。他最爱喝罐装咖啡。');
+    }
     if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');
     setLines(yemao, l);
     if (!traffic.running) setLines(ani, ['车都不动了，堵得死死的……我可不敢从车缝里挤过去。', '要是有辆出租车来带个头就好了。']);
@@ -88,6 +91,8 @@ export function createPeople(w, progress, traffic) {
     // 司机醒了
     wakeDriver() {
       driver.unpin();
+      // 站到长椅前面：长椅有碰撞，留在椅子上走不出来
+      driver.root.position.set(DRIVER_STAND[0], w.heightAt(...DRIVER_STAND), DRIVER_STAND[1]);
       driver.showBubble('❗', 2);
     },
     // 司机上车：人消失在出租车里

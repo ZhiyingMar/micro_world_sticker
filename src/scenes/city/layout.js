@@ -52,7 +52,11 @@ export const CROSSWALKS = {
 // 前马路上两条车道的 z（内道靠街区）
 const FRONT_INNER_LANE_Z = 1.5;
 const FRONT_OUTER_LANE_Z = 2.5;
-export const TAXI_BAY = [-2.4, FRONT_INNER_LANE_Z]; // 出租车停靠位，大楼门口
+// 右马路外道的 x，靠着右边窄道
+const RIGHT_OUTER_LANE_X = (RING.outer.maxX + RING.inner.maxX) / 2 + LANE_OFFSET;
+// 出租车停靠位：右马路外道上，窄道的路灯底下，站在窄道上够得着。外道在这儿往 +z 开，车头朝 +z（车的模型车头朝 +x）
+export const TAXI_BAY = [RIGHT_OUTER_LANE_X, -0.7];
+export const TAXI_BAY_HEADING = -Math.PI / 2;
 
 // 停电时两辆车堵在主斑马线上，左边只留一条窄缝，侧着身子能挤过去
 export const JAM = [
@@ -64,7 +68,7 @@ export const JAM = [
 // 出租车停电时不在（还在像素小镇），回来以后停在停靠位
 export const CARS = [
   { lane: 'inner', normal: [-3.5, FRONT_INNER_LANE_Z], jam: [0.85, FRONT_INNER_LANE_Z] },
-  { lane: 'inner', normal: [2.5, FRONT_INNER_LANE_Z], jam: TAXI_BAY, taxi: true },
+  { lane: 'outer', normal: [RIGHT_OUTER_LANE_X, -2.5], jam: TAXI_BAY, taxi: true },
   { lane: 'inner', normal: [5.5, -1.0], jam: [5.5, -2.0] },
   { lane: 'outer', normal: [3.0, FRONT_OUTER_LANE_Z], jam: [0.9, FRONT_OUTER_LANE_Z] },
   { lane: 'outer', normal: [-2.0, FRONT_OUTER_LANE_Z], jam: [2.7, FRONT_OUTER_LANE_Z] },
@@ -109,8 +113,13 @@ export const KITCHEN_DOOR_Z = ALLEY.fenceZ - 0.45;
 export const NOOK_BIN = [2.05, BLOCK_FRONT - 0.75];
 
 // 街区前人行道上的东西
-export const DRIVER_SEAT = [1.9, 0.75]; // 司机老周睡觉的长椅，在售货机前面的路边，中间留出买东西的地方
 export const HYDRANT = [-3.2, 0.75];
+
+// 司机老周等出租车等得睡着了：长椅靠着右边窄道外沿，挨着停靠位，面朝马路
+// 窄道只有 1 宽，长椅要做薄一点，前面还过得去人
+export const DRIVER_SEAT = [7.78, -0.2]; // 老周坐的地方
+export const DRIVER_SEAT_FACING = -Math.PI / 2;
+export const DRIVER_STAND = [7.35, -0.2]; // 醒了以后站到长椅前面
 
 // 路灯 [x, z, 朝向]：街区前面两个角，公园里两盏，花园、后巷、右边窄道各一盏
 // 街区两侧、后面的人行道和公园前的人行道都太窄，立灯杆会把路堵死，那些地方不放

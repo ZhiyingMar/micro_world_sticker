@@ -5,7 +5,7 @@ import { lampPost, hydrant, busShelter, bench } from './models.js';
 import { asphaltTexture, GROUND_TILE } from './textures.js';
 import { lightPool } from './neon.js';
 import { roundedLoop, centerRect } from './ring-road.js';
-import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, LAMP_LITTER_OFFSET } from './layout.js';
+import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, DRIVER_SEAT_FACING, LAMP_LITTER_OFFSET } from './layout.js';
 
 // 沥青有一点点反光：路灯、便利店的光在路面上映出一片亮，像刚下过雨
 const ROAD_ROUGHNESS = 0.6;
@@ -15,6 +15,10 @@ const CURB_COLOR = '#b3b7c6';
 // 路灯照在地上的一片暖光：灯头在灯杆往外多远，光斑多大、最亮时多亮
 const LAMP_HEAD_OUT = 0.42;
 const LAMP_POOL = { color: '#ffcf7a', size: 2.4, opacity: 0.42 };
+// 出租车停靠位的黄框：顺着车道多长、横过车道多宽、线多粗
+const BAY = { length: 1.3, width: 0.72, line: 0.05 };
+// 窄道上老周的长椅：多长、多深（做薄一点，窄道才过得去人）；坐的人比长椅中心往前靠多少
+const DRIVER_BENCH = { length: 1.0, depth: 0.28, seatForward: 0.05 };
 // 路面上的线贴着路面画，比路面高一点点，免得闪
 const ROAD_TOP = 0.02;
 const MARK_Y = 0.022;
@@ -39,8 +43,8 @@ export function buildStreet(world, power) {
   world.solidCircle(hydrantX, hydrantZ, 0.15);
 
   const [seatX, seatZ] = DRIVER_SEAT;
-  const seat = bench(kit, { length: 1.0, depth: 0.34, back: -1 });
-  world.add(seat, seatX, 0, seatZ - 0.05);
+  const seat = bench(kit, { length: DRIVER_BENCH.length, depth: DRIVER_BENCH.depth, back: -1 });
+  world.add(seat, seatX + DRIVER_BENCH.seatForward, 0, seatZ, DRIVER_SEAT_FACING);
   world.solid(seat);
   return { bulbs };
 }
@@ -145,13 +149,15 @@ function roadMarkings(world) {
     zebra(world, crosswalk);
   }
 
-  // 出租车停靠位：路面上的黄框
+  // 出租车停靠位：路面上的黄框，顺着右马路竖着画
   const [bayX, bayZ] = TAXI_BAY;
+  const sideOffset = BAY.width / 2;
+  const endOffset = (BAY.length - BAY.line) / 2;
   const bay = [
-    [0, -0.36, 1.3, 0.05],
-    [0, 0.36, 1.3, 0.05],
-    [-0.63, 0, 0.05, 0.72],
-    [0.63, 0, 0.05, 0.72],
+    [-sideOffset, 0, BAY.line, BAY.length],
+    [sideOffset, 0, BAY.line, BAY.length],
+    [0, -endOffset, BAY.width, BAY.line],
+    [0, endOffset, BAY.width, BAY.line],
   ];
   for (const [dx, dz, width, depth] of bay) {
     const x = bayX + dx;

@@ -66,7 +66,7 @@ export default {
   brokenGoal: '停电了！四处找找，哪里少了从 <b>「像素小镇」</b> 带来的东西',
   repairs: [
     { id: 'moon', from: 'pixel', hint: '观景台的望远镜，正对着便利店后面的杆子', msg: '月光照进了小巷' },
-    { id: 'taxi', from: 'pixel', hint: '马路边的出租车停靠位' },
+    { id: 'taxi', from: 'pixel', hint: '右边马路的出租车停靠位，老周在旁边的长椅上' },
     { id: 'sax', from: 'pixel', hint: '关着门的 BAR 门口', msg: '音乐响起来了' },
   ],
   // 夜都的材料：街上捡的瓶子，以后回家合成用
