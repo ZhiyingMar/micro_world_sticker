@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { ghostify } from '../../world.js';
 import { sfx } from '../../audio.js';
 import { foundIn, repairedIn } from '../../state.js';
-import { car } from './models.js';
+import { car } from './cars.js';
 import { createPeople } from './people.js';
 import { createMoonRepair } from './telescope.js';
 import { TAXI_BAY, TAXI_BAY_HEADING, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
@@ -123,7 +123,7 @@ function repairs(w, { power, block, traffic, telescope, people, progress, startT
 
   // 🚕 出租车回到停靠位：还要等司机醒过来
   const [tx, tz] = TAXI_BAY;
-  const ghostTaxi = ghostify(car(k, '#ffd23f', { taxi: true }));
+  const ghostTaxi = ghostify(car(w, { kind: 'taxi' }));
   ghostTaxi.rotation.y = TAXI_BAY_HEADING;
   w.repairSpot('taxi', ghostTaxi, tx, 0, tz, {
     reach: 1.5,

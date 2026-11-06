@@ -33,6 +33,8 @@ export const REGIONS = {
 };
 
 // ---------- 一圈马路 ----------
+// 马路面比地面高多少（车轮踩在上面）
+export const ROAD_TOP = 0.02;
 // 马路外圈和内圈（内圈就是街区），路宽 2，两条车道，各走一个方向
 export const RING = {
   outer: { minX: -6, maxX: 7, minZ: -5, maxZ: 3 },
@@ -65,14 +67,14 @@ export const JAM = [
 ];
 
 // 车：lane 是 inner / outer；normal 是车流动起来时的位置，jam 是停电时堵着的位置（都会吸到车道上）
-// 出租车停电时不在（还在像素小镇），回来以后停在停靠位
+// 出租车停电时不在（还在像素小镇），回来以后停在停靠位；kind 是哪种车，颜色在 traffic.js
 export const CARS = [
-  { lane: 'inner', normal: [-3.5, FRONT_INNER_LANE_Z], jam: [0.85, FRONT_INNER_LANE_Z] },
-  { lane: 'outer', normal: [RIGHT_OUTER_LANE_X, -2.5], jam: TAXI_BAY, taxi: true },
-  { lane: 'inner', normal: [5.5, -1.0], jam: [5.5, -2.0] },
-  { lane: 'outer', normal: [3.0, FRONT_OUTER_LANE_Z], jam: [0.9, FRONT_OUTER_LANE_Z] },
-  { lane: 'outer', normal: [-2.0, FRONT_OUTER_LANE_Z], jam: [2.7, FRONT_OUTER_LANE_Z] },
-  { lane: 'outer', normal: [-1.0, -4.5], jam: [-2.0, -4.5] },
+  { lane: 'inner', kind: 'sedan', normal: [-3.5, FRONT_INNER_LANE_Z], jam: [0.85, FRONT_INNER_LANE_Z] },
+  { lane: 'outer', kind: 'taxi', normal: [RIGHT_OUTER_LANE_X, -2.5], jam: TAXI_BAY, taxi: true },
+  { lane: 'inner', kind: 'van', normal: [5.5, -1.0], jam: [5.5, -2.0] },
+  { lane: 'outer', kind: 'hatch', normal: [3.0, FRONT_OUTER_LANE_Z], jam: [0.9, FRONT_OUTER_LANE_Z] },
+  { lane: 'outer', kind: 'sedan', normal: [-2.0, FRONT_OUTER_LANE_Z], jam: [2.7, FRONT_OUTER_LANE_Z] },
+  { lane: 'outer', kind: 'hatch', normal: [-1.0, -4.5], jam: [-2.0, -4.5] },
 ];
 
 // ---------- 街区 ----------

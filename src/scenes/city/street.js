@@ -5,7 +5,7 @@ import { lampPost, hydrant, busShelter, bench } from './models.js';
 import { asphaltTexture, GROUND_TILE } from './textures.js';
 import { lightPool } from './neon.js';
 import { roundedLoop, centerRect } from './ring-road.js';
-import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, DRIVER_SEAT_FACING, LAMP_LITTER_OFFSET } from './layout.js';
+import { RING, CROSSWALKS, TAXI_BAY, LAMPS, HYDRANT, BUS_STOP, DRIVER_SEAT, DRIVER_SEAT_FACING, LAMP_LITTER_OFFSET, ROAD_TOP } from './layout.js';
 
 // 沥青有一点点反光：路灯、便利店的光在路面上映出一片亮，像刚下过雨
 const ROAD_ROUGHNESS = 0.6;
@@ -20,7 +20,6 @@ const BAY = { length: 1.3, width: 0.72, line: 0.05 };
 // 窄道上老周的长椅：多长、多深（做薄一点，窄道才过得去人）；坐的人比长椅中心往前靠多少
 const DRIVER_BENCH = { length: 1.0, depth: 0.28, seatForward: 0.05 };
 // 路面上的线贴着路面画，比路面高一点点，免得闪
-const ROAD_TOP = 0.02;
 const MARK_Y = 0.022;
 
 /**

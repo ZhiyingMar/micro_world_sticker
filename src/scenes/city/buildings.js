@@ -60,7 +60,7 @@ function bevelBox(kit, width, height, depth, color, bevel, options) {
  * @param {number} [tilt] 绕 z 轴斜多少（弧度）
  * @returns {THREE.BufferGeometry}
  */
-function placedBox(width, height, depth, [x, y, z], tilt = 0) {
+export function placedBox(width, height, depth, [x, y, z], tilt = 0) {
   const geometry = new THREE.BoxGeometry(width, height, depth);
   geometry.rotateZ(tilt);
   geometry.translate(x, y, z);

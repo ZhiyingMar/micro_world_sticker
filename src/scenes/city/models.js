@@ -1,5 +1,5 @@
 // 夜都用到的模型：只负责造出来。摆在哪、挡不挡路、跟不跟电力走，由用它的地方决定
-// 楼在 buildings.js，树和灌木用 plants.js 的
+// 楼在 buildings.js，车在 cars.js，树和灌木用 plants.js 的
 import * as THREE from 'three';
 import { at, canvasTexture, rng } from '../../kit.js';
 import { bush as shrub } from '../../plants.js';
@@ -24,29 +24,6 @@ export function lampPost(k) {
   light.position.set(0.42, 1.9, 0);
   group.add(light);
   return { group, bulb, halo, light };
-}
-
-export function car(k, color, { taxi = false } = {}) {
-  const g = new THREE.Group();
-  g.add(at(k.box(1.0, 0.28, 0.5, color, 0.09), 0, 0.27, 0));
-  g.add(at(k.box(0.56, 0.24, 0.46, color, 0.09), -0.06, 0.5, 0));
-  g.add(at(k.box(0.58, 0.15, 0.47, '#24304d', 0.05, { emissive: '#3a5a9a', emissiveIntensity: 0.3 }), -0.06, 0.52, 0));
-  for (const [x, z] of [[0.3, 0.24], [-0.3, 0.24], [0.3, -0.24], [-0.3, -0.24]]) {
-    const wh = k.cyl(0.1, 0.1, 0.08, '#1d1d24', 12);
-    wh.rotation.x = Math.PI / 2;
-    g.add(at(wh, x, 0.12, z));
-  }
-  for (const s of [-1, 1]) {
-    g.add(at(k.box(0.04, 0.07, 0.1, '#ffffff', 0.01, { emissive: '#fff4c8', emissiveIntensity: 2 }), 0.5, 0.29, s * 0.15));
-    const hl = glow('#fff1b8', 0.7, 0.7);
-    hl.position.set(0.62, 0.29, s * 0.15);
-    g.add(hl);
-    g.add(at(k.box(0.04, 0.06, 0.1, '#ff3b3b', 0.01, { emissive: '#ff2a2a', emissiveIntensity: 1.5 }), -0.5, 0.3, s * 0.15));
-  }
-  if (taxi) {
-    g.add(at(k.box(0.2, 0.08, 0.12, '#fff7c2', 0.02, { emissive: '#ffe680', emissiveIntensity: 1 }), -0.06, 0.66, 0));
-  }
-  return g;
 }
 
 // 便利店：亮着的玻璃门面和招牌单独返回
