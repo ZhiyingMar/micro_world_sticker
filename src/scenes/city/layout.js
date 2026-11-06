@@ -99,7 +99,6 @@ export const ALLEY = {
 // 垃圾桶靠着大楼那面墙排，另一边留出走人的路
 const ALLEY_WALK_X = ALLEY.x + 0.15;
 export const TEAPOT = [ALLEY_WALK_X, ALLEY.back + 0.35]; // 铁丝网后面那一半，要绕到街区背面去拿
-export const COIN = [ALLEY_WALK_X, ALLEY.front - 0.35];
 // 后厨的垃圾桶：铁丝网两边各一个；便利店后门开在巷子里
 export const KITCHEN_BINS = [
   [ALLEY.x - ALLEY.width / 2 + 0.2, ALLEY.fenceZ - 0.35],
@@ -159,7 +158,6 @@ export const BUSHES = [
   [-7.75, -0.62, 0.2], // 花园小棚子和菜畦中间
   [-7.6, 3.2, 0.26], // 公交站后面
 ];
-export const UMBRELLA = [-7.5, 5.2]; // 藏在土坡上的树丛里
 
 // 左边的社区花园：几块菜畦、一间小棚子，都靠外边摆，挨着马路留一条 0.8 宽的路
 export const GARDEN_BEDS = [
@@ -168,6 +166,7 @@ export const GARDEN_BEDS = [
   [-7.2, -1.4],
 ];
 export const GARDEN_SHED = [-7.3, 0.0];
+export const COIN = [-6.55, -2.1]; // 菜畦边的小路上，月光照过来才看得见
 
 // 后巷：背景高楼前面一条窄巷，垃圾桶、空调外机，有只猫
 export const BACKDROP = [
@@ -184,6 +183,7 @@ export const BACKDROP_SIGNS = [
   { building: 1, kind: 'roof', x: 0.7, text: 'HOTEL ★', color: '#ffd23f' },
   { building: 2, kind: 'vertical', x: 1.62, y: 3.0, text: '卡拉OK', color: '#b77bff' },
 ];
+export const UMBRELLA = [-5.1, -6.05]; // 靠在拉面招牌底下，霓虹亮了才看得见
 export const BACK_LANE_PROPS = {
   dumpsters: [[-4.4, -6.15], [0.2, -6.15]],
   airCon: [[-6.8, -6.25], [-1.6, -6.25]],

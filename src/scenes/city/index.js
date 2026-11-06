@@ -81,7 +81,7 @@ export default {
       id: 'umbrella',
       name: '红雨伞',
       icon: '🌂',
-      hint: '坡上公园的树丛里',
+      hint: '后巷，拉面招牌底下',
       make(k) {
         const g = new THREE.Group();
         const canopy = k.mesh(new THREE.ConeGeometry(0.2, 0.12, 8, 1, true), k.m('#e8443a', { emissive: '#e8443a', emissiveIntensity: 0.35, side: THREE.DoubleSide }));
