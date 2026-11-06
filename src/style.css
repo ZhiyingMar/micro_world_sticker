@@ -717,6 +717,17 @@ body.style-pixel .settings-choice { border-radius: 4px; }
   to { transform: rotate(-3deg) scale(1); opacity: 1; }
 }
 
+/* 隔着望远镜看：中间留一个圆，边上一道淡淡的镜圈，外面全黑；压在画面上、界面下面 */
+#scope-view {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 30vmin, rgba(190, 205, 255, 0.4) 30.4vmin, rgba(8, 9, 22, 0.97) 31vmin);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+#scope-view.on { opacity: 1; }
+
 #fade {
   position: absolute;
   inset: 0;

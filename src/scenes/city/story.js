@@ -1,5 +1,5 @@
 // 夜都的主线：停电了，把从像素小镇带来的月亮、出租车、萨克斯放回原处，城市一点点亮起来
-//   🌙 月亮挂回杆子上 → 月光照进小巷，硬币和红茶壶出现（红茶壶在铁丝网后面，要绕到街区背面去拿）
+//   🌙 上观景台，把小月亮放到望远镜前（telescope.js）→ 月亮挂回杆子，月光照进小巷，硬币和红茶壶出现（红茶壶在铁丝网后面，要绕到街区背面去拿）
 //   🪙 硬币 → 售货机买罐装咖啡 → ☕ 叫醒司机老周
 //   🚕 出租车回到停靠位 + 司机醒了 → 车流动起来，礼帽出现
 //   🎷 萨克斯还给老乔（要等月亮出来）→ 霓虹和窗户亮起来，红伞出现
@@ -9,10 +9,11 @@ import { sfx } from '../../audio.js';
 import { foundIn, repairedIn } from '../../state.js';
 import { car } from './models.js';
 import { createPeople } from './people.js';
-import { MOON, TAXI_BAY, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
+import { createMoonRepair } from './telescope.js';
+import { TAXI_BAY, STOOL, VENDING, TEAPOT, COIN, TOPHAT, UMBRELLA } from './layout.js';
 import pixel from '../pixel/index.js';
 
-export function createStory(w, { power, block, traffic }) {
+export function createStory(w, { power, block, traffic, telescope }) {
   const progress = loadProgress(w);
   const { has } = progress;
   const people = createPeople(w, progress, traffic);
@@ -53,7 +54,7 @@ export function createStory(w, { power, block, traffic }) {
   }
 
   vending(w, block.vending, toast);
-  repairs(w, { power, block, traffic, people, progress, startTraffic, toast });
+  repairs(w, { power, block, traffic, telescope, people, progress, startTraffic, toast });
   placeItems(w);
   return { refreshLines: people.refreshLines };
 }
@@ -103,16 +104,15 @@ function vending(w, obj, toast) {
   });
 }
 
-function repairs(w, { power, block, traffic, people, progress, startTraffic, toast }) {
+function repairs(w, { power, block, traffic, telescope, people, progress, startTraffic, toast }) {
   const k = w.kit;
   const { has } = progress;
 
   // 🌙 月亮挂回杆子上：月光照亮小巷，红茶壶和一枚硬币出现
-  w.repairSpot('moon', ghostify(k.sphere(0.42, '#ffffff', 24)), ...MOON, {
-    reach: Infinity, // 挂得太高，只能点它
-    pickR: 0.6,
-    seeR: 3.0,
-    fn(instant) {
+  createMoonRepair(w, {
+    telescope,
+    isHung: () => has('moon'),
+    hang(instant) {
       power.turnOn('sky', instant);
       block.alley.open();
       w.revealItem('teapot', instant);

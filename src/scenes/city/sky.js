@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { rng } from '../../kit.js';
 import { glow } from '../../fx.js';
-import { MOON } from './layout.js';
+import { MOON, MOON_POLE } from './layout.js';
 
 // 月光的外圈：又大又淡的一圈冷光，让月亮像在夜空里晕开（不用后期泛光，几乎不费性能）
 // 大小是直径（世界单位），透明度是月亮全亮时的
@@ -14,7 +14,7 @@ export function buildSky(w, power) {
   const k = w.kit;
   const [mx, my, mz] = MOON;
   const poleH = my + 0.75;
-  const poleZ = mz - 0.4;
+  const [, poleZ] = MOON_POLE;
   w.add(k.cyl(0.035, 0.045, poleH, '#3a3d4a', 8), mx, poleH / 2, poleZ);
   // 杆子太细不好点：套一个看不见的粗一点的点击范围
   const poleHit = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, poleH, 6), new THREE.MeshBasicMaterial({ visible: false }));

@@ -463,8 +463,9 @@ const SHOWCASE_MOVE = 1.0;
  * 修好东西时，镜头暂时对准变了的地方，一处一处看过去，看完回到原来的地方，再接着跟人
  * @description 修好的地方常常不在人旁边（星星在山顶，踏脚石在池塘里），镜头不挪过去就看不到变化。
  *   镜头保持现在的角度，只挪过去、拉到跟人时的远近；点"全貌"、往东西里看、开始玩小游戏都会打断它
- * @param {{ at: THREE.Vector3, zoom?: number, hold: number }[]} shots 依次看哪儿（世界里的坐标）、
- *   拉多远（1 是平时跟人的远近，大于 1 更远、看得更大一片）、到了以后看多久（秒）
+ * @param {{ at: THREE.Vector3, zoom?: number, hold: number, from?: THREE.Vector3, scope?: boolean }[]} shots 依次看哪儿（世界里的坐标）、
+ *   拉多远（1 是平时跟人的远近，大于 1 更远、看得更大一片）、到了以后看多久（秒）、
+ *   从哪个方向看（世界里的一个点，不写就保持现在的角度）、是不是隔着望远镜看（四周一圈黑）
  * @returns {number[]} 每一处镜头到位是在多少秒以后，场景按它排那里的变化
  */
 function startShowcase(shots) {
@@ -474,7 +475,8 @@ function startShowcase(shots) {
   const planned = shots.map((shot) => {
     const target = world.root.localToWorld(shot.at.clone());
     const distance = followDist() * (shot.zoom ?? 1);
-    return { target, pos: target.clone().addScaledVector(direction, distance), hold: shot.hold };
+    const lookDirection = shot.from ? world.root.localToWorld(shot.from.clone()).sub(target).normalize() : direction;
+    return { target, pos: target.clone().addScaledVector(lookDirection, distance), hold: shot.hold, scope: shot.scope };
   });
 
   showcase = { shots: planned, index: -1, left: 0, back };
@@ -513,6 +515,8 @@ const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
 const easeOutBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2;
 
 function updateCamera(dt) {
+  // 每帧按现在看的那一处来定：点“全貌”、开始玩小游戏打断镜头时，望远镜的圈也跟着收起来
+  ui.scopeView(Boolean(showcase?.shots[showcase.index]?.scope));
   // 还没取景（窗口是 0 尺寸）：全貌还没算，跟人的时候会往它那儿偏，先不动镜头
   if (framingPending) {
     return;
@@ -1406,7 +1410,7 @@ function frame(dt, render = true) {
     if (n?.type === 'villager') tip = `<kbd>E</kbd>和 ${n.v.name} 聊天`;
     else if (n?.type === 'repair') {
       const p = partOf(world.def, n.id);
-      tip = `<kbd>E</kbd>放回 ${p.icon} ${p.name}`;
+      tip = `<kbd>E</kbd>${world.repairs.get(n.id).label ?? `放回 ${p.icon} ${p.name}`}`;
     } else if (n?.type === 'interact') {
       tip = `<kbd>E</kbd>${typeof n.it.label === 'function' ? n.it.label() : n.it.label}`;
     } else if (n) tip = '<kbd>E</kbd>打开冰箱';

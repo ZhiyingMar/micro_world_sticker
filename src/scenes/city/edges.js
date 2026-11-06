@@ -36,14 +36,14 @@ const BACKDROP_SIGN_DELAY = [0.5, 0.58, 0.66];
  * 搭边缘
  * @param {World} world 夜都
  * @param {object} power 电力（背景高楼的窗户跟着亮）
- * @returns {{ crowns: THREE.Group[], bins: THREE.Group[], cat: THREE.Group }} 公园里的树冠（风吹着摇）、后巷的大垃圾桶（撞了会晃）、垃圾桶上的猫
+ * @returns {{ crowns: THREE.Group[], bins: THREE.Group[], cat: THREE.Group, telescope: THREE.Group }} 公园里的树冠（风吹着摇）、后巷的大垃圾桶（撞了会晃）、垃圾桶上的猫、观景台的望远镜（主线要用）
  */
 export function buildEdges(world, power) {
   const crowns = park(world);
   garden(world);
   const lane = backLane(world, power);
-  lookout(world);
-  return { crowns, bins: lane.dumpsters, cat: lane.cat };
+  const scope = lookout(world);
+  return { crowns, bins: lane.dumpsters, cat: lane.cat, telescope: scope };
 }
 
 /**
@@ -197,13 +197,14 @@ function backdropSign(world, power, group, spec, sign, delay) {
 /**
  * 右后角观景台：第二层放一台对着月亮的望远镜，第一层几盆花
  * @param {World} world
+ * @returns {THREE.Group} 望远镜
  */
 function lookout(world) {
   const kit = world.kit;
 
   const [scopeX, scopeZ] = TELESCOPE;
   const towardMoon = Math.atan2(scopeX - MOON[0], scopeZ - MOON[2]);
-  placeOnGround(world, telescope(kit), scopeX, scopeZ, towardMoon);
+  const scope = placeOnGround(world, telescope(kit), scopeX, scopeZ, towardMoon);
   world.solidCircle(scopeX, scopeZ, 0.12);
   world.poi(scopeX + 0.45, scopeZ + 0.3, { emote: '🔭', face: Math.atan2(MOON[0] - scopeX, MOON[2] - scopeZ), dur: 7 });
 
@@ -216,4 +217,5 @@ function lookout(world) {
     placeOnGround(world, lightPost(kit, LOOKOUT_POST_HEIGHT), x, z);
     world.solidCircle(x, z, 0.06);
   }
+  return scope;
 }

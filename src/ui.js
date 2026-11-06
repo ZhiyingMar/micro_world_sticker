@@ -226,6 +226,14 @@ export const ui = {
     $('#hint').innerHTML = '⌨ WASD / 方向键走动 · 👆 点哪走哪<br>🖱 拖动旋转 · 滚轮缩放，拉远看全貌<br>✨ 靠近东西自动捡起 · E 聊天';
   },
 
+  /**
+   * 隔着望远镜看：四周一圈黑，只留中间一个圆
+   * @param {boolean} on 开还是关
+   */
+  scopeView(on) {
+    $('#scope-view').classList.toggle('on', on);
+  },
+
   prompt(html) {
     const el = $('#prompt');
     if (!html) {

@@ -85,6 +85,7 @@ export const BAR = { x: 3.25, z: BLOCK_CENTER_Z, size: [1.7, 3.4, BLOCK_DEPTH] }
 export const VENDING = [2.05, BLOCK_FRONT - 0.25]; // 售货机塞在便利店和 BAR 中间，正面和楼齐平
 export const STOOL = [3.85, BLOCK_FRONT + 0.3]; // 酒吧门口乐手的凳子，靠着墙角，不挡人行道
 export const MOON = [0.6, 4.3, BLOCK_FRONT - BLOCK_DEPTH + 0.05]; // 月亮挂在便利店后面的杆子上，杆子立在后人行道
+export const MOON_POLE = [MOON[0], MOON[2] - 0.4]; // 杆子在月亮后面一点，横杆伸过来吊着月亮
 
 // 大楼和便利店中间的小巷：便利店后厨扔垃圾的地方，穿过整个街区，中间一道铁丝网，看得见对面但过不去
 // 停电时整条巷子黑漆漆的，前后两头都进不去
@@ -189,7 +190,8 @@ export const BACK_LANE_PROPS = {
   cat: [0.2, -6.15], // 蹲在垃圾桶盖上
 };
 
-// 右后角观景台：第二层平台对着月亮放一台望远镜
+// 右后角观景台：第二层平台一台望远镜，正对着便利店后面的月亮杆子
+// 杆子太高够不着，小月亮要放到望远镜前面放大，才挂得回去
 export const TELESCOPE = [4.5, -6.6];
 // 观景台第二层后边两根挂彩灯的杆子 [x, z]，杆子多高；别挡住台阶上来的路
 export const LOOKOUT_POSTS = [

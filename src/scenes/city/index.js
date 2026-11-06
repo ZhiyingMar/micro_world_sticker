@@ -18,6 +18,7 @@
 //   traffic.js    车流
 //   people.js     居民和台词
 //   story.js      主线：修复点、售货机、叫醒司机、藏起来的东西
+//   telescope.js  挂月亮：观景台的望远镜对着杆子，小月亮放到镜头前面
 //   tower-game.js 大楼俄罗斯方块和围观的人
 import * as THREE from 'three';
 import { at } from '../../kit.js';
@@ -64,7 +65,7 @@ export default {
   // 破败世界：到的时候停电了，要先把上一个世界带来的东西放回原处
   brokenGoal: '停电了！四处找找，哪里少了从 <b>「像素小镇」</b> 带来的东西',
   repairs: [
-    { id: 'moon', from: 'pixel', hint: '便利店后面空着的杆子', msg: '月光照进了小巷' },
+    { id: 'moon', from: 'pixel', hint: '观景台的望远镜，正对着便利店后面的杆子', msg: '月光照进了小巷' },
     { id: 'taxi', from: 'pixel', hint: '马路边的出租车停靠位' },
     { id: 'sax', from: 'pixel', hint: '关着门的 BAR 门口', msg: '音乐响起来了' },
   ],
@@ -140,7 +141,7 @@ export default {
     bringToLife(w, { power, bulbs: street.bulbs, cat: edges.cat });
     createTouch(w, { puddles, bins: [...block.bins, ...edges.bins], cat: edges.cat });
     const traffic = createTraffic(w, power);
-    const story = createStory(w, { power, block, traffic });
+    const story = createStory(w, { power, block, traffic, telescope: edges.telescope });
     createTowerGame(w, { power, tower: block.tower, story });
     story.refreshLines();
   },

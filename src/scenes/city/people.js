@@ -54,8 +54,10 @@ export function createPeople(w, progress, traffic) {
       return;
     }
     const l = ['停电了……整座城一下子全黑了。'];
-    if (!has('moon')) l.push('便利店后面那根高高的杆子上，本来挂着月亮的。');
-    else if (!found('teapot')) l.push('月光照进小巷了！铁丝网那头飘出红茶的香味……从街区后面绕过去看看？');
+    if (!has('moon')) {
+      l.push('便利店后面那根高杆子，本来挂着月亮。可杆子太高，谁也够不着。');
+      l.push('观景台上那台望远镜正对着杆子。小月亮放到镜头前，就能变回原来那么大。过了后斑马线，顺着大台阶上去就是。');
+    } else if (!found('teapot')) l.push('月光照进小巷了！铁丝网那头飘出红茶的香味……从街区后面绕过去看看？');
     if (!has('taxi')) l.push('车都堵在斑马线上。司机们说，要等那辆黄色出租车回来带头。');
     else if (!progress.awake) l.push('出租车回来了，可司机老周还在便利店门口的长椅上睡大觉。他最爱喝罐装咖啡。');
     if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');

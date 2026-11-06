@@ -381,8 +381,8 @@ export class World {
   // ---------- 破败世界：修复点 ----------
   // spot 是放在缺东西的地方的虚影，要先走近（或把镜头拉近）才会发现
   // can() 返回 true 表示可以修；返回 { name, text } 表示还不行，由谁说什么
-  // 修好时调用 fn(instant)
-  repairSpot(id, spot, x, y, z, { reach = 1.5, pickR = 0.35, seeR = 2.2, can, fn } = {}) {
+  // 修好时调用 fn(instant)；label 是站在旁边时按 E 的提示，不写就是“放回某某”
+  repairSpot(id, spot, x, y, z, { reach = 1.5, pickR = 0.35, seeR = 2.2, can, fn, label } = {}) {
     const proxy = new THREE.Mesh(new THREE.SphereGeometry(pickR, 8, 6), proxyMat);
     proxy.castShadow = false;
     proxy.userData.pickable = true;
@@ -391,7 +391,7 @@ export class World {
     this.add(spot, x, y, z);
     const seen = this.flag(`seen:${id}`);
     spot.visible = seen;
-    this.repairs.set(id, { id, spot, x, z, reach, seeR, can, fn, seen, done: false, next: 1 + Math.random() });
+    this.repairs.set(id, { id, spot, x, z, reach, seeR, can, fn, label, seen, done: false, next: 1 + Math.random() });
   }
 
   // 发现了一个缺东西的地方：虚影显现出来
@@ -683,7 +683,8 @@ export class World {
 
   /**
    * 镜头暂时对准变了的地方（修好东西时），一处处看过去，看完回到原来的地方
-   * @param {{ at: THREE.Vector3, zoom?: number, hold: number }[]} shots 依次看哪儿（世界里的坐标）、拉多远（1 是平时跟人的远近）、看多久（秒）
+   * @param {{ at: THREE.Vector3, zoom?: number, hold: number, from?: THREE.Vector3, scope?: boolean }[]} shots 依次看哪儿（世界里的坐标）、拉多远（1 是平时跟人的远近）、看多久（秒）、
+   *   从哪个方向看（世界里的一个点，不写就保持现在的角度）、是不是隔着望远镜看（四周一圈黑）
    * @returns {number[]} 每一处镜头到位是在多少秒以后，场景按它排那里的变化；没有镜头时（测试场景）按一下就到算
    */
   showcase(shots) {
