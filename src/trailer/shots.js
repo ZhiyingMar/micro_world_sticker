@@ -24,13 +24,15 @@ const FRIDGE_STAND = 0.9;
 // 人走去捡蘑菇时停在离它多远（够近就会自动捡起来）
 const MUSHROOM_STAND = 0.55;
 // 斑马线镜头：人先站在主斑马线靠街区这头等着（算在斑马线上），再过马路上公园台阶
-// 车流一开起来，刚好开到斑马线前的出租车和对面车道的车就得停下来等人过去：
+// 车流一开起来，刚好开到斑马线右边的车就得停下来等人过去，出租车从右马路绕过来跟在后面：
 // 车只在刚开起来时经过这条斑马线，下一圈要二十多秒以后，所以人要在出租车回来之前就站好
 const CROSSING_X = CROSSWALKS.front.minX + 0.35;
 const CROSSING_FROM_Z = CROSSWALKS.front.minZ - 0.1;
 const CROSSING_TO_Z = 4.6;
-// 萨克斯镜头里人站在乐手凳子前面多远
-const SAX_STAND = 0.75;
+// 萨克斯镜头里人站在乐手凳子右前方，x、z 各离凳子多远（左后方是高台上的树）
+const SAX_STAND = [0.5, 0.45];
+// 萨克斯镜头开始时对准老乔身上多高
+const SAX_LOOK_HEIGHT = 0.9;
 
 const crossingCenterZ = (CROSSWALKS.front.minZ + CROSSWALKS.front.maxZ) / 2;
 
@@ -131,10 +133,8 @@ export const SHOTS = [
     name: '挂回月亮',
     duration: 6,
     caption: '把丢掉的东西，放回原来的地方',
-    cues: [
-      { at: 0.5, run: (stage) => stage.discover('moon') },
-      { at: 2.2, run: (stage) => stage.repair('moon') },
-    ],
+    // 小月亮放在观景台的望远镜前，不在这个镜头里；放上去一秒以后月亮在杆子上长出来
+    cues: [{ at: 1.2, run: (stage) => stage.repair('moon') }],
     camera: {
       from: { look: [MOON[0], MOON[1] - 1.2, MOON[2]], distance: 9.5, polar: 1.12, azimuth: CITY_AZIMUTH - 0.3 },
       to: { look: [MOON[0], MOON[1] - 1.6, MOON[2] + 0.5], distance: 12, polar: 1.05, azimuth: CITY_AZIMUTH - 0.1 },
@@ -152,8 +152,8 @@ export const SHOTS = [
       { at: 1.2, run: (stage) => stage.repair('taxi') },
     ],
     camera: {
-      from: { look: [TAXI_BAY[0] + 0.5, 0.3, TAXI_BAY[1]], distance: 7.5, polar: 1.02, azimuth: CITY_AZIMUTH - 0.2 },
-      to: { look: [TAXI_BAY[0] + 1.2, 0.3, TAXI_BAY[1] + 0.2], distance: 9, polar: 1.0, azimuth: CITY_AZIMUTH },
+      from: { look: [TAXI_BAY[0] - 0.5, 0.3, TAXI_BAY[1]], distance: 7.5, polar: 1.02, azimuth: CITY_AZIMUTH - 0.2 },
+      to: { look: [TAXI_BAY[0] - 1.0, 0.3, TAXI_BAY[1] + 1.2], distance: 9, polar: 1.0, azimuth: CITY_AZIMUTH },
     },
   },
   {
@@ -162,9 +162,9 @@ export const SHOTS = [
     caption: '过马路时，车会停下来让你',
     cues: [{ at: 1.2, run: (stage) => stage.walk(CROSSING_X, CROSSING_TO_Z) }],
     camera: {
-      // 斑马线和左边停下来等的出租车都要在画面里
-      from: { look: [CROSSING_X - 0.6, 0.3, crossingCenterZ], distance: 9.5, polar: 1.0, azimuth: CITY_AZIMUTH + 0.2 },
-      to: { look: [CROSSING_X - 0.3, 0.4, crossingCenterZ + 0.5], distance: 8.5, polar: 1.03, azimuth: CITY_AZIMUTH },
+      // 斑马线和右边停下来等的车都要在画面里
+      from: { look: [CROSSING_X + 1.0, 0.3, crossingCenterZ], distance: 9.5, polar: 1.0, azimuth: CITY_AZIMUTH + 0.2 },
+      to: { look: [CROSSING_X + 0.8, 0.4, crossingCenterZ + 0.5], distance: 8.5, polar: 1.03, azimuth: CITY_AZIMUTH },
     },
   },
   {
@@ -172,15 +172,16 @@ export const SHOTS = [
     duration: 8,
     caption: '音乐响起，城市一盏一盏亮起来',
     setup(stage) {
-      stage.place(STOOL[0] - SAX_STAND, STOOL[1] + SAX_STAND, Math.PI * 0.75);
+      stage.place(STOOL[0] + SAX_STAND[0], STOOL[1] + SAX_STAND[1], Math.atan2(-SAX_STAND[0], -SAX_STAND[1]));
     },
     cues: [
       { at: 0.3, run: (stage) => stage.discover('sax') },
       { at: 1.3, run: (stage) => stage.repair('sax') },
     ],
     camera: {
-      from: { look: [STOOL[0], 0.9, STOOL[1]], distance: 6, polar: 1.05, azimuth: CITY_AZIMUTH - 0.25 },
-      to: { look: [0.5, 1.4, -1.0], distance: 20, polar: 1.0, azimuth: CITY_AZIMUTH + 0.05 },
+      from: { look: (stage) => [STOOL[0], stage.world.heightAt(...STOOL) + SAX_LOOK_HEIGHT, STOOL[1]], distance: 6, polar: 1.05, azimuth: CITY_AZIMUTH - 0.25 },
+      // 老乔在前边的公园高台上：镜头往前挪一点，别让字幕盖住他
+      to: { look: [0.6, 1.0, 0.4], distance: 23, polar: 1.0, azimuth: CITY_AZIMUTH + 0.05 },
     },
   },
   {
