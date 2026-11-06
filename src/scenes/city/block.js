@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
 import { ramp } from './power.js';
-import { convenienceStore, vendingMachine, stool, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
+import { convenienceStore, vendingMachine, waterTank, verticalSign, doorPlate, chainFence, kitchenBin, trashBag, kitchenDoor } from './models.js';
 import { building, fireEscape } from './buildings.js';
 import { catFaceSign, cocktailSign, hangSign, neonTube, placeLightPool } from './neon.js';
-import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, STOOL, ALLEY, KITCHEN_BINS, KITCHEN_DOOR_Z, NOOK_BIN } from './layout.js';
+import { TOWER, STORE, BAR, BLOCK_FRONT, VENDING, ALLEY, KITCHEN_BINS, KITCHEN_DOOR_Z, NOOK_BIN } from './layout.js';
 
 const DARK_ALLEY_SAY = '🌑 小巷里黑漆漆的，什么也看不见……';
 const FENCE_SAY = '🕸️ 铁丝网挡着……对面看得见，可是过不去';
@@ -127,7 +127,7 @@ function tower(world, power) {
 }
 
 /**
- * BAR：楼顶水塔，门口霓虹招牌和 CLOSED 牌子，乐手的凳子
+ * BAR：楼顶水塔，门口霓虹招牌和 CLOSED 牌子
  * @param {World} world
  * @param {object} power
  * @returns {{ open() }} 萨克斯响起来时把牌子翻成 OPEN
@@ -178,8 +178,6 @@ function bar(world, power) {
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: closedTexture }));
   attach(result, BAR, plate, BAR.x, 0.62, BLOCK_FRONT + 0.02);
   world.fadeable(result.group);
-
-  world.add(stool(kit), STOOL[0], world.heightAt(...STOOL), STOOL[1]);
 
   return {
     open() {

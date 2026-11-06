@@ -67,7 +67,7 @@ export default {
   repairs: [
     { id: 'moon', from: 'pixel', hint: '观景台的望远镜，正对着便利店后面的杆子', msg: '月光照进了小巷' },
     { id: 'taxi', from: 'pixel', hint: '右边马路的出租车停靠位，老周在旁边的长椅上' },
-    { id: 'sax', from: 'pixel', hint: '关着门的 BAR 门口', msg: '音乐响起来了' },
+    { id: 'sax', from: 'pixel', hint: '公园右边高台上，发呆的老乔', msg: '音乐响起来了' },
   ],
   // 夜都的材料：街上捡的瓶子，以后回家合成用
   materials: [

@@ -87,7 +87,6 @@ export const TOWER = { x: -2.3, z: BLOCK_CENTER_Z, size: [1.6, 5.2, BLOCK_DEPTH]
 export const STORE = { x: 0.6, z: BLOCK_FRONT - 0.85, scale: 0.85 };
 export const BAR = { x: 3.25, z: BLOCK_CENTER_Z, size: [1.7, 3.4, BLOCK_DEPTH] };
 export const VENDING = [2.05, BLOCK_FRONT - 0.25]; // 售货机塞在便利店和 BAR 中间，正面和楼齐平
-export const STOOL = [3.85, BLOCK_FRONT + 0.3]; // 酒吧门口乐手的凳子，靠着墙角，不挡人行道
 export const MOON = [0.6, 4.3, BLOCK_FRONT - BLOCK_DEPTH + 0.05]; // 月亮挂在便利店后面的杆子上，杆子立在后人行道
 export const MOON_POLE = [MOON[0], MOON[2] - 0.4]; // 杆子在月亮后面一点，横杆伸过来吊着月亮
 
@@ -142,9 +141,14 @@ export const BUS_STOP = { x: -7.45, z: 1.8, facing: -Math.PI / 2 };
 // 长椅藏在土坡后面（靠马路那边），默认镜头被土坡和树挡住，转一下镜头才看得到
 export const PARK_BENCH = [-7.0, 4.45];
 export const TOPHAT = [-6.65, 4.45];
+// 右边高台是老乔的露天小舞台：BAR 停电关门，他一个人坐在这儿发呆，吹起来整条街都听得见
+// 凳子摆在高台中间，朝着镜头这边，看得见他的脸；高台上的树在它左后方，别挡在镜头和人中间
+export const STOOL = [4.35, 5.9];
+export const STOOL_FACING = 0.6;
+export const QIAO_MOPING = [STOOL[0] - 0.4, STOOL[1] + 0.15]; // 还没拿回萨克斯时站在凳子旁边
 export const PARK_TREES = [
   [-7.2, 5.9, 0.7], // 土坡上
-  [4.3, 6.3, 0.6], // 右边高台上
+  [3.45, 6.55, 0.6], // 右边高台上，老乔的小舞台左后方
   [-2.6, 6.4, 0.55],
   [1.6, 6.5, 0.5],
 ];

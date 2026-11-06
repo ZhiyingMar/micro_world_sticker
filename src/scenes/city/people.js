@@ -1,5 +1,5 @@
 // 夜都的居民和他们的台词。台词跟着城市修好的程度变
-import { DRIVER_SEAT, DRIVER_SEAT_FACING, DRIVER_STAND, STOOL, VILLAGERS } from './layout.js';
+import { DRIVER_SEAT, DRIVER_SEAT_FACING, DRIVER_STAND, QIAO_MOPING, STOOL, STOOL_FACING, VILLAGERS } from './layout.js';
 import pixel from '../pixel/index.js';
 
 const LOOKS = {
@@ -15,9 +15,9 @@ export function createPeople(w, progress, traffic) {
   const { has, found } = progress;
   const yemao = w.villager({ name: '夜猫', look: LOOKS.yemao }, ...VILLAGERS.yemao);
   const ani = w.villager({ name: '阿霓', look: LOOKS.ani }, ...VILLAGERS.ani);
-  // 老乔：丢了萨克斯，垂头丧气地站在酒吧门口
-  const qiao = w.villager({ name: '老乔', look: LOOKS.qiao }, STOOL[0] - 0.5, STOOL[1] + 0.25);
-  qiao.pin({ emote: '😢', face: 0.4 });
+  // 老乔：丢了萨克斯，BAR 也关门了，一个人垂头丧气地站在公园高台上
+  const qiao = w.villager({ name: '老乔', look: LOOKS.qiao }, ...QIAO_MOPING);
+  qiao.pin({ emote: '😢', face: STOOL_FACING });
 
   // 出租车司机老周：停电后在右边窄道的长椅上，守着空车位等着等着睡着了
   const [dx, dz] = DRIVER_SEAT;
@@ -70,7 +70,9 @@ export function createPeople(w, progress, traffic) {
     } else if (!progress.awake) {
       l.push('出租车回来了，可老周还在右边窄道的长椅上睡大觉。他最爱喝罐装咖啡。');
     }
-    if (!has('sax')) l.push('对面 BAR 的老乔把萨克斯弄丢了。他不吹，这条街的霓虹就不亮。');
+    if (!has('sax')) {
+      l.push('BAR 的老乔把萨克斯弄丢了，一个人坐在公园高台上发呆。他不吹，这条街的霓虹就不亮。');
+    }
     setLines(yemao, l);
     if (!traffic.running) setLines(ani, ['车都不动了，堵得死死的……我可不敢从车缝里挤过去。', '要是有辆出租车来带个头就好了。']);
     else setLines(ani, ['车终于动了！可公园里还是黑乎乎的。', '刚才出租车上下来一位绅士，往坡上公园的土坡后面去了，好像把帽子落在那儿的长椅上。']);
@@ -125,8 +127,8 @@ export function createPeople(w, progress, traffic) {
       const sax = pixel.items.find((i) => i.id === 'sax').make(w.kit);
       sax.position.set(0.12, 0.2, 0.16);
       qiao.body.add(sax);
-      qiao.root.position.set(STOOL[0], 0, STOOL[1]);
-      qiao.pin({ emote: '🎷', sit: true, seatY: 0.45, face: 0.3 });
+      qiao.root.position.set(STOOL[0], w.heightAt(...STOOL), STOOL[1]);
+      qiao.pin({ emote: '🎷', sit: true, seatY: 0.45, face: STOOL_FACING });
     },
   };
 }

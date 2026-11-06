@@ -1,13 +1,14 @@
 // 马路外面的边缘：坡上公园、社区花园、后巷和背景高楼、观景台
 // 都要过马路才去得了；藏在这里的东西由 story.js 和瓶子那边放
-import { bench, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat, lightPost } from './models.js';
+import { bench, telescope, planter, hedge, gardenBed, shed, dumpster, airConditioner, cat, lightPost, stool } from './models.js';
 import { at } from '../../kit.js';
 import { glow, neonText } from '../../fx.js';
 import { tree, bush } from '../../plants.js';
 import { backdropBuilding } from './buildings.js';
 import { hangSign, placeLightPool } from './neon.js';
+import { ramp } from './power.js';
 import { verticalSign } from './models.js';
-import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKDROP, BACKDROP_Z, BACKDROP_DEPTH, BACKDROP_SIGNS, BACK_LANE_PROPS, TELESCOPE, PLANTERS, LOOKOUT_POSTS, LOOKOUT_POST_HEIGHT, MOON } from './layout.js';
+import { PARK_BENCH, PARK_TREES, HEDGES, BUSHES, GARDEN_BEDS, GARDEN_SHED, BACKDROP, BACKDROP_Z, BACKDROP_DEPTH, BACKDROP_SIGNS, BACK_LANE_PROPS, TELESCOPE, PLANTERS, LOOKOUT_POSTS, LOOKOUT_POST_HEIGHT, MOON, STOOL } from './layout.js';
 
 // 垃圾桶盖子的高度（猫蹲在上面）
 const DUMPSTER_LID = 0.62;
@@ -29,6 +30,10 @@ const VERTICAL_SIGN_WIDTH = 0.42;
 const VERTICAL_SIGN_PER_CHAR = 0.3;
 const ROOF_BOARD = { size: [1.7, 0.5], legs: 0.35 };
 const LANE_POOL = { out: 0.45, size: 1.8, opacity: 0.42 };
+// 老乔的小舞台：音乐响起来时脚下一片暖光（颜色、多大、最亮时多亮），城市电力到多少才开始亮
+const STAGE_POOL = { color: '#ffcf7a', size: 2.2, opacity: 0.85, from: 0.05 };
+// 暖光从开始亮到全亮，城市电力要再走多少
+const STAGE_POOL_RAMP = 0.4;
 // 背景高楼的招牌比街区的晚一点亮，一栋接一栋
 const BACKDROP_SIGN_DELAY = [0.5, 0.58, 0.66];
 
@@ -40,6 +45,7 @@ const BACKDROP_SIGN_DELAY = [0.5, 0.58, 0.66];
  */
 export function buildEdges(world, power) {
   const crowns = park(world);
+  stage(world, power);
   garden(world);
   const lane = backLane(world, power);
   const scope = lookout(world);
@@ -97,6 +103,21 @@ function park(world) {
     world.hideout(`bush${index}`, shrub, x, z, { tags, name: '草丛', icon: '🌿', show: 'peek', offset: [tucked, tucked] });
   });
   return crowns;
+}
+
+/**
+ * 公园右边高台：老乔的露天小舞台，一张凳子；音乐响起来时脚下一片暖光
+ * @param {World} world
+ * @param {object} power 暖光跟着城市电力亮
+ */
+function stage(world, power) {
+  const [stoolX, stoolZ] = STOOL;
+  placeOnGround(world, stool(world.kit), stoolX, stoolZ);
+
+  const pool = placeLightPool(world, STAGE_POOL.color, STAGE_POOL.size, stoolX, stoolZ);
+  power.show(({ city }) => {
+    pool.material.opacity = STAGE_POOL.opacity * ramp(STAGE_POOL.from, STAGE_POOL.from + STAGE_POOL_RAMP, city);
+  });
 }
 
 /**
